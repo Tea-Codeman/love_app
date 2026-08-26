@@ -1,0 +1,9 @@
+{
+  "name": "auth",
+  "version": "1.0.0",
+  "description": "F1 微信登录与资料云函数（M0.2）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

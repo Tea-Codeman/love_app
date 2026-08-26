@@ -1,0 +1,23 @@
+{
+  "name": "恋爱成长",
+  "appid": "",
+  "description": "以关系成长为核心驱动的恋爱成长型社交小程序（v1 单身主链路）",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "wx900385d98d023d6f",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "postcss": true,
+      "minified": true
+    },
+    "usingComponents": true,
+    "lazyCodeLoading": "requiredComponents"
+  },
+  "uniStatistics": {
+    "enable": false
+  },
+  "vueVersion": "3"
+}

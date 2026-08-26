@@ -1,0 +1,16 @@
+{
+  "appid": "wx900385d98d023d6f",
+  "compileType": "miniprogram",
+  "libVersion": "trial",
+  "miniprogramRoot": "dist/dev/mp-weixin/",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "urlCheck": false,
+    "coverView": true,
+    "enhance": true
+  },
+  "condition": {}
+}

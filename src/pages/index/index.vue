@@ -8,6 +8,7 @@
       <text class="state-ok">已登录</text>
       <text class="openid">{{ openid }}</text>
       <text class="link" @click="goProfile">去完善资料 ›</text>
+      <text class="link" @click="goCommunity">去社区 ›</text>
     </view>
     <view class="state" v-else>
       <text class="state-no">未登录</text>
@@ -32,6 +33,9 @@ export default {
   methods: {
     goProfile() {
       uni.navigateTo({ url: '/pages/profile/profile' })
+    },
+    goCommunity() {
+      uni.navigateTo({ url: '/pages/community/community' })
     },
     goLogin() {
       uni.reLaunch({ url: '/pages/login/login' })

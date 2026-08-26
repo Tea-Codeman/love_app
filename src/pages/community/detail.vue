@@ -1,0 +1,134 @@
+<template>
+  <view class="detail" v-if="post">
+    <view class="head">
+      <image class="avatar" :src="post.avatarUrl || '/static/logo.png'" mode="aspectFill"></image>
+      <view class="meta">
+        <text class="nickname">{{ post.nickname || '匿名' }}</text>
+        <text class="topic" v-if="post.topicName">#{{ post.topicName }}</text>
+      </view>
+      <text class="report" @click="goReport">举报</text>
+      <text class="block" @click="onBlock">拉黑</text>
+    </view>
+    <text class="content">{{ post.content }}</text>
+    <view class="images" v-if="post.images && post.images.length">
+      <image class="img" v-for="(img, i) in post.images" :key="i" :src="img" mode="aspectFill" @click="preview(i)"></image>
+    </view>
+
+    <view class="action">
+      <text class="like" :class="{ liked }" @click="onLike">♥ {{ likeCount }}</text>
+      <text class="ccount">💬 {{ post.commentCount || 0 }}</text>
+    </view>
+
+    <view class="comments">
+      <text class="c-title">评论（{{ comments.length }}）</text>
+      <view class="c-item" v-for="c in comments" :key="c._id">
+        <text class="c-name">{{ c.nickname || '匿名' }}</text>
+        <text class="c-text">{{ c.content }}</text>
+      </view>
+      <view class="c-empty" v-if="comments.length === 0">还没有评论，来抢沙发</view>
+    </view>
+
+    <view class="comment-bar">
+      <input class="c-input" v-model="commentText" placeholder="说点什么…" confirm-type="send" @confirm="onComment" />
+      <button class="c-send" @click="onComment">发送</button>
+    </view>
+  </view>
+</template>
+
+<script>
+import { callFunction } from '../../utils/request'
+import { getOpenid } from '../../utils/storage'
+
+export default {
+  data() {
+    return {
+      postId: '',
+      post: null,
+      comments: [],
+      commentText: '',
+      liked: false,
+      likeCount: 0
+    }
+  },
+  onLoad(options) {
+    this.postId = options.postId || ''
+    this.loadDetail()
+  },
+  methods: {
+    // 单次云函数调用取「帖子 + 评论」，消除原 getPost/listComments 两次调用的冷启动叠加开销
+    async loadDetail() {
+      const t0 = Date.now()
+      const r = await callFunction('community', { action: 'getPostDetail', postId: this.postId })
+      console.log('[detail] getPostDetail 耗时', Date.now() - t0, 'ms')
+      if (!r.ok) {
+        // 透传云函数真实报错，便于定位（环境不符 / 索引异常 / 权限问题等）
+        uni.showToast({ title: (r.message || ('错误码 ' + r.code)), icon: 'none' })
+        console.log('[detail] 加载失败', r.code, r.message)
+        return
+      }
+      const { post, comments } = r.data || {}
+      this.post = post
+      const likes = (post && post.likes) || []
+      this.likeCount = likes.length
+      this.liked = likes.includes(getOpenid())
+      this.comments = comments || []
+    },
+    async onLike() {
+      const r = await callFunction('community', { action: 'likePost', postId: this.postId })
+      if (r.ok) {
+        this.liked = r.data.liked
+        this.likeCount = r.data.likeCount
+      }
+    },
+    async onComment() {
+      const text = this.commentText.trim()
+      if (!text) return
+      const r = await callFunction('community', { action: 'addComment', postId: this.postId, content: text })
+      if (!r.ok) { uni.showToast({ title: r.message || '评论失败', icon: 'none' }); return }
+      this.commentText = ''
+      this.comments.push(r.data.comment)
+      if (this.post) this.post.commentCount = (this.post.commentCount || 0) + 1
+      uni.showToast({ title: '评论成功', icon: 'success' })
+    },
+    preview(i) {
+      uni.previewImage({ current: i, urls: this.post.images })
+    },
+    goReport() {
+      uni.navigateTo({ url: '/pages/community/report?targetType=post&targetId=' + this.postId })
+    },
+    async onBlock() {
+      if (!this.post || !this.post.userId) return
+      const r = await callFunction('safety', { action: 'block', targetId: this.post.userId })
+      if (!r.ok) { uni.showToast({ title: r.message || '拉黑失败', icon: 'none' }); return }
+      uni.showToast({ title: '已拉黑', icon: 'success' })
+    }
+  }
+}
+</script>
+
+<style>
+.detail { padding: 32rpx; background: #FFF7F8; min-height: 100vh; padding-bottom: 140rpx; }
+.head { display: flex; align-items: center; }
+.avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #eee; }
+.meta { margin-left: 18rpx; display: flex; flex-direction: column; flex: 1; }
+.nickname { font-size: 28rpx; color: #333; font-weight: 600; }
+.topic { font-size: 22rpx; color: #FF6B81; margin-top: 4rpx; }
+.report { font-size: 24rpx; color: #999; margin-left: 20rpx; }
+.block { font-size: 24rpx; color: #999; margin-left: 20rpx; }
+.content { display: block; font-size: 32rpx; color: #333; line-height: 1.6; margin: 24rpx 0; word-break: break-all; }
+.images { display: flex; flex-wrap: wrap; }
+.img { width: 200rpx; height: 200rpx; border-radius: 12rpx; margin: 0 12rpx 12rpx 0; }
+.action { display: flex; align-items: center; padding: 24rpx 0; border-top: 1rpx solid #f0e3e6; border-bottom: 1rpx solid #f0e3e6; }
+.like { font-size: 30rpx; color: #999; }
+.like.liked { color: #FF6B81; }
+.ccount { font-size: 28rpx; color: #999; margin-left: 40rpx; }
+.comments { margin-top: 24rpx; }
+.c-title { font-size: 26rpx; color: #888; }
+.c-item { padding: 16rpx 0; border-bottom: 1rpx solid #f5eef0; }
+.c-name { font-size: 26rpx; color: #FF6B81; margin-right: 12rpx; }
+.c-text { font-size: 28rpx; color: #333; }
+.c-empty { text-align: center; font-size: 24rpx; color: #bbb; padding: 40rpx 0; }
+.comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; padding: 16rpx 24rpx; background: #fff; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.05); }
+.c-input { flex: 1; background: #f5eef0; border-radius: 32rpx; padding: 16rpx 28rpx; font-size: 28rpx; }
+.c-send { margin-left: 16rpx; background: #FF6B81; color: #fff; font-size: 28rpx; border-radius: 32rpx; padding: 0 32rpx; }
+</style>

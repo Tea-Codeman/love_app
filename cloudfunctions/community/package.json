@@ -1,0 +1,9 @@
+{
+  "name": "community",
+  "version": "1.0.0",
+  "description": "F2 社区话题广场与信息流云函数（M1.1）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

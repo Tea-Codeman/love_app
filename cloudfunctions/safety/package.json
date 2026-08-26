@@ -1,0 +1,9 @@
+{
+  "name": "safety",
+  "version": "1.0.0",
+  "description": "F8 内容安全 / 举报 / 拉黑云函数（M1.2 / M1.4）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

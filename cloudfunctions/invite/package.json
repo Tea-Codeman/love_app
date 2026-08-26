@@ -1,0 +1,9 @@
+{
+  "name": "invite",
+  "version": "1.0.0",
+  "description": "T2 邀请裂变云函数（M1.5）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

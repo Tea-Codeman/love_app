@@ -11,22 +11,36 @@ exports.main = async (event) => {
   const action = (event && event.action) || 'login'
 
   // 登录：按 openid 首次建档 / 再次读取
+  // 注意：云函数内 add 不会自动注入 _openid（仅客户端直写会），故显式存储 openid 并据此查询，
+  // 避免“每次登录新建重复用户”和“updateProfile 匹配 0 行导致不更新”两个 bug。
   if (action === 'login') {
-    const r = await users.where({ _openid: OPENID }).get()
+    const r = await users.where({ openid: OPENID }).get()
     let user = r.data && r.data[0]
     if (!user) {
-      const doc = await users.add({
-        data: {
-          nickname: '',
-          avatarUrl: '',
-          gender: 0,
-          age: 0,
-          city: '',
-          interestTags: [],
-          bio: '',
-          createdAt: db.serverDate()
-        }
-      })
+      const newUser = {
+        openid: OPENID,
+        nickname: '',
+        avatarUrl: '',
+        gender: 0,
+        age: 0,
+        city: '',
+        interestTags: [],
+        bio: '',
+        invitedBy: '',
+        createdAt: db.serverDate()
+      }
+      // 邀请归因（T2）：消耗邀请码，写入邀请人 openid
+      const code = event && event.inviteCode
+      if (code) {
+        try {
+          const inv = await db.collection('invites').where({ code }).get()
+          if (inv.data && inv.data[0] && !inv.data[0].invitedUserId) {
+            newUser.invitedBy = inv.data[0].inviterId
+            await db.collection('invites').doc(inv.data[0]._id).update({ data: { invitedUserId: OPENID } })
+          }
+        } catch (e) {}
+      }
+      const doc = await users.add({ data: newUser })
       user = (await users.doc(doc._id).get()).data
     }
     return { code: 0, data: { openid: OPENID, user } }
@@ -34,7 +48,7 @@ exports.main = async (event) => {
 
   // 读取资料
   if (action === 'getProfile') {
-    const r = await users.where({ _openid: OPENID }).get()
+    const r = await users.where({ openid: OPENID }).get()
     return { code: 0, data: { user: (r.data && r.data[0]) || null } }
   }
 
@@ -42,8 +56,8 @@ exports.main = async (event) => {
   if (action === 'updateProfile') {
     const patch = sanitizeProfile((event && event.profile) || {})
     if (!patch) return { code: 400, message: '资料非法' }
-    await users.where({ _openid: OPENID }).update({ data: patch })
-    const r = await users.where({ _openid: OPENID }).get()
+    await users.where({ openid: OPENID }).update({ data: patch })
+    const r = await users.where({ openid: OPENID }).get()
     return { code: 0, data: { user: (r.data && r.data[0]) || null } }
   }
 
@@ -60,7 +74,8 @@ function sanitizeProfile(p) {
   }
   if (typeof p.avatarUrl === 'string') out.avatarUrl = p.avatarUrl.slice(0, 500)
   if ([0, 1, 2].includes(p.gender)) out.gender = p.gender
-  if (Number.isInteger(p.age)) out.age = Math.min(60, Math.max(18, p.age))
+  // 0 视为“未填”，保留 0；仅在 1–17 / 61+ 越界时夹取到 [18,60]
+  if (Number.isInteger(p.age)) out.age = (p.age === 0 ? 0 : Math.min(60, Math.max(18, p.age)))
   if (typeof p.city === 'string') out.city = p.city.trim().slice(0, 30)
   if (Array.isArray(p.interestTags)) {
     out.interestTags = p.interestTags

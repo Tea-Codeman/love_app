@@ -28,7 +28,6 @@ export default {
       this.$emit('like', this.post)
     },
     handleCardClick() {
-      console.log('post-card click')
       this.$emit('select', this.post)
     },
     formatTime(ts) {

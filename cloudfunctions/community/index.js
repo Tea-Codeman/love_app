@@ -106,11 +106,7 @@ async function addComment({ postId, content }, OPENID) {
 // 帖子详情：单次云函数调用内并行取「帖子 + 评论」，避免详情页发两次请求（两次冷启动叠加）。
 // 性能优化（2026-08-27）：原 getPost + listComments 拆分为两个 action，导致跳转详情付两次调用/冷启动开销。
 async function getPostDetail({ postId }) {
-  console.log('========== getPostDetail 开始 ==========')
-  console.log('postId:', postId)
   if (!postId) return { code: 400, message: '缺少 postId' }
-  const timerKey = 'getPostDetail:' + postId
-  console.time(timerKey)
   let post = null
   let comments = []
   let postErr = null
@@ -128,7 +124,6 @@ async function getPostDetail({ postId }) {
   } catch (e) {
     postErr = e
   }
-  console.timeEnd(timerKey)
   if (!post) {
     const dbg = postErr ? (postErr.message || String(postErr)) : '帖子查询返回空'
     // 仅在“集合确实不存在”时给该提示；其余（含建索引后触发的真实错误）一律透传，避免误判

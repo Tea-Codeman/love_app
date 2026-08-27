@@ -51,26 +51,16 @@ export default {
     }
   },
   onLoad(options) {
-    console.log('========== DETAIL ONLOAD ==========')
-    console.log('[detail] options =', options)
-    console.log('[detail] timestamp =', Date.now())
-
     this.postId = options.postId || ''
-
-    console.log('[detail] postId =', this.postId)
-
     this.loadDetail()
   },
   methods: {
     // 单次云函数调用取「帖子 + 评论」，消除原 getPost/listComments 两次调用的冷启动叠加开销
     async loadDetail() {
-      const t0 = Date.now()
       const r = await callFunction('community', { action: 'getPostDetail', postId: this.postId })
-      console.log('[detail] getPostDetail 耗时', Date.now() - t0, 'ms')
       if (!r.ok) {
         // 透传云函数真实报错，便于定位（环境不符 / 索引异常 / 权限问题等）
         uni.showToast({ title: (r.message || ('错误码 ' + r.code)), icon: 'none' })
-        console.log('[detail] 加载失败', r.code, r.message)
         return
       }
       const { post, comments } = r.data || {}

@@ -101,14 +101,8 @@ export default {
       // 防双触发兜底（2026-08-28）：post-card 原以原生事件名 tap 发自定义事件 → 一次点击触发两次（第二次是事件对象，post 为 undefined）；
       // 已改名为 select + 组件声明 emits 根治；此校验确保无效/重复跳转不会发生。
       if (!post || !post._id) return
-      console.log('========== onPostTap ==========')
-      console.log('[post] =', post)
-      console.log('[post._id] =', post && post._id)
 
       const url = '/pages/community/detail?postId=' + post._id
-
-      console.log('[navigateTo] url =', url)
-
       uni.navigateTo({
         url
   })

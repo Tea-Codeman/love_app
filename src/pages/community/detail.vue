@@ -108,6 +108,17 @@ export default {
       const r = await callFunction('safety', { action: 'block', targetId: this.post.userId })
       if (!r.ok) { uni.showToast({ title: r.message || '拉黑失败', icon: 'none' }); return }
       uni.showToast({ title: '已拉黑', icon: 'success' })
+      // 拉黑后该作者帖子已从信息流过滤（M1.4），停留在被拉黑者的详情页成为死胡同，
+      // 故拉黑成功后自动跳回社区：通常由社区 navigateTo 进入（栈内多页）→ navigateBack；
+      // 若为分享深链直达（栈仅 1 页）→ redirectTo 社区兜底。
+      setTimeout(() => {
+        const pages = getCurrentPages()
+        if (pages.length > 1) {
+          uni.navigateBack()
+        } else {
+          uni.redirectTo({ url: '/pages/community/community' })
+        }
+      }, 800)
     }
   }
 }

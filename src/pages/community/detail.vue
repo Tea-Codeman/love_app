@@ -51,7 +51,14 @@ export default {
     }
   },
   onLoad(options) {
+    console.log('========== DETAIL ONLOAD ==========')
+    console.log('[detail] options =', options)
+    console.log('[detail] timestamp =', Date.now())
+
     this.postId = options.postId || ''
+
+    console.log('[detail] postId =', this.postId)
+
     this.loadDetail()
   },
   methods: {

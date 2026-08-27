@@ -1,5 +1,5 @@
 <template>
-  <view class="post-card" @click="$emit('tap', post)">
+  <view class="post-card" @tap="handleCardClick">
     <view class="head">
       <image class="avatar" :src="post.avatarUrl || '/static/logo.png'" mode="aspectFill"></image>
       <view class="meta">
@@ -19,12 +19,17 @@
 <script>
 export default {
   name: 'post-card',
+  emits: ['select', 'like'],
   props: {
     post: { type: Object, required: true }
   },
   methods: {
     onLike() {
       this.$emit('like', this.post)
+    },
+    handleCardClick() {
+      console.log('post-card click')
+      this.$emit('select', this.post)
     },
     formatTime(ts) {
       if (!ts) return ''

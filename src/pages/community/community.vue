@@ -2,7 +2,6 @@
   <view class="community">
     <view class="topbar">
       <text class="title">社区</text>
-      <text class="invite" @click="onInvite">邀请好友</text>
     </view>
     <scroll-view class="tabs" scroll-x enable-flex>
       <view class="tab" :class="{ active: activeTopic === '' }" @click="selectTopic('')">全部</view>
@@ -20,7 +19,7 @@
         v-for="p in posts"
         :key="p._id"
         :post="p"
-        @tap="onPostTap"
+        @select="onPostTap"
       ></post-card>
       <view class="empty" v-if="!loading && posts.length === 0">还没有帖子，去发第一条吧 ›</view>
       <view class="loading" v-if="loading">加载中…</view>
@@ -33,7 +32,6 @@
 
 <script>
 import { callFunction } from '../../utils/request'
-import { ensureMyInviteCode } from '../../utils/invite'
 import postCard from '../../components/post-card.vue'
 
 export default {
@@ -46,13 +44,15 @@ export default {
       page: 0,
       pageSize: 10,
       hasMore: true,
-      loading: false,
-      myCode: ''
+      loading: false
     }
   },
   onLoad() {
-    // 开启转发分享（用于邀请裂变）
-    uni.showShareMenu({ menus: ['shareAppMessage'] })
+    // 说明（2026-08-28 修复 showShareMenu:fail banned）：
+    // 微信基础库在页面定义 onShareAppMessage 时会【内部自动】调用 showShareMenu 以启用「…」转发菜单；
+    // 本项目是个人主体 / 社交类目小程序，微信平台禁止分享能力，该内部调用返回 fail banned 并在控制台报错。
+    // 由于个人账号下分享本就被封、onShareAppMessage 无实际作用，故暂不定义它以消除报错。
+    // ⚠️ 待转企业主体 + 社交类目资质就绪后，需重新加回 onShareAppMessage（及 community 页「邀请好友」入口）才能恢复 M1.5 裂变。
   },
   onShow() {
     this.loadTopics()
@@ -60,12 +60,6 @@ export default {
   },
   onReachBottom() {
     if (this.hasMore && !this.loading) this.loadPosts(false)
-  },
-  onShareAppMessage() {
-    return {
-      title: '一起玩，慢慢靠近 —— 恋爱成长',
-      path: '/pages/index/index?inviter=' + (this.myCode || '')
-    }
   },
   methods: {
     async loadTopics() {
@@ -104,20 +98,23 @@ export default {
       this.reloadPosts()
     },
     onPostTap(post) {
-      uni.navigateTo({ url: '/pages/community/detail?postId=' + post._id })
+      // 防双触发兜底（2026-08-28）：post-card 原以原生事件名 tap 发自定义事件 → 一次点击触发两次（第二次是事件对象，post 为 undefined）；
+      // 已改名为 select + 组件声明 emits 根治；此校验确保无效/重复跳转不会发生。
+      if (!post || !post._id) return
+      console.log('========== onPostTap ==========')
+      console.log('[post] =', post)
+      console.log('[post._id] =', post && post._id)
+
+      const url = '/pages/community/detail?postId=' + post._id
+
+      console.log('[navigateTo] url =', url)
+
+      uni.navigateTo({
+        url
+  })
     },
     goPost() {
       uni.navigateTo({ url: '/pages/community/post' })
-    },
-    async onInvite() {
-      const code = await ensureMyInviteCode()
-      this.myCode = code
-      if (!code) { uni.showToast({ title: '生成邀请码失败', icon: 'none' }); return }
-      uni.showModal({
-        title: '邀请好友',
-        content: '你的邀请码：' + code + '\n点击右上角「…」转发给好友，新用户注册后将归因到你。',
-        showCancel: false
-      })
     }
   }
 }

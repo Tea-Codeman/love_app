@@ -54,7 +54,8 @@ export default {
       candidates: [],
       invites: [],
       loading: false,
-      busy: false
+      busy: false,
+      pendingTimer: null
     }
   },
   onShow() {
@@ -64,6 +65,13 @@ export default {
       return
     }
     this.loadAll()
+    this.startPendingPolling()
+  },
+  onHide() {
+    this.stopPendingPolling()
+  },
+  onUnload() {
+    this.stopPendingPolling()
   },
   methods: {
     async loadAll() {
@@ -80,6 +88,21 @@ export default {
       const r = await callFunction('match', { action: 'myPending' })
       if (r.ok) this.invites = (r.data && r.data.invites) || []
       else if (r.code === 500) uni.showToast({ title: r.message, icon: 'none' })
+    },
+    // 驻留页面期间对"待接受邀请"轮询：有人现在邀你，无需退页重进即可看到/接受/拒绝。
+    // 走云函数轮询而非客户端 watch——games 由服务端创建，跨用户文档直读会被安全规则拦截。
+    startPendingPolling() {
+      this.stopPendingPolling()
+      this.pendingTimer = setInterval(() => {
+        if (!this.openid) return
+        this.loadPending()
+      }, 2500)
+    },
+    stopPendingPolling() {
+      if (this.pendingTimer) {
+        clearInterval(this.pendingTimer)
+        this.pendingTimer = null
+      }
     },
     // A 发起：创建匹配 + waiting 局，进入游戏房等待对方
     async onPlay(c) {

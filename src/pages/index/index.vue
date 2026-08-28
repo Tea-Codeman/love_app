@@ -9,6 +9,7 @@
       <text class="openid">{{ openid }}</text>
       <text class="link" @click="goProfile">去完善资料 ›</text>
       <text class="link" @click="goCommunity">去社区 ›</text>
+      <text class="link" @click="goMatch">去匹配破冰 ›</text>
     </view>
     <view class="state" v-else>
       <text class="state-no">未登录</text>
@@ -36,6 +37,9 @@ export default {
     },
     goCommunity() {
       uni.navigateTo({ url: '/pages/community/community' })
+    },
+    goMatch() {
+      uni.navigateTo({ url: '/pages/match/match' })
     },
     goLogin() {
       uni.reLaunch({ url: '/pages/login/login' })

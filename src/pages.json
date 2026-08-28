@@ -47,6 +47,18 @@
       "style": {
         "navigationBarTitleText": "举报"
       }
+    },
+    {
+      "path": "pages/match/match",
+      "style": {
+        "navigationBarTitleText": "匹配破冰"
+      }
+    },
+    {
+      "path": "pages/game/game",
+      "style": {
+        "navigationBarTitleText": "默契问答"
+      }
     }
   ],
   "globalStyle": {

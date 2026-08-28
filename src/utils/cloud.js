@@ -3,6 +3,8 @@
 // M0.1 收尾：已填入 CloudBase 环境 ID（2026-08-26 用户提供，微信开发者工具创建的 PG 内核环境）。
 const CLOUD_ENV = 'love-app-server-d2fhg32320d65c12'
 
+export { CLOUD_ENV }
+
 let inited = false
 
 /**

@@ -1,0 +1,9 @@
+{
+  "name": "match",
+  "version": "1.0.0",
+  "description": "F3 规则撮合云函数（M2.1）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

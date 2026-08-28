@@ -68,6 +68,7 @@
 2. 在 `cloudfunctions/` 下，对每个需部署的函数**右键 → 上传并部署：云端安装依赖**（务必选"云端安装依赖"，不要选"本地安装依赖"——后者要本地 `npm install`，本环境会被 safe-delete shim 卡死）。
 3. **新建云函数时，每个函数文件夹内必须有 `package.json`（含 `wx-server-sdk` 依赖）**，否则云端安装依赖失败。直接复制 `cloudfunctions/community/package.json` 改 `name` 即可。`cloudfunctionRoot` 已在 `project.config.json` 配好，工具认得到。
 4. 依赖关系：M1 中 `community` 发帖/评论时会 `callFunction('safety', ...)`，故 **`safety` 必须先于 `community` 部署**，且两者同环境。M2 的 `match`/`game` 之间、与 M1 各函数之间**均无互相调用**，但都需建好对应集合（见 D 节）并同环境部署。
+5. **改了云函数就必须重新部署**：`auth`（资料白名单）/ `match`（撮合打分）在 2026-08-29 的 MBTI 改动后**均需重新上传部署**，否则前端保存的 MBTI 会被服务端白名单静默丢弃、撮合也拿不到新字段。**「代码改了但没部署」是本项目最常见的假 bug**，改动云函数后请务必重传。
 
 **D. CloudBase 建集合（控制台，手动，已回退自动建集合）**
 - 云开发面板 → 数据库 → **当前环境 `love-app-server-d2fhg32320d65c12`** → 新建集合：`users`(M0) / `topics` / `posts` / `comments` / `blocks` / `reports` / `invites`(M1) / `matches` / `games` / `gameQuestions`(M2)。
@@ -118,7 +119,7 @@
 - 工作树（上下文/技能文件，刻意排除在应用提交外，沿用约定）：`HANDOFF.md`(M，即本文件)、`PRECONTEXT.md`(D)、`CONRRENTCONTEXT.md`(??)、`SKILL.md`(??，stray 技能定义文件，应留 `~/.workbuddy/skills/`，勿进仓库)。
 
 **数据模型（云数据库集合，Plan §4，PG 文档库下适用）**
-- `users`✅：`openid(PK)`, `nickname`, `avatarUrl`, `gender`, `age`, `city`, `interestTags[]`, `bio`, `createdAt`, `invitedBy`
+- `users`✅：`openid(PK)`, `nickname`, `avatarUrl`, `gender`, `age`, `city`, `interestTags[]`, `bio`, `mbti`(2026-08-29 新增，16 种四字母如 `INFP`，由资料页 12 题测评写入), `createdAt`, `invitedBy`
 - `topics`✅ / `posts`✅ / `comments`✅(M1 新增) / `blocks`✅：`community` 云函数使用
 - `reports`✅：`safety` 云函数使用
 - `invites`✅：`invite` 云函数使用
@@ -146,6 +147,7 @@
 - **【M3 数据架构决策·2026-08-28 晚】默契度系统以 `pairs` 集合为权威累计源，M2 的「聚合 done matches」仅作历史回填**：背景——M2 为立刻见效、零建集合，采用 `recommend` 每次扫描所有 `status=done` 的 `matches` 按用户对汇总 `lastTacit` 折算游戏分（读 O(N)、schema 混用、难扩维度）。用户确认后续要做「默契度系统 + 关系成长(M3)」，且需多次游戏累积。结论：M3 引入 `pairs`（每对一条）做**权威累计源**（游戏结束处原子自增 gamesPlayed/tacitTotal/lastGameAt/维度分/relationshipStage，recommend 改读 pairs = O(1)）；M2 已落地的 matches 聚合逻辑保留为**历史数据回填路径**（M3 首跑时把老 done 匹配灌进 pairs）。**不必现在推翻 M2 代码**，等真正做 M3 默契度时平移即可。此决策已与用户对齐（"行"）。
 
 - **【社区搁置决策·2026-08-29】社区功能暂时搁置，采用特性开关（feature flag）控制，代码与数据一律保留、不删除**：关联审计结论（本轮完成，全仓扫描）——**社区依赖（社区→外部）**：`community` 云函数读 `topics`/`posts`/`comments`/`blocks`/`users`，并服务端调用 `safety.checkText`（先审后发）；社区 4 页（`community`/`post`/`detail`/`report`）调 `community` 云函数 + `safety`(`report`/`block`)。**反向依赖（搁置会连累谁）**：① **`blocks` 拉黑 = 唯一真耦合**——写方只有 `safety.block`，调用方仅有社区 `detail.vue`（拉黑作者）与 `report.vue`（举报并拉黑）；读方含 `match.recommend`（`match/index.js:35` getBlockedOpenids），故隐藏社区后**全应用再无处可拉黑**（已有黑名单仍生效、但无法新增），且 `match.vue` 当前无拉黑按钮；② `topics`/`posts`/`comments`/`reports` **零外部依赖**，数据留着不丢，重开即可用；③ `safety` 仅服务社区 UGC（M2 默契问答是选项点击、无 UGC，故不用），搁置后事实闲置但保留无成本；④ `invite` 裂变独立于社区（入口早已移除），`App.vue` 的 inviter 扫码归因与社区无关。**搁置方式选型**：用户选定**加特性开关**（一个配置常量控制社区入口显隐，改布尔值一键恢复），优于"仅注释一行入口"（易被误当死代码）与"直接注释 `pages.json` 路由"（深链接/扫码即失效）。**本轮仅做审计，未改任何代码**。待办（实现开关时一并决定）：`blocks` 拉黑入口去向——建议在 `match.vue` 候选卡补「拉黑」按钮调用 `safety.block`，否则匹配功能存在"黑名单只减不增"的死角。
+- **【社区开关已实现·2026-08-29 深夜】** 上述决策当时**只记录了方案、未写代码**（用户本轮误以为已配置，经全仓检索确认 `src/` 下无任何 `FEATURE`/`flag`/`config` 常量，仅 HANDOFF 有该决策记录——**此类"决策已写但代码未做"的落差，接手时应先检索核实再动手**）。现已落地：新增 `src/utils/config.js`，导出 `FEATURES = { community: false }`；`src/pages/index/index.vue` 引入并将「去社区」入口改为 `v-if="features.community"`，**当前已隐藏**。**约定**：开关只管入口显隐，**不动 `pages.json` 路由、不删任何社区代码/集合**（已验证 `app.json` 仍含 `pages/community/community`，深链接/扫码仍可直达，便于内部测试与一键恢复）。**恢复方式**：把 `config.js` 里 `community` 改回 `true` 即可，无需改其他文件。验证：dev 与 build 产物均确认「去社区」为 `wx:if` 条件渲染、`config.js` 压缩后为 `community:!1`（即 false）、路由完整保留；`build:mp-weixin` 编译通过。**仍未处理**：`blocks` 拉黑入口缺口（隐藏社区后全应用无处拉黑，已有黑名单只减不增），建议后续在 `match.vue` 候选卡补「拉黑」按钮。
 
 ---
 
@@ -175,6 +177,11 @@
 15. **M2 破冰（2026-08-28 本轮）**：实现 `match` 云函数（recommend 兴趣/同城/年龄邻近打分 + accept 建 matches[active] 并自动建 waiting 局 + myPending B 侧待接受局 + decline 拒绝取消）；实现 `game` 云函数（joinGame 载入 5 题→playing、getGame 校验玩家、submitAnswer 双方都提交则判定默契并自动 advanceRound、cancelGame 取消+match 失效；gameQuestions 首次空集合自动播种 10 道双人选择题）；前端 `pages/match/match.vue`（候选卡+待接受局卡）、`pages/game/game.vue`（房间+回合渲染+结果）、`pages/game/quiz.vue`（题目卡，emits 规范）、`src/utils/realtime.js`（watch 优先、跨用户读受限降级轮询）；`index.vue`/`pages.json` 挂"去匹配破冰"入口。`build:mp-weixin` 编译通过。**未提交**（待 M2 Checkpoint 签字放行）。设计假设：A 发起即 active 并自动建 waiting 局，B 接受=joinGame；默契=双方选同一项；弱实时用 watch+轮询兜底（规避跨用户安全规则限制）。
 16. **【M2 缺陷修复·2026-08-28 晚】游戏正常结束后双方在大厅互相消失**：根因 `game.submitAnswer` 在 `state→done` 时只更新 `games`、从不翻 `matches`；而 `match.getMatchedOpenids` 仅过滤 `status:active`，导致 active 匹配永久留存 → 任何一方进大厅都看不到对方。修复：`submitAnswer` 正常结束（done）时把对应 `matches` 翻成 `done`（按 createdBy/invitedUserId 找 active 那条），并落盘 `finishedAt`/`lastTacit`(本局默契轮数)/`lastRounds`(总轮数) 作为后续"默契度系统"按用户对聚合的种子。产品意图（用户确认）：玩完要能再互相看到、再约，靠多次游戏累积默契度；`recommend` 只排 active，done 后自然重新可推。两个云函数 `node --check` 语法通过，尚未重新部署/真机验证。
 17. **【M2 功能补全·2026-08-28 晚】匹配页"契合度"原来只算资料分、不接游戏结果，玩完不变**：用户反馈游戏后契合度没在原有基础上增加。`recommend` 现按用户对汇总所有 `status=done` 的 `matches` 的 `lastTacit`（默契轮数），以 `TACIT_WEIGHT=4`/题折算成游戏分，叠加到资料 `score` 上（排序也在叠加后重排，保证显示与排名一致）。前端 `match.vue` 候选卡新增副行「已玩N局 · 默契M题」（橙色），`score` 即最终契合度。免建新集合，纯聚合现有 done 匹配。`match/index.js` `node --check` 通过 + `build:mp-weixin` 编译通过（dist/dev 已由 watcher 自动更新）。尚未重新部署云端 `match` 函数 + 真机验证。
+18. **【MBTI 资料项·2026-08-29】个人资料页新增 MBTI，通过 12 题测评获取，并参与撮合契合度打分**：用户三问选型确认 = 改 `profile` 个人资料页（**社区保持搁置不动**）/ MBTI 参与撮合打分 / 结果形态「四字母 + 角色卡」照搬原型站 `https://214e49b7ee1545cc8fa07b3d3da5c21a.app.workbuddy.link/`（「同频 · 恋爱小程序原型」，已抓取其 `data.js`/`app.js` 提取测评机制后复刻）。**新增**：`src/utils/mbti.js`（12 题覆盖 EI/SN/TF/JP 各 3 题、每题两选项直接映射字母；16 型角色卡 `type/name/animal/color/tags/line`；`calcMbti()` 平局取 E/S/T/J 与原型站一致；`getRole()` 未知类型安全回退）；`src/pages/profile/mbti.vue`（逐题作答 + 进度条 + 维度说明 + 「正在成型的你」实时预览 + 结果角色卡 + 保存/重测）；`profile.vue` 新增 MBTI 项（点击进入测评，已测显示「INFP · 诗眠」）；`pages.json` 注册 `pages/profile/mbti`。**易错点**：测评页 `navigateBack` 后 `onLoad` 不会重跑，故用 `onShow` **单独回填 mbti**（不整体回填，避免覆盖用户未保存的编辑）。
+  **服务端（关键，不改则字段被静默丢弃）**：`auth/index.js` 的 `sanitizeProfile` 是**严格字段白名单**，新增 `mbti` 校验（仅接受 16 种合法四字母、统一大写，空串/非法值丢弃，**不会误清空已存类型**）；`login` 建档补 `mbti: ''`。
+  **撮合打分**：`match/index.js` 新增 `scoreMbtiFit()`——每有 1 个维度字母相同 `MBTI_SAME_WEIGHT=2`（0–8），**EI 互补另 `+3`**（恋爱场景：SN/TF/JP 相同意味着沟通方式、价值观、生活节奏契合；EI 一外向一内向是经典互补）；任一方未测评返回 0，**不惩罚未填资料的用户**。纳入 `scoreCandidate`。**同时修复一处隐蔽隐患**：`recommend` 的 `.field()` 投影原先不含 `mbti`，不改的话对方 MBTI 根本查不出来、打分恒为 0。候选数据新增返回 `mbti`/`mbtiFit`，`match.vue` 候选卡新增紫色副行「MBTI INFP」（用于肉眼验证打分是否生效）。
+  **验证**：18 条计分/数据完整性用例 + 直接抽取云函数实际代码跑 7 条评分用例 + 16 类型白名单校验，全部 PASS；`auth`/`match` 两个云函数 `node --check` 通过；`build:mp-weixin` 编译通过。
+  **待部署**：`auth` 与 `match` 云函数**均需重新部署**（M2 的 `match`/`game` 此前也一直未部署）。MBTI 存不进去的首因就是忘了部署 `auth`。
 
 ---
 

@@ -68,6 +68,38 @@ async function getMatchedOpenids(OPENID) {
   } catch (e) { return new Set() }
 }
 
+// 批量聚合「我 vs 这些候选」的历史对局统计（局数 + 默契题数）。
+// 原先是每个候选各查一次 matches（N+1，候选上限 100 即最多 100 次查询），
+// 现改为按批一次查完再在内存分组：查询次数从 N 降到 ceil(N/20)。
+// 注意：_.in 数组不宜过大，故分批；单批失败只影响该批（按无历史对局处理）。
+const AGG_BATCH = 20
+
+async function aggregateDoneStats(OPENID, userIds) {
+  const stats = {}
+  if (!OPENID || !userIds.length) return stats
+  for (let i = 0; i < userIds.length; i += AGG_BATCH) {
+    const ids = userIds.slice(i, i + AGG_BATCH)
+    try {
+      const r = await db.collection(MATCHES_COL)
+        .where(_.or([
+          { userA: OPENID, userB: _.in(ids), status: 'done' },
+          { userA: _.in(ids), userB: OPENID, status: 'done' }
+        ]))
+        .field({ userA: true, userB: true, lastTacit: true })
+        .get()
+      ;(r.data || []).forEach(m => {
+        const other = m.userA === OPENID ? m.userB : m.userA
+        if (!stats[other]) stats[other] = { count: 0, tacit: 0 }
+        stats[other].count++
+        stats[other].tacit += m.lastTacit || 0
+      })
+    } catch (e) {
+      // 该批查询失败时保持为无历史对局，不阻断整体推荐
+    }
+  }
+  return stats
+}
+
 async function recommend({ limit = 10 } = {}, OPENID) {
   if (!OPENID) return { code: 401, message: '未登录' }
   const meRes = await db.collection(USERS_COL).where({ openid: OPENID }).get()
@@ -114,24 +146,17 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   // 叠加游戏默契度：按用户对汇总所有 status=done 的 matches 的默契轮数，作为契合度的累加项。
   // 这样玩过的人会在"资料分"原有基础上随游戏次数/默契题数持续增长（契合"多次游戏增默契度"的设定）。
   // 仅读 done 匹配；active 匹配已被上方 matched 排除（进行中的对局不计入）。
-  list = await Promise.all(list.map(async (c) => {
-    try {
-      const r = await db.collection(MATCHES_COL)
-        .where(_.or([
-          { userA: OPENID, userB: c.userId, status: 'done' },
-          { userA: c.userId, userB: OPENID, status: 'done' }
-        ]))
-        .field({ lastTacit: true })
-        .get()
-      const done = r.data || []
-      const gameCount = done.length
-      const gameTacit = done.reduce((s, m) => s + (m.lastTacit || 0), 0)
-      const gameBonus = gameTacit * TACIT_WEIGHT
-      return { ...c, gameCount, gameTacit, score: c.score + gameBonus }
-    } catch (e) {
-      return { ...c, gameCount: 0, gameTacit: 0 }
+  // 一次批量聚合取代逐候选查询，再叠加到契合度上
+  const doneStats = await aggregateDoneStats(OPENID, list.map(c => c.userId))
+  list = list.map(c => {
+    const s = doneStats[c.userId] || { count: 0, tacit: 0 }
+    return {
+      ...c,
+      gameCount: s.count,
+      gameTacit: s.tacit,
+      score: c.score + s.tacit * TACIT_WEIGHT
     }
-  }))
+  })
 
   // 叠加游戏契合度后，按最终契合度（资料分 + 游戏分）重新排序并截断
   list = list.sort((a, b) => b.score - a.score).slice(0, Math.max(1, limit))

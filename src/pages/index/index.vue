@@ -8,7 +8,7 @@
       <text class="state-ok">已登录</text>
       <text class="openid">{{ openid }}</text>
       <text class="link" @click="goProfile">去完善资料 ›</text>
-      <text class="link" @click="goCommunity">去社区 ›</text>
+      <text class="link" v-if="features.community" @click="goCommunity">去社区 ›</text>
       <text class="link" @click="goMatch">去匹配破冰 ›</text>
     </view>
     <view class="state" v-else>
@@ -20,12 +20,14 @@
 
 <script>
 import { getOpenid } from '../../utils/storage'
+import { FEATURES } from '../../utils/config'
 
 export default {
   data() {
     return {
       title: '恋爱成长',
-      openid: ''
+      openid: '',
+      features: FEATURES
     }
   },
   onShow() {

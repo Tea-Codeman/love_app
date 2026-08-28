@@ -145,6 +145,8 @@
 - **分享能力在个人账号下封禁（本轮新增决策）**：因微信对个人/社交类目小程序禁止分享能力（`onShareAppMessage` 会触发基础库内部 `showShareMenu` 被 `banned`），`community.vue` 已**移除 `onShareAppMessage` 与「邀请好友」入口**（避免控制台报错与死按钮）。底层归因逻辑保留。待转企业主体 + 社交类目资质后，重加这两项即可恢复 M1 第 7 步裂变。
 - **【M3 数据架构决策·2026-08-28 晚】默契度系统以 `pairs` 集合为权威累计源，M2 的「聚合 done matches」仅作历史回填**：背景——M2 为立刻见效、零建集合，采用 `recommend` 每次扫描所有 `status=done` 的 `matches` 按用户对汇总 `lastTacit` 折算游戏分（读 O(N)、schema 混用、难扩维度）。用户确认后续要做「默契度系统 + 关系成长(M3)」，且需多次游戏累积。结论：M3 引入 `pairs`（每对一条）做**权威累计源**（游戏结束处原子自增 gamesPlayed/tacitTotal/lastGameAt/维度分/relationshipStage，recommend 改读 pairs = O(1)）；M2 已落地的 matches 聚合逻辑保留为**历史数据回填路径**（M3 首跑时把老 done 匹配灌进 pairs）。**不必现在推翻 M2 代码**，等真正做 M3 默契度时平移即可。此决策已与用户对齐（"行"）。
 
+- **【社区搁置决策·2026-08-29】社区功能暂时搁置，采用特性开关（feature flag）控制，代码与数据一律保留、不删除**：关联审计结论（本轮完成，全仓扫描）——**社区依赖（社区→外部）**：`community` 云函数读 `topics`/`posts`/`comments`/`blocks`/`users`，并服务端调用 `safety.checkText`（先审后发）；社区 4 页（`community`/`post`/`detail`/`report`）调 `community` 云函数 + `safety`(`report`/`block`)。**反向依赖（搁置会连累谁）**：① **`blocks` 拉黑 = 唯一真耦合**——写方只有 `safety.block`，调用方仅有社区 `detail.vue`（拉黑作者）与 `report.vue`（举报并拉黑）；读方含 `match.recommend`（`match/index.js:35` getBlockedOpenids），故隐藏社区后**全应用再无处可拉黑**（已有黑名单仍生效、但无法新增），且 `match.vue` 当前无拉黑按钮；② `topics`/`posts`/`comments`/`reports` **零外部依赖**，数据留着不丢，重开即可用；③ `safety` 仅服务社区 UGC（M2 默契问答是选项点击、无 UGC，故不用），搁置后事实闲置但保留无成本；④ `invite` 裂变独立于社区（入口早已移除），`App.vue` 的 inviter 扫码归因与社区无关。**搁置方式选型**：用户选定**加特性开关**（一个配置常量控制社区入口显隐，改布尔值一键恢复），优于"仅注释一行入口"（易被误当死代码）与"直接注释 `pages.json` 路由"（深链接/扫码即失效）。**本轮仅做审计，未改任何代码**。待办（实现开关时一并决定）：`blocks` 拉黑入口去向——建议在 `match.vue` 候选卡补「拉黑」按钮调用 `safety.block`，否则匹配功能存在"黑名单只减不增"的死角。
+
 ---
 
 # 已完成工作

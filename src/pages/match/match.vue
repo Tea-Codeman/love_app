@@ -36,9 +36,12 @@
           <text class="score" v-if="c.score > 0">契合度 {{ c.score }}</text>
           <text class="tacit" v-if="c.gameCount > 0">已玩{{ c.gameCount }}局 · 默契{{ c.gameTacit }}题</text>
         </view>
-        <text class="btn play" @click="onPlay(c)">一起玩</text>
+        <view class="cand-actions">
+          <text class="btn play" @click="onPlay(c)">一起玩</text>
+          <text class="btn block" @click="onBlock(c)">拉黑</text>
+        </view>
       </view>
-      <view class="empty" v-if="!loading && candidates.length === 0">附近还没有更多单身小伙伴，去社区多聊聊吧 ›</view>
+      <view class="empty" v-if="!loading && candidates.length === 0">附近还没有更多小伙伴，晚点再来看看 ›</view>
       <view class="loading" v-if="loading">匹配中…</view>
     </view>
   </view>
@@ -121,6 +124,32 @@ export default {
     onAcceptInvite(inv) {
       uni.navigateTo({ url: '/pages/game/game?gameId=' + inv.gameId })
     },
+    // 拉黑：写入 blocks，服务端过滤是权威（前端传参可被绕过，故只在服务端读）
+    // 拉黑后立刻从本地候选移除，下次 recommend 也不会再返回对方
+    async onBlock(c) {
+      if (this.busy) return
+      const name = c.nickname || '该用户'
+      const confirmed = await new Promise(resolve => {
+        uni.showModal({
+          title: '拉黑 ' + name + '？',
+          content: '拉黑后你们不会再出现在彼此的推荐里，可在「设置 → 黑名单」中解除。',
+          confirmText: '拉黑',
+          confirmColor: '#FF6B81',
+          success: r => resolve(!!r.confirm),
+          fail: () => resolve(false)
+        })
+      })
+      if (!confirmed) return
+      this.busy = true
+      const r = await callFunction('safety', { action: 'block', targetId: c.userId })
+      this.busy = false
+      if (!r.ok) {
+        uni.showToast({ title: r.message || '拉黑失败', icon: 'none' })
+        return
+      }
+      uni.showToast({ title: '已拉黑', icon: 'none' })
+      this.candidates = this.candidates.filter(x => x.userId !== c.userId)
+    },
     async onDecline(inv) {
       const r = await callFunction('match', { action: 'decline', gameId: inv.gameId })
       if (r.ok) {
@@ -168,9 +197,10 @@ export default {
   border-radius: 30rpx;
   flex-shrink: 0;
 }
-.btn.play { margin-left: 16rpx; }
-.invite-actions { display: flex; flex-direction: column; }
+.btn.play { margin-bottom: 12rpx; }
+.invite-actions, .cand-actions { display: flex; flex-direction: column; flex-shrink: 0; margin-left: 16rpx; }
 .btn.accept { margin-bottom: 12rpx; }
 .btn.decline { background: #ddd; color: #666; }
+.btn.block { background: #f2f2f2; color: #999; font-size: 24rpx; padding: 10rpx 22rpx; }
 .empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
 </style>

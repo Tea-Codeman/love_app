@@ -14,6 +14,23 @@ const USERS_COL = 'users'
 const BLOCKS_COL = 'blocks'
 // 每题"默契"（双方选同一项）折算到契合度的权重：游戏结果在资料分之上累加
 const TACIT_WEIGHT = 4
+// MBTI 维度契合权重：每有一个维度字母相同 +2（0–8）；EI 互补（一外向一内向）另 +3。
+// 恋爱场景中 SN/TF/JP 相同意味着沟通方式、价值观与生活节奏契合；EI 互补是经典互补，故单独加权。
+// 权重集中在此，后续随真实数据调整即可。前端不重复实现该评分（打分属服务端权威逻辑）。
+const MBTI_SAME_WEIGHT = 2
+const MBTI_EI_COMPLEMENT_WEIGHT = 3
+
+// MBTI 契合加分；任一方未测评时返回 0（不惩罚未填资料的用户）
+function scoreMbtiFit(myType, otherType) {
+  if (typeof myType !== 'string' || typeof otherType !== 'string') return 0
+  if (myType.length !== 4 || otherType.length !== 4) return 0
+  let score = 0
+  for (let i = 0; i < 4; i++) {
+    if (myType[i] === otherType[i]) score += MBTI_SAME_WEIGHT
+  }
+  if (myType[0] !== otherType[0]) score += MBTI_EI_COMPLEMENT_WEIGHT
+  return score
+}
 
 // 规则匹配打分（T4：冷启期无行为数据，先用兴趣/资料属性规则）
 function scoreCandidate(me, other) {
@@ -26,7 +43,9 @@ function scoreCandidate(me, other) {
   const a = Number(me.age)
   const b = Number(other.age)
   if (a && b) score += Math.max(0, 10 - Math.abs(a - b))   // 同龄附近加分，差>10岁不加分
-  return { score, sharedTags: shared }
+  const mbtiFit = scoreMbtiFit(me.mbti, other.mbti)        // MBTI 维度契合（未测评为 0）
+  score += mbtiFit
+  return { score, sharedTags: shared, mbtiFit }
 }
 
 async function getBlockedIds(OPENID) {
@@ -61,7 +80,7 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   try {
     const r = await db.collection(USERS_COL)
       .where({ openid: _.neq(OPENID) })
-      .field({ openid: true, nickname: true, avatarUrl: true, gender: true, age: true, city: true, interestTags: true })
+      .field({ openid: true, nickname: true, avatarUrl: true, gender: true, age: true, city: true, interestTags: true, mbti: true })
       .limit(100)
       .get()
     candidates = r.data || []
@@ -85,7 +104,9 @@ async function recommend({ limit = 10 } = {}, OPENID) {
         age: u.age || '',
         city: u.city || '',
         interestTags: u.interestTags || [],
+        mbti: u.mbti || '',
         sharedTags: s.sharedTags,
+        mbtiFit: s.mbtiFit,
         score: s.score
       }
     })

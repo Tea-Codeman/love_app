@@ -29,6 +29,7 @@
         <view class="cand-meta">
           <text class="nickname">{{ c.nickname }}</text>
           <text class="info" v-if="c.age || c.city">{{ [c.age ? c.age + '岁' : '', c.city].filter(Boolean).join(' · ') }}</text>
+          <text class="mbti" v-if="c.mbti">MBTI {{ c.mbti }}</text>
           <view class="tags" v-if="c.sharedTags.length">
             <text class="tag" v-for="t in c.sharedTags" :key="t">#{{ t }}</text>
           </view>
@@ -158,6 +159,7 @@ export default {
 .tag { font-size: 22rpx; color: #FF6B81; background: #fdeef0; padding: 4rpx 14rpx; border-radius: 20rpx; margin-right: 10rpx; }
 .score { font-size: 22rpx; color: #2ecc71; margin-top: 6rpx; }
 .tacit { font-size: 20rpx; color: #FF9F43; margin-top: 4rpx; }
+.mbti { font-size: 20rpx; color: #8e7cc3; margin-top: 4rpx; }
 .btn {
   font-size: 26rpx;
   color: #fff;

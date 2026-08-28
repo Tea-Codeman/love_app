@@ -19,6 +19,12 @@
       }
     },
     {
+      "path": "pages/profile/mbti",
+      "style": {
+        "navigationBarTitleText": "MBTI 测评"
+      }
+    },
+    {
       "path": "pages/privacy/privacy",
       "style": {
         "navigationBarTitleText": "隐私政策"

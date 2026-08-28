@@ -26,6 +26,12 @@
       <text class="label">兴趣标签</text>
       <input class="input" v-model="tagsText" placeholder="逗号分隔，如 电影,旅行,音乐" />
     </view>
+    <view class="field" @click="goMbti">
+      <text class="label">MBTI</text>
+      <text class="mbti-val" v-if="form.mbti">{{ form.mbti }} · {{ mbtiRole.name }}</text>
+      <text class="mbti-empty" v-else>未测评</text>
+      <text class="arrow">›</text>
+    </view>
     <view class="field">
       <text class="label">签名</text>
       <textarea class="textarea" v-model="form.bio" maxlength="100" placeholder="一句话介绍自己"></textarea>
@@ -39,11 +45,12 @@
 import { callFunction } from '../../utils/request'
 import { getUser, setUser } from '../../utils/storage'
 import { validateProfile } from '../../utils/validate'
+import { getRole } from '../../utils/mbti'
 
 export default {
   data() {
     return {
-      form: { nickname: '', avatarUrl: '', gender: 0, age: 0, city: '', interestTags: [], bio: '' },
+      form: { nickname: '', avatarUrl: '', gender: 0, age: 0, city: '', interestTags: [], bio: '', mbti: '' },
       genders: ['保密', '男', '女'],
       tagsText: '',
       avatarPreview: '',
@@ -60,11 +67,23 @@ export default {
       age: u.age || 0,
       city: u.city || '',
       interestTags: u.interestTags || [],
-      bio: u.bio || ''
+      bio: u.bio || '',
+      mbti: u.mbti || ''
     }
     this.tagsText = (u.interestTags || []).join(',')
   },
+  // 从 MBTI 测评页保存返回后 onLoad 不会重跑，此处单独回填新类型（避免覆盖未保存的编辑）
+  onShow() {
+    const u = getUser() || {}
+    if (u.mbti) this.form.mbti = u.mbti
+  },
+  computed: {
+    mbtiRole() { return getRole(this.form.mbti) }
+  },
   methods: {
+    goMbti() {
+      uni.navigateTo({ url: '/pages/profile/mbti' })
+    },
     onGender(e) { this.form.gender = Number(e.detail.value) },
     onChooseAvatar() {
       const that = this
@@ -109,6 +128,9 @@ export default {
 .picker { flex: 1; font-size: 28rpx; color: #333; }
 .avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: #eee; }
 .textarea { flex: 1; height: 120rpx; font-size: 28rpx; }
+.mbti-val { flex: 1; font-size: 28rpx; color: #FF6B81; }
+.mbti-empty { flex: 1; font-size: 28rpx; color: #bbb; }
+.arrow { font-size: 32rpx; color: #ccc; }
 .save-btn { margin-top: 48rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff; border-radius: 44rpx; font-size: 32rpx; }
 .tip { display: block; text-align: center; margin-top: 20rpx; font-size: 24rpx; color: #e74c3c; }
 </style>

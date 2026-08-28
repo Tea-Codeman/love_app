@@ -26,6 +26,7 @@ exports.main = async (event) => {
         city: '',
         interestTags: [],
         bio: '',
+        mbti: '',
         invitedBy: '',
         createdAt: db.serverDate()
       }
@@ -64,6 +65,13 @@ exports.main = async (event) => {
   return { code: 404, message: 'unknown action: ' + action }
 }
 
+// MBTI 合法类型（16 种四字母组合）。服务端强校验，防止前端写入任意字符串。
+// 与前端 src/utils/mbti.js 的 MBTI_ROLES 类型集合一致（前端那份用于角色卡展示）。
+const MBTI_TYPES = [
+  'INTJ', 'INTP', 'ENTJ', 'ENTP', 'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 'ISTP', 'ISFP', 'ESTP', 'ESFP'
+]
+
 // 服务端白名单校验：仅允许约定字段 + 范围/长度约束（最小必要 + 防注入）
 function sanitizeProfile(p) {
   if (!p || typeof p !== 'object') return null
@@ -84,5 +92,10 @@ function sanitizeProfile(p) {
       .slice(0, 10)
   }
   if (typeof p.bio === 'string') out.bio = p.bio.trim().slice(0, 100)
+  // MBTI：仅接受 16 种合法类型（统一大写），空串或非法值直接丢弃，不会误清空已存类型
+  if (typeof p.mbti === 'string') {
+    const t = p.mbti.trim().toUpperCase()
+    if (MBTI_TYPES.includes(t)) out.mbti = t
+  }
   return out
 }

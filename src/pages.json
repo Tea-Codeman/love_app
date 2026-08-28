@@ -25,6 +25,12 @@
       }
     },
     {
+      "path": "pages/settings/settings",
+      "style": {
+        "navigationBarTitleText": "设置"
+      }
+    },
+    {
       "path": "pages/privacy/privacy",
       "style": {
         "navigationBarTitleText": "隐私政策"

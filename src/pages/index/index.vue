@@ -10,6 +10,7 @@
       <text class="link" @click="goProfile">去完善资料 ›</text>
       <text class="link" v-if="features.community" @click="goCommunity">去社区 ›</text>
       <text class="link" @click="goMatch">去匹配破冰 ›</text>
+      <text class="link" @click="goSettings">设置 ›</text>
     </view>
     <view class="state" v-else>
       <text class="state-no">未登录</text>
@@ -42,6 +43,9 @@ export default {
     },
     goMatch() {
       uni.navigateTo({ url: '/pages/match/match' })
+    },
+    goSettings() {
+      uni.navigateTo({ url: '/pages/settings/settings' })
     },
     goLogin() {
       uni.reLaunch({ url: '/pages/login/login' })

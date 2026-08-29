@@ -177,6 +177,7 @@
 15. **撮合 N+1 优化（2026-08-29）**：`recommend` 原对每个候选各查一次 `matches`（最多 100 次），改为 `aggregateDoneStats` 按批（`AGG_BATCH=20`）一次查完再内存分组，查询次数从 N 降到 `ceil(N/20)`；输出结构不变。
 16. **Git 提交**：本轮共 12 个提交（自 `338cb5c` 起），按「功能 / 开关 / 文档 / 性能」原子拆分。工作树干净。
 17. **M3 真机佐证 + BUG-1/BUG-2 修复（2026-08-30）**：云端查库佐证 M3 的 8 项验证步骤（结论见 `tasks/verification-log.md`），查出 `chat`→`growth` 跨函数调用丢失 OPENID，导致 8 次有效互聊的成长值全写进 `"<openid>|undefined"` 幽灵 pair、真实关系 0 增长且主流程不报错。按用户拍板的方案①抽出 `cloudfunctions/growth/growth-core.js` 共享内核，`chat`/`game` 改为本进程内直接写 pairs，内核对 `openid` 缺失直接 401 作护栏；顺带修 `pairs.stage` 缓存漂移（stage 一律读时派生）并统一 streak 口径。新增 `npm run sync:core` 防止三份副本漂移。已部署 growth/game/chat/match 四函数并冒烟验证，提交 `9bf1eb8`。
+18. **BUG-1 修复真机复验 ✅ PASS（2026-08-30 02:32–02:36）**：账号 `6LrPFY`↔`sJ8Fv8`（此前打了 5 局却无 pairs 的那一对）。新建真实 pair `_id=10b550da6a93260900e36be766f2f7ee`，`pairKey` 无 `undefined`；`growthValue=25` = 游戏 8+streak3 / 游戏 8 / 互聊 2×3，逐笔与北京时间时间戳完全咬合；`lastInteractionAt` 比最后一条消息晚 **79ms**（证明写库由 `chat` 本进程触发）；`weekStreakAdded=3` 只给一次；**未新增任何幽灵 pair**。M3 判定「✅ 正式通过」，M4.1 前置条件已满足。逐笔推导表见 `tasks/verification-log.md` 末尾「BUG-1 / BUG-2 修复复验」章。
 
 ---
 
@@ -222,16 +223,17 @@
 
 **【2026-08-29 17:30 由新 Agent 重写，旧版内容已作废】**
 
-- **进度位置**：M0 已验收、M1 Checkpoint 通过（step 1–6）、**M2 已收尾并通过 Checkpoint（2026-08-30）**。**M3（升温·导流）代码全部完成并部署；真机已跑（2026-08-30 01:21–01:30），云端佐证已完成 —— 发现 1 个严重 BUG，M3 判定「有条件通过，需修 BUG-1 后复验」**（详见 `tasks/verification-log.md` 的 M3 章节「云端佐证」）。
-  - M3.0 ✅ 四个集合已建 ｜ M3.1 ✅ 成长累加 + pairs 权威源 ｜ M3.2 ✅ 阶段跃迁 + `growth-bar` ｜ M3.3 ⚠️ 轻聊（门禁/审核/幂等逻辑全对，**成长值写错对象**）｜ M3.4 ✅ wechatId + S4 联系方式页 ｜ M3.5 ⚠️ F7 关系主页（会被幽灵关系污染）｜ M3.6 ✅ streak（并入 M3.1）
-  - **佐证结论速览**：8 项中 3 项明确 PASS（轻聊门禁 / 互聊幂等 / 微信号落库）、1 项间接 PASS（先审后发）、4 项存疑或 FAIL。
-  - 🔴→⏳ **BUG-1（严重 · 已修，待真机复验）**：`chat` 用 `cloud.callFunction` 调 `growth` → **被调用方 `getWXContext().OPENID` 为 `undefined`**（云函数间调用不带端用户身份）→ 8 次互聊成长值全部写进 `"<openid>|undefined"` 幽灵 pair，真实 pair 一分未得。详见「盲区防护」第 19 条。
+- **进度位置**：M0 已验收、M1 Checkpoint 通过（step 1–6）、**M2 已收尾并通过 Checkpoint（2026-08-30）**。**M3（升温·导流）代码全部完成并部署；真机跑过两轮（01:21–01:30 首轮、02:32–02:36 复验），云端佐证均已完成 —— BUG-1/BUG-2 已修且复验 PASS，M3 判定「✅ 正式通过」**（详见 `tasks/verification-log.md` 的 M3 章节与末尾「BUG-1/BUG-2 修复复验」章）。
+  - M3.0 ✅ 四个集合已建 ｜ M3.1 ✅ 成长累加 + pairs 权威源 ｜ M3.2 ✅ 阶段跃迁 + `growth-bar` ｜ M3.3 ✅ 轻聊（门禁/审核/幂等/成长值落点全对）｜ M3.4 ✅ wechatId + S4 联系方式页 ｜ M3.5 ✅ F7 关系主页（幽灵关系待清理，非代码问题）｜ M3.6 ✅ streak（并入 M3.1）
+  - 🔴→✅ **BUG-1（严重 · 已修 · 复验 PASS）**：`chat` 用 `cloud.callFunction` 调 `growth` → **被调用方 `getWXContext().OPENID` 为 `undefined`**（云函数间调用不带端用户身份）→ 8 次互聊成长值全部写进 `"<openid>|undefined"` 幽灵 pair，真实 pair 一分未得。详见「盲区防护」第 19 条。
     - **修法（用户拍板方案①）**：成长规则抽到 `cloudfunctions/growth/growth-core.js`，`game`/`chat`/`match` 各存一份同步副本；`chat`/`game` 改为**本进程内直接写 pairs**，不再跨函数调用。内核对 `openid` 缺失直接 401（护栏，宁可响亮失败也不再造幽灵数据）。新增 `npm run sync:core` 防三份副本漂移。
     - 提交 `9bf1eb8`，已部署 growth/game/chat/match 四函数并冒烟验证（均可加载共享模块；无 openid 的 `addGrowth` 返回 401 且不写库）。
-    - **剩余动作**：你真机重跑一轮互聊 → 我查库确认成长值落到真实 pair → 再清理 2 条幽灵 pair。
+    - **复验（2026-08-30 02:32–02:36，账号 `6LrPFY`↔`sJ8Fv8`）结论 ✅ PASS**：新建真实 pair `_id=10b550da6a93260900e36be766f2f7ee`（`pairKey` **无 `undefined`**），`growthValue=25` = 游戏 8+streak3 / 游戏 8 / 互聊 2×3，**逐笔与时间戳完全咬合**（`lastInteractionAt` 比最后一条消息晚 **79ms**，证明写库由 `chat` 本进程触发）；`weekStreakAdded=3` 只给一次；**未新增任何幽灵 pair**。
+    - **剩余动作**：清理 2 条修复前遗留的幽灵 pair（已列 `_id` 待用户点头）。
   - 🟡→✅ **BUG-2（中 · 已修）**：`pairs.stage` 是缓存字段，`game` 直写分支会刷但**不结算 streak**（与 `growth.addGrowth` 口径不一致）；`match.recommend` 读时缓存优先 → 非代码途径改 `growthValue` 会造成「匹配页 S1 / 聊天页 S4」的口径打架。现改为：**`match` 的 stage 一律由 `growthValue` 读时派生**，且 `game` 结束也开始结算 streak（两处口径已统一）。
   - **真机验证步骤见 `tasks/verification-log.md` 的 M3 章节**（8 步）。**前端改动必须先 `npm run dev:mp-weixin` 重新构建 `dist/dev`**，否则 DevTools 仍加载旧包。
   - 新增前端文件：`src/utils/growth.js`、`src/components/growth-bar.vue`、`src/pages/chat/`、`src/pages/contact/`、`src/pages/relation/`。
+  - 🟢 **附带收益**：BUG-1 修复后 `ensurePair` 在 `game` 完成/互聊时被调用，**「老关系进不了关系页」的路径已自愈** —— 复验中 `6LrPFY↔sJ8Fv8`（此前打了 5 局却无 pairs）本轮直接建出了真实 pair。存量中「已 done 但此后无任何互动」的老对仍无 pairs，是否需要一次性全量回填仍待 M4 决策（见下表）。
 - **已核实完成（不再是阻塞项）**：7 个云函数全部部署且与本地一致；**14 个集合全部存在**（M2 的 10 个 + M3 新增 `pairs`/`messages`/`events`/`metrics`）；M2 主链路双设备真机闭环 PASS。
 - **M2 遗留问题已全部关闭**：
   1. ~~双设备真机 Checkpoint 未按规范跑完~~ ✅ V1–V4 全部 PASS（撮合→建局→答题→结束、结束回大厅仍互可见）。
@@ -251,10 +253,11 @@
 
 | 优先级 | 问题 |
 |--------|------|
-| ✅→⏳ **【已修·待真机复验】** | **BUG-1：云函数间调用丢失 OPENID。** 已按方案①修复：成长规则抽共享内核 `cloudfunctions/growth/growth-core.js`，`game`/`chat`/`match` 各存同步副本；`chat`/`game` 本进程内直接写 pairs；内核对 `openid` 缺失直接 401。提交 `9bf1eb8`，四函数已部署并冒烟通过。**剩余：你真机重跑一轮互聊 → 我查库确认 → 再清理 2 条幽灵 pair。** |
-| ✅ **【已修】** | **BUG-2：`pairs.stage` 缓存漂移。** `match.recommend` 的 stage 改为一律 `stageOf(growthValue)` 读时派生（同提交 `9bf1eb8`）；`game` 结束现在也结算 streak，与 `growth.addGrowth` 口径统一。 |
-| **【🟡 中·待确认】** | **数据疑点 2 条**：① 真实 pair 的 `growthValue=150` 与自然累计（最多 32）不符、`updatedAt` 未变 → 疑似控制台手改（为测 S4？）。② `matches` 里 `10b550da6a93151800e2d6255f7aa2cf`（`lastTacit=3`）对应的 `games` 文档**不存在**，代码中无任何删除 `games` 的逻辑 → 疑似手删。**均未做任何改动。** |
-| **【🟡 中·M4 决策】** | **`6LrPFY↔sJ8Fv8` 打了 5 局却无 pairs 记录**：`recommend` 的 `getMatchedOpenids` 排除已匹配对象 → 已成 done 的对永不进候选 → `aggregateGrowthStats` 懒回填永不触发 → **「我的关系」页看不到任何历史关系**。M4 需决策是否做一次性全量回填。 |
+| ✅ **【已修·复验 PASS 2026-08-30】** | **BUG-1：云函数间调用丢失 OPENID。** 已按方案①修复：成长规则抽共享内核 `cloudfunctions/growth/growth-core.js`，`game`/`chat`/`match` 各存同步副本；`chat`/`game` 本进程内直接写 pairs；内核对 `openid` 缺失直接 401。提交 `9bf1eb8`，四函数已部署并冒烟通过。**真机复验 ✅ PASS**（`growthValue=25` 逐笔咬合、`lastInteractionAt` 与末条消息相差 79ms、无新增幽灵 pair）。**2 条修复前遗留的幽灵 pair 已于 2026-08-30 02:45 清理完毕，云端核验 `pairs` 只剩 2 条真实关系。此项关闭。** |
+| ✅ **【已修】** | **BUG-2：`pairs.stage` 缓存漂移。** `match.recommend` 的 stage 改为一律 `stageOf(growthValue)` 读时派生（同提交 `9bf1eb8`）；`game` 结束现在也结算 streak，与 `growth.addGrowth` 口径统一。全仓已 grep 复核：无任何 `p.stage` 缓存优先读残留，前端 `src/utils/growth.js` 同样是读时派生。 |
+| ✅ **【已澄清 2026-08-30 用户确认】** | **数据疑点 2 条 —— 均为用户本人在控制台操作，非 BUG**：① `growthValue=150` 是手动置的（为测 S4 联系方式）；② 缺失的 `games` 文档是手动删的。遗留副作用（数据层，非代码）：真实 pair `bf886e77…` 的 `gameCount=2`/`tacitTotal=8` 统计了一局已不存在的对局；`growthValue` 被手改后缓存 `stage` 仍是旧 `S1`（读路径已派生，功能无影响）。 |
+| **【🟡 中·M4 决策】** | **存量老对的全量回填**：`recommend` 的 `getMatchedOpenids` 排除已匹配对象 → 已成 done 的对永不进候选 → `aggregateGrowthStats` 懒回填不触发。但 BUG-1 修复后 `game` 完成/互聊都会 `ensurePair`，**只要双方再互动一次即自愈**（复验中 `6LrPFY↔sJ8Fv8` 已自愈）。仅「已 done 且此后零互动」的老对仍缺 pairs —— M4 需决策是否做一次性全量回填。 |
+| **【🟡 低·非阻塞】** | **云函数运行时时区为 UTC**：复验中游戏完成于北京时间 08-30 02:33，但 `lastStreakDay` 记为 `2026-08-29`。`dayOf()`/`isoWeekOf()` 用服务端本地时区，而云函数默认 UTC（02:33 CST = 18:33 UTC 前一天）。**后果**：中国用户在北京时间 08:00 前的活跃被记到前一天，连续两天凌晨活跃可能只拿 1 次 streak。**建议 M4 改为按 `Asia/Shanghai`(+8) 偏移计算。** |
 | ~~**【已解决 2026-08-29】**~~ | ~~部署 4 个云函数 + 确认 3 个集合已建~~ —— **实测已全部部署且一致、10 个集合全存在，`community` 也已补部署。此项关闭。** |
 | **【高·真机】** | 双设备跑 M2 Checkpoint：A 约 B → B 收到并接受 → 双方答题 5 轮 → 结束回大厅仍互相可见。**重点看回合同步延迟与结束页**。 |
 | **【高·真机】** | 验证 MBTI 全链路：资料页 12 题 → 保存 → 重进能回显 → 匹配推荐里契合度分数变化（`users` 至今无一条 `mbti`）。 |
@@ -273,12 +276,12 @@
 
 # 待确认事项
 
-**【2026-08-30 · M3 真机佐证后新增，最优先】**
-- ✅ **BUG-1 修法已拍板 = ①抽共享模块**（2026-08-30 已实施，提交 `9bf1eb8`）。
-- ⏳ **等你真机复验修复效果**：两部手机互发几条消息（注意：只有「回复对方上一条」才结算成长）。跑完说一声，我查库确认三件事 —— ① 真实 pair 的 `growthValue` 每次互聊 +2（含当日首次 +3 streak）；② `updatedAt` 晚于最后一条消息；③ **不再新增 `|undefined` 幽灵 pair**。
-- ⏳ **复验通过后再清理 2 条幽灵 pair**（`6LrPFY|undefined`、`Z|undefined`，各 growthValue=11）：**破坏性操作，删前我会列 `_id` 给你过目**。
-- ❓ **`growthValue=150` 是不是你手改的**（为测 S4 联系方式）？以及 `lastTacit=3` 那局 `games` 文档是不是你在控制台删的？—— 确认后我好判断是真 BUG 还是测试数据噪音。
-- ⏸️ **M4.1 暂缓开工**：`plan-m4.md` 决策 2 定的是「M3 真机验证通过后」才插桩。等上面复验 PASS 再进 M4，避免 events 里的成长类事件一起记错、污染指标基线。
+**【2026-08-30 02:40 · 复验后更新，最优先】**
+- ✅ **BUG-1 修法 = ①抽共享模块**，已于 `9bf1eb8` 实施，**真机复验 ✅ PASS**（2026-08-30 02:32–02:36，`6LrPFY`↔`sJ8Fv8`）。核对三件事全部通过：① 真实 pair `growthValue=25` = 游戏 8+streak3 / 游戏 8 / 互聊 2×3，逐笔咬合；② `lastInteractionAt` 晚于最后一条消息 79ms；③ **未新增任何 `|undefined` 幽灵 pair**。
+- ✅ **数据疑点已澄清**：`growthValue=150` 与缺失的 `games` 文档**均为你本人在控制台操作**，非代码 BUG。
+- ✅ **幽灵 pair 已清理**（2026-08-30 02:45，用户确认后删除）：`37138adf6a93166c00c8ca0e7fa2172d`、`37138adf6a93169200c8cac7230d182e`。**清理后云端核验：`pairs` 只剩 2 条真实关系**（`6LrPFY↔sJ8Fv8` gv25 / `6LrPFY↔Z` gv150）。两者原是 BUG-1 期间跨函数调用的产物，修复后已不可能再生。
+- 🟡 **顺带记一笔（M4 再说）**：云函数运行时是 UTC，`lastStreakDay` 会比北京时间慢一天（详见上表低优先级项）。
+- ▶️ **M4.1 可以开工**：`plan-m4.md` 决策 2 的前置条件（M3 真机验证通过）**已满足** —— 13 个事件插桩随时可开。
 
 - **是否要推送本地 13 个提交**：需先 `git fetch` 修复无上游追踪引用的问题，再 push（**绝不 force**）。其中 `338cb5c` 用户曾决定不推送，若要推送需重新确认。
 - **【本轮新增，待用户拍板】**：下一步做什么？三选一 —— ① **跑真机验证**（双设备 M2 Checkpoint + MBTI + 拉黑，Agent 出步骤清单、用户执行）；② **直接开工 M3**（关系成长 `growth` + `chat` + 关系主页，需先建 `pairs`/`messages`/`events`/`metrics` 集合）；③ **先修小项**（MBTI 未答题显示 ESTJ 的 UX 问题、`mbtiFit` 未渲染、`FEATURES` 进 `data()` 等 4 个已列出未改的小项）。
@@ -341,6 +344,12 @@
    - **修法**：① 抽共享模块给调用方 `require`，直接在本函数内写库（推荐）；② 显式传 `openid` + 内部令牌鉴权；③ 不要指望 `getWXContext()` 能拿到端用户。
    - ⚠️ 同样的坑适用于任何"被调用方需要知道是谁"的跨函数场景。
    - ✅ **本项目已按①落地**（2026-08-30，提交 `9bf1eb8`）：`cloudfunctions/growth/growth-core.js` 是唯一源头，`game`/`chat`/`match` 各存一份同步副本 —— 云函数独立打包无法跨目录 `require`，改完内核**必须跑 `npm run sync:core`** 再重新部署，否则副本还是旧的。
+   - ✅ **复验已 PASS**（2026-08-30 02:32–02:36）。**判定"修复真的生效"的关键证据不是"不报错"，而是两条时间戳咬合**：`pairs.lastInteractionAt` 必须紧跟最后一条 `messages.createdAt`（实测 +79ms），且 `pairKey` 里没有 `undefined`。
+20. **🟡 云函数运行时时区是 UTC，不是北京时间**（2026-08-30 复验实测坐实）。
+   - **症状**：用 `new Date().getFullYear()/getMonth()/getDate()` 算"今天"（本项目 `dayOf()`/`isoWeekOf()`），拿到的是 **UTC 日期**。北京时间 08:00 之前的活跃会被算到**前一天**。
+   - **实测**：游戏完成于北京时间 2026-08-30 02:33，`pairs.lastStreakDay` 记为 `2026-08-29`。
+   - **后果**：中国用户凌晨活跃会"跨错日"；连续两天凌晨互动可能只拿到 1 次 streak（第二次因 `lastStreakDay` 同日而被跳过）。
+   - **修法（M4 待办）**：`dayOf`/`isoWeekOf` 先做 +8 小时偏移再取日期部分（`new Date(ts + 8*3600*1000)` 后用 `getUTC*`），或直接读 `TZ=Asia/Shanghai` 环境变量（需先在控制台给函数配 `TZ`）。
 
 **C. 代码结构暗坑**
 8. **`auth` 的 `sanitizeProfile` 是严格字段白名单**——新增任何用户资料字段，必须同时改这里，否则前端写入被静默丢弃。这是 MBTI 功能最容易漏的一步。

@@ -193,10 +193,11 @@
 - `game/index.js:53` 直写 pairs 时会刷 `stage`，但**不结算 streak**（与 `growth.addGrowth` 口径不同）→ 验证步骤里「首局 = 8+3=11」的口径**实现与文档不符**。
 - `match/index.js:158` 读 pairs 时用 `p.stage || stageOf(p.growthValue)` → 缓存优先。一旦 `growthValue` 被非代码途径改动（见下），**匹配页候选卡显示 S1、聊天页/关系页显示 S4**，同一个关系两个入口口径打架。
 
-#### D. 两处待你确认的数据疑点（**未做任何改动**）
+#### D. 两处数据疑点 —— ✅ 已澄清（2026-08-30 用户确认：**均为本人控制台操作，非 BUG**）
 
-1. **`growthValue=150` 从哪来**：2 局(16) + 聊天(16，去了幽灵) 最多 32，且 `updatedAt` 停在 01:26:19 未变 → **只能是非代码途径改的**（控制台手改 / MCP update）。是否为测 S4 联系方式手动置的 150？
-2. **第 1 局游戏文档缺失**：`matches` 有 `10b550da6a93151800e2d6255f7aa2cf`（01:21:28 建、01:21:51 完成、`lastTacit=3`），但 `games` 里**找不到**这一局（现存 9 条 games 无一匹配）。代码里没有任何删除 `games` 的逻辑（全仓仅 `safety` 有 `.remove()`，且作用于 `reports`）→ 疑似控制台手删。后果：`pairs.gameCount=2`/`tacitTotal=8` 统计了一局已不存在的对局。
+1. **`growthValue=150` 从哪来**：2 局(16) + 聊天(16，去了幽灵) 最多 32，且 `updatedAt` 停在 01:26:19 未变 → 只能是非代码途径改的。**用户确认：为测 S4 联系方式手动置的 150。**
+2. **第 1 局游戏文档缺失**：`matches` 有 `10b550da6a93151800e2d6255f7aa2cf`（01:21:28 建、01:21:51 完成、`lastTacit=3`），但 `games` 里找不到这一局。**用户确认：自己在控制台删的。**
+   - ⚠️ 遗留副作用（数据层面，非代码 BUG）：真实 pair `bf886e776a93152f00b6a584297faa22` 的 `gameCount=2`/`tacitTotal=8` 统计了一局已不存在的对局；且 `growthValue` 被手改成 150 后，**缓存字段 `stage` 仍是旧的 `S1`**（代码不会因控制台改数而重算）。BUG-2 修复后所有读路径均 `stageOf(growthValue)` 派生，功能不受影响，仅控制台肉眼看到的是脏缓存。
 
 #### E. 附带观察（非 BUG）
 
@@ -206,3 +207,60 @@
 ### 回滚
 - 按功能逐提交 revert；云函数需重新部署对应版本。
 - BUG-1 只影响数据不影响结构，修复后**重跑一次聊天即可自愈**，无需数据迁移（幽灵 pair 需另行清理）。
+
+---
+
+## BUG-1 / BUG-2 修复复验（2026-08-30 02:32–02:36 真机，查库时间 02:40）
+
+> 真机账号：`6LrPFY`（woailuo）↔ `sJ8Fv8`（= `oUsf1xaoXeRqW5dqbCkjDfsJ8Fv8`）。
+> 这是「M3.1 前打了 5 局、但懒回填永不触发、关系页看不到」的那一对 —— **上一轮根本没有 pairs 记录**。
+> 时间窗：**02:32:59 – 02:36:04**（北京时间）。
+
+### 结论：✅ PASS
+
+| 验收点 | 证据 | 结论 |
+|---|---|---|
+| 成长值落到**真实** pair | 新建 pair `_id=10b550da6a93260900e36be766f2f7ee`，`pairKey="oUsf1x…6LrPFY\|oUsf1x…sJ8Fv8"` —— **无 `undefined`** | ✅ |
+| 成长值数值自洽 | `growthValue=25`，逐笔推导 = 游戏 8+streak3 / 游戏 8 / 互聊 2×3 → **11+8+6=25** | ✅ |
+| streak 结算生效 | `weekStreakAdded=3`、`weekKey=2026-W35`、`lastStreakDay=2026-08-29`（首活跃日给且只给一次） | ✅ |
+| 写库**由 chat 触发**（证明走的是 `chat` 本进程内核，而非跨函数） | `lastInteractionAt=02:36:04.808`，最后一条消息 msg4 落库 `02:36:04.729`，**相差 79ms** | ✅ |
+| S1 门禁放行 | msg1 发送时 growthValue 已是 19 ≥ 12 → 未被 403。**若 BUG 未修，真实 pair 为 0，第一条消息就会被门禁拒掉** | ✅ 反证 |
+| 未再新增幽灵 pair | `pairs` 总数仍为 4；两条 `\|undefined` 幽灵的 `createdAt` 停在 01:27（修复前），本轮无新增 | ✅ |
+| 历史关系能建出 pairs | 该对上一轮无 pairs，本轮 `ensurePair` 直接建出并累加 —— 「老关系进不了关系页」的路径已通 | ✅ |
+| 默契统计一致 | `tacitTotal=9` = 两局 `tacitCount` 4 + 5；`gameCount=2` | ✅ |
+| stage 读时派生 | 新 pair `growthValue=25` → `stage` 写入 `S1`（≥12 且 <40）；全仓已无 `p.stage` 缓存优先读（grep 复核） | ✅ |
+
+### 成长值 25 的逐笔推导（时间戳全部北京时间）
+
+| 时刻 | 事件 | 增量 | 累计 |
+|---|---|---|---|
+| 02:32:59 | 游戏1 创建（5 轮） | — | 0 |
+| **02:33:45.253** | 游戏1 完成 → `ensurePair` **建出真实 pair** | +8 游戏 **+3 streak**（本活跃日首次） | **11** |
+| 02:33:51 | 游戏2 创建 | — | 11 |
+| **02:34:16.289** | 游戏2 完成（`lastGameAt`） | +8（同日无 streak） | **19** |
+| 02:35:13 | msg1「测试数据1」6LrPFY→ | 首条无前序 → **不计分** | 19 |
+| 02:35:26 | msg2「测试数据2」sJ8Fv8→ | 回复 → +2 | **21** |
+| 02:35:57 | msg3「测试3」6LrPFY→ | 回复 → +2 | **23** |
+| **02:36:04.729** | msg4「测试4」sJ8Fv8→ | 回复 → +2 | **25** |
+| 02:36:04.808 | pair `lastInteractionAt`（+79ms） | — | 25 |
+
+4 条 `messages` 全部 `auditStatus=pass`（先审后发生效）。
+
+### 🟡 新发现（低优先级 · 非阻塞）：云函数运行时时区是 UTC
+
+`lastStreakDay` 记为 **2026-08-29**，而游戏完成于**北京时间 2026-08-30 02:33** → `dayOf()` 用的是服务端本地时区，而云函数默认 **UTC**（02:33 CST = 18:33 UTC 前一天）。
+**后果**：中国用户在**北京时间 08:00 之前**的活跃会被记到前一天；连续两天凌晨活跃可能只拿到 1 次 streak。
+**建议**：M4 把 `dayOf`/`isoWeekOf` 改成按 `Asia/Shanghai`（+8）偏移计算。不改不影响 M3 验收。
+
+### 已清理：2 条幽灵 pair（✅ 2026-08-30 02:45 用户确认后删除）
+
+| `_id` | `pairKey` | `growthValue` | 生成时刻 | 状态 |
+|---|---|---|---|---|
+| `37138adf6a93166c00c8ca0e7fa2172d` | `oUsf1xRnPxcjWLiSG3XFR-6LrPFY\|undefined` | 11 | 01:27（修复前） | ✅ 已删（deleted=1） |
+| `37138adf6a93169200c8cac7230d182e` | `oUsf1xZonxm8p9DekXnHSh0YRbnE\|undefined` | 11 | 01:27（修复前） | ✅ 已删（deleted=1） |
+
+两者 `userA` 字段缺失、`gameCount=0`、`tacitTotal=0`，是 BUG-1 期间跨函数调用的产物，修复后已不可能再生。
+
+**清理后核验**：`pairs` 只剩 **2 条真实关系** ——
+- `10b550da6a93260900e36be766f2f7ee`：`6LrPFY`↔`sJ8Fv8`，growthValue 25 / gameCount 2 / tacitTotal 9 / S1
+- `bf886e776a93152f00b6a584297faa22`：`6LrPFY`↔`Z`，growthValue 150（手改）/ gameCount 2 / tacitTotal 8 / 缓存 stage S1（读时派生为 S4）

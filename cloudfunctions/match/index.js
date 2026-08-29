@@ -12,6 +12,25 @@ const MATCHES_COL = 'matches'
 const GAMES_COL = 'games'
 const USERS_COL = 'users'
 const BLOCKS_COL = 'blocks'
+const PAIRS_COL = 'pairs'
+// M3.1：一场游戏带来的成长值（与 growth.addGrowth 的 game 分支约定一致），
+// 仅用于「历史对局回填」——把 M3.1 之前打完的局折算回 pairs，使老数据不丢失。
+const GAME_GROWTH = 8
+
+// pairs 唯一键：两个 openid 排序后拼接（必须与 growth/index.js 的 pairKeyOf 完全一致）
+function pairKeyOf(a, b) {
+  return [String(a), String(b)].sort().join('|')
+}
+
+// 阶段由成长值读时派生（阈值 12/40/90/150），与 growth/index.js 保持一致
+function stageOf(growthValue) {
+  const v = Number(growthValue) || 0
+  if (v >= 150) return 'S4'
+  if (v >= 90) return 'S3'
+  if (v >= 40) return 'S2'
+  if (v >= 12) return 'S1'
+  return 'S0'
+}
 // 每题"默契"（双方选同一项）折算到契合度的权重：游戏结果在资料分之上累加
 const TACIT_WEIGHT = 4
 // MBTI 维度契合权重：每有一个维度字母相同 +2（0–8）；EI 互补（一外向一内向）另 +3。
@@ -106,6 +125,82 @@ async function aggregateDoneStats(OPENID, userIds) {
   return stats
 }
 
+// 关系成长统计（M3.1）：优先读 pairs（O(1) 权威源，game 结束时写入）；
+// pairs 尚无记录的候选，回退到 M2 的 done matches 聚合，并**回填写入 pairs**（仅当有历史对局，
+// 避免给每个候选都建空文档）。回填是一次性的，之后该用户对走 O(1)。
+// 注意：回填写入失败不影响本次推荐（stats 仍带计算结果，下次再试）。
+async function aggregateGrowthStats(OPENID, userIds) {
+  const stats = {}
+  if (!OPENID || !userIds.length) return stats
+
+  const keyToId = {}
+  const keys = userIds.map(id => {
+    const k = pairKeyOf(OPENID, id)
+    keyToId[k] = id
+    return k
+  })
+  const missing = new Set(userIds)
+
+  for (let i = 0; i < keys.length; i += AGG_BATCH) {
+    const batch = keys.slice(i, i + AGG_BATCH)
+    try {
+      const r = await db.collection(PAIRS_COL)
+        .where({ pairKey: _.in(batch) })
+        .field({ pairKey: true, growthValue: true, tacitTotal: true, gameCount: true, stage: true })
+        .get()
+      ;(r.data || []).forEach(p => {
+        const id = keyToId[p.pairKey]
+        if (!id) return
+        stats[id] = {
+          count: Number(p.gameCount) || 0,
+          tacit: Number(p.tacitTotal) || 0,
+          growthValue: Number(p.growthValue) || 0,
+          stage: p.stage || stageOf(p.growthValue)
+        }
+        missing.delete(id)
+      })
+    } catch (e) {
+      // pairs 不可用（如集合未建）时整个批次回退到 matches 聚合，不阻断推荐
+    }
+  }
+
+  if (!missing.length) return stats
+  const legacy = await aggregateDoneStats(OPENID, [...missing])
+  const now = Date.now()
+  await Promise.all(Object.keys(legacy).map(async id => {
+    const s = legacy[id]
+    if (!s.count) return   // 无历史对局：不建空 pair，保持「不存在」语义
+    const growthValue = s.count * GAME_GROWTH
+    stats[id] = { count: s.count, tacit: s.tacit, growthValue, stage: stageOf(growthValue) }
+    try {
+      await db.collection(PAIRS_COL).add({
+        data: {
+          pairKey: pairKeyOf(OPENID, id),
+          userA: OPENID,
+          userB: id,
+          growthValue,
+          stage: stageOf(growthValue),
+          firstGameDone: true,
+          gameCount: s.count,
+          tacitTotal: s.tacit,
+          lastGameAt: 0,
+          lastInteractionAt: 0,
+          weekStreakAdded: 0,
+          weekKey: '',
+          lastStreakDay: '',
+          milestones: [],
+          createdAt: now,
+          updatedAt: now,
+          source: 'backfill'
+        }
+      })
+    } catch (e) {
+      // 并发推荐可能撞键重复建；下次读取时以先落地的那条为准，此处静默
+    }
+  }))
+  return stats
+}
+
 async function recommend({ limit = 10 } = {}, OPENID) {
   if (!OPENID) return { code: 401, message: '未登录' }
   const meRes = await db.collection(USERS_COL).where({ openid: OPENID }).get()
@@ -152,14 +247,17 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   // 叠加游戏默契度：按用户对汇总所有 status=done 的 matches 的默契轮数，作为契合度的累加项。
   // 这样玩过的人会在"资料分"原有基础上随游戏次数/默契题数持续增长（契合"多次游戏增默契度"的设定）。
   // 仅读 done 匹配；active 匹配已被上方 matched 排除（进行中的对局不计入）。
-  // 一次批量聚合取代逐候选查询，再叠加到契合度上
-  const doneStats = await aggregateDoneStats(OPENID, list.map(c => c.userId))
+  // 一次批量聚合取代逐候选查询，再叠加到契合度上。
+  // M3.1：改读 pairs 权威源（O(1)），pairs 缺失时对历史对局做一次性回填。
+  const growthStats = await aggregateGrowthStats(OPENID, list.map(c => c.userId))
   list = list.map(c => {
-    const s = doneStats[c.userId] || { count: 0, tacit: 0 }
+    const s = growthStats[c.userId] || { count: 0, tacit: 0, growthValue: 0, stage: 'S0' }
     return {
       ...c,
       gameCount: s.count,
       gameTacit: s.tacit,
+      growthValue: s.growthValue,
+      stage: s.stage || 'S0',
       score: c.score + s.tacit * TACIT_WEIGHT
     }
   })

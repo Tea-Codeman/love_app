@@ -1,6 +1,6 @@
 {
   "name": "relationship-growth",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "恋爱成长型社交小程序（v1 单身主链路：社区融入 → 游戏结识 → 自然升温 → 导向恋爱）",
   "scripts": {

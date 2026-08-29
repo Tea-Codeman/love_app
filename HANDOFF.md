@@ -112,7 +112,10 @@
 | `invite` | generate / consume | ✅ 已部署 | UI 入口已移除，底层逻辑保留 |
 | `match` | recommend / accept / myPending / decline | ✅ **完全一致** | 已部署（含 MBTI 打分 + N+1 优化） |
 | `game` | joinGame / getGame / submitAnswer / cancelGame | ✅ **完全一致** | 已部署，云端跑通过完整局 |
-| `growth` / `chat` / `metrics` | — | — | 未实现（M3+） |
+| `growth` | getPair / listPairs / addGrowth | ✅ **M3 新建并部署** | pairs 权威源；只增不减 + streak（+3/天，周上限 15） |
+| `chat` | send / list / contact | ✅ **M3 新建并部署** | 先审后发（复用 `safety`）+ S1 门禁 + 有效互聊 +2 + S4 联系方式解锁 |
+| `match` | recommend / accept / myPending / decline | ✅ **M3 已更新** | `recommend` 改读 `pairs`（O(1)）+ 首访回填；超时 3s→10s |
+| `auth` | updateProfile / … | ✅ **M3 已更新** | `sanitizeProfile` 白名单新增 `wechatId` / `wechatQrUrl` |
 
 > **核实方法（可复现，勿再靠 ModTime 猜）**：`queryFunctions(action=getFunctionDownloadUrl)` 拿 zip → 解压取 `index.js` → 与本地 `cloudfunctions/<fn>/index.js` 比对。注意 zip 内是 CRLF，本地是 LF，**直接 diff 会误报整文件不同**，需先归一化换行符再比较。
 
@@ -212,13 +215,16 @@
 
 **【2026-08-29 17:30 由新 Agent 重写，旧版内容已作废】**
 
-- **进度位置**：M0 已验收、M1 Checkpoint 通过（step 1–6）、**M2 已收尾并通过 Checkpoint（2026-08-30）**。**M3 已开工**（M3.1 F5 成长累加 + `pairs` 权威源，进行中）。
+- **进度位置**：M0 已验收、M1 Checkpoint 通过（step 1–6）、**M2 已收尾并通过 Checkpoint（2026-08-30）**。**M3（升温·导流）代码已全部完成并部署，待真机验证**（2026-08-30）。
+  - M3.0 ✅ 四个集合已建 ｜ M3.1 ✅ 成长累加 + pairs 权威源 ｜ M3.2 ✅ 阶段跃迁 + `growth-bar` ｜ M3.3 ✅ 轻聊（先审后发 / S1 门禁 / 互聊 +2）｜ M3.4 ✅ wechatId + S4 联系方式页 ｜ M3.5 ✅ F7 关系主页 ｜ M3.6 ✅ streak（并入 M3.1）
+  - **真机验证步骤见 `tasks/verification-log.md` 的 M3 章节**（8 步）。**前端改动必须先 `npm run dev:mp-weixin` 重新构建 `dist/dev`**，否则 DevTools 仍加载旧包。
+  - 新增前端文件：`src/utils/growth.js`、`src/components/growth-bar.vue`、`src/pages/chat/`、`src/pages/contact/`、`src/pages/relation/`。
 - **已核实完成（不再是阻塞项）**：7 个云函数全部部署且与本地一致；**14 个集合全部存在**（M2 的 10 个 + M3 新增 `pairs`/`messages`/`events`/`metrics`）；M2 主链路双设备真机闭环 PASS。
 - **M2 遗留问题已全部关闭**：
   1. ~~双设备真机 Checkpoint 未按规范跑完~~ ✅ V1–V4 全部 PASS（撮合→建局→答题→结束、结束回大厅仍互可见）。
   2. ~~MBTI 与拉黑零数据~~ ✅ MBTI 已落库验证（`woailuo=ESTJ`、`我不爱罗=INFP`）；拉黑/解除闭环已验证。
   3. ~~cancelled 残留~~ ✅ 按方案 B 清理（`matches`/`games` 各 10→2），已云端核验。
-- **下一步里程碑**：**M3 升温·导流** —— 关系成长 `growth`（F5）+ 轻聊/导流 `chat`（F6）+ 关系主页（F7）；默契度系统以 `pairs` 为权威源。**M3.0 集合已建、M3.1 进行中**，详见 `tasks/plan-m3.md`。
+- **下一步里程碑**：**先把 M3 真机验证跑完**（详见 `tasks/verification-log.md`），人工评审通过后进入 **M4**。M3 范围与偏差记录见 `tasks/plan-m3.md`（注意：页面实际路径为 `src/pages/relation/relation.vue` 与 `src/pages/contact/contact.vue`，**非**规划草稿里的 `src/pages/growth/`、`src/pages/chat/contact.vue`）。
 - **M3 新增集合 `pairs` / `messages` / `events` / `metrics` 已建且为空**（2026-08-30 实测）。
 
 ---

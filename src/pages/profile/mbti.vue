@@ -8,7 +8,7 @@
       <button class="opt" v-for="(t, k) in q.a" :key="k" @click="onAnswer(q.v[k])">{{ t }}</button>
       <!-- 答题中实时预览：形象随进度逐渐清晰 -->
       <view class="preview">
-        <text class="pv-type" :style="{ opacity: previewOpacity }">{{ previewType }}</text>
+        <text class="pv-type" :style="{ opacity: previewOpacity }" v-if="idx > 0">{{ previewType }}</text>
         <text class="pv-tip">正在成型的你 · 已答 {{ idx }} / {{ total }}</text>
       </view>
     </view>

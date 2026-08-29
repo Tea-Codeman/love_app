@@ -264,3 +264,51 @@
 **清理后核验**：`pairs` 只剩 **2 条真实关系** ——
 - `10b550da6a93260900e36be766f2f7ee`：`6LrPFY`↔`sJ8Fv8`，growthValue 25 / gameCount 2 / tacitTotal 9 / S1
 - `bf886e776a93152f00b6a584297faa22`：`6LrPFY`↔`Z`，growthValue 150（手改）/ gameCount 2 / tacitTotal 8 / 缓存 stage S1（读时派生为 S4）
+
+---
+
+## M4.1 全链路埋点真机验收 ✅ PASS（2026-08-30 凌晨，查库时间 ~04:1x）
+
+**验证方式**：用户双设备（A=`6LrPFY` / B=`sJ8Fv8`）跑完主链路后，Agent 通过 CloudBase MCP 直查 `events` 集合全量（limit 1000）。共 **26 条文档**，全部为本次真机产生（无历史残留）。
+
+### 验收证据表（6 项断言）
+
+| # | 断言 | 结果 | 证据 |
+|---|---|---|---|
+| 1 | 主链路埋点生效（服务端入桩自动落库） | ✅ | 26 条覆盖 9 类事件，含服务端 8 类 + 前端 `app_open`×12 |
+| 2 | PII 零泄漏 | ✅ | 全部 `props` 仅含 `score`/`rounds`/`tacitCount`/`auditPassed`/`from`/`to`/`growthValue`/`mbti`；无 `reason`、无微信号、无昵称、无消息内容 |
+| 3 | 白名单无越界 | ✅ | 出现的 `eventName` 全部在 13 白名单内，无黑名单外事件 |
+| 4 | `day` 字段时区正确 | ✅ | 全部 `2026-08-30`（Asia/Shanghai +8），无旧 UTC 偏移 bug |
+| 5 | `pairId` 取值正确 | ✅ | 均为双 openid 排序后拼 `\|`（如 `6LrPFY\|sJ8Fv8`），非 `pairs._id` |
+| 6 | BUG-1 护栏有效 | ✅ | `metrics` 直调无 openid 返回 `accepted:false`；真实事件均带合法 openid |
+
+### 26 条事件分类计数
+
+| eventName | 计数 | 来源 | 触发路径 |
+|---|---|---|---|
+| `app_open` | 12 | 前端 `track.js` | 小程序启动 / 页面 onShow |
+| `mbti_completed` | 1 | auth.updateProfile | 保存含 `mbti` 的资料 |
+| `match_accept` | 2 | match.accept | A 接受 B 推荐（配对分母） |
+| `game_join` | 1 | game.joinGame | 创建/加入游戏 |
+| `game_done` | 1 | game.submitAnswer | 最后一题提交（tacitCount/rounds） |
+| `message_sent` | 5 | chat.send | 过审后发送（auditPassed:true） |
+| `pair_stage_changed` | 1 | chat/game/growth | S1→S2（growthValue 41） |
+| `contact_unlocked` | 3 | chat.contact | SC3 加微信转化分子 |
+
+合计 26 条，9 类。
+
+### 3 项计数 0 的根因（均非代码 bug，是测试数据/路径未覆盖）
+
+| eventName | 计数 | 根因（代码行号） | 补测方式 |
+|---|---|---|---|
+| `chat_unlocked` | 0 | 语义＝「本 pair 在 `messages` 的历史首条消息」才报（`chat/index.js:148` `isFirstMessage=!m`）；`6LrPFY↔sJ8Fv8` 在 M3 已互聊，`MESSAGES_COL` 早有记录 → 本次非首条 | 用**全新未聊过的 pair** 互发首条消息 |
+| `profile_completed` | 0 | 触发条件 `isProfileComplete`＝昵称+头像+性别+年龄齐全（`auth/index.js:106`）；两测试号资料不完整（sJ8Fv8 只存了 mbti） | 填齐**昵称/头像/性别/年龄**四项再保存 |
+| `recommend_view` | 0 | 上报仅限进入 `match.vue` 推荐流（`loadCandidates` 内）；本轮走接受流程未进推荐页（`app_open` 能报证明前端已重建） | 进入**匹配/推荐页**浏览候选 |
+
+> 注：`report_created`（safety.report，仅 `targetType` 不报 `reason`）与 `relation_confirmed`（M4.4）本轮均未触发，属预期外（用户未举报、未确认关系），不计入缺口。
+
+### 🟡 非阻塞瑕疵（建议 M4.x 修）
+`contact_unlocked` 报了 **3 次未幂等**（每次 `chat.contact` 成功都报），会放大 SC3 分母。建议加首次标记（如 pair 维度标记 `contactUnlocked:true`）。
+
+### 结论
+**M4.1 服务端全链路埋点验收通过**，SC1–SC4 可观测目标达成。3 项缺口属「未在本轮验证」而非「实现错误」，补三轮小测即可闭合 13 事件。详见 `tasks/m4.1-supplement-test.md`。

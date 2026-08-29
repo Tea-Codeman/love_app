@@ -24,7 +24,7 @@
     <!-- A 侧：推荐候选 -->
     <view class="section">
       <text class="section-title">为你推荐</text>
-      <view class="cand-card" v-for="c in candidates" :key="c.userId">
+      <view class="cand-card" v-for="c in visibleCandidates" :key="c.userId">
         <image class="avatar" :src="c.avatarUrl || '/static/logo.png'" mode="aspectFill"></image>
         <view class="cand-meta">
           <text class="nickname">{{ c.nickname }}</text>
@@ -41,7 +41,7 @@
           <text class="btn block" @click="onBlock(c)">拉黑</text>
         </view>
       </view>
-      <view class="empty" v-if="!loading && candidates.length === 0">附近还没有更多小伙伴，晚点再来看看 ›</view>
+      <view class="empty" v-if="!loading && visibleCandidates.length === 0">附近还没有更多小伙伴，晚点再来看看 ›</view>
       <view class="loading" v-if="loading">匹配中…</view>
     </view>
   </view>
@@ -60,6 +60,15 @@ export default {
       loading: false,
       busy: false,
       pendingTimer: null
+    }
+  },
+  computed: {
+    // 已向你发起邀请的人（invites.creatorId）不再重复出现在「为你推荐」里，
+    // 避免同一个人同时出现在「有人想和你玩」与「为你推荐」两个区块（点完一起玩后对方看到两个一样的用户）。
+    // 邀请解除（接受/拒绝）后自动恢复显示。
+    visibleCandidates() {
+      const inviterIds = (this.invites || []).map(i => i.creatorId).filter(Boolean)
+      return (this.candidates || []).filter(c => !inviterIds.includes(c.userId))
     }
   },
   onShow() {
@@ -90,8 +99,19 @@ export default {
     },
     async loadPending() {
       const r = await callFunction('match', { action: 'myPending' })
-      if (r.ok) this.invites = (r.data && r.data.invites) || []
-      else if (r.code === 500) uni.showToast({ title: r.message, icon: 'none' })
+      if (!r.ok) {
+        if (r.code === 500) uni.showToast({ title: r.message, icon: 'none' })
+        return
+      }
+      const newInvites = (r.data && r.data.invites) || []
+      const prevIds = (this.invites || []).map(i => i.gameId)
+      const newIds = newInvites.map(i => i.gameId)
+      const changed = newIds.some(id => !prevIds.includes(id)) || prevIds.some(id => !newIds.includes(id))
+      this.invites = newInvites
+      // 邀请集合变化（新增/移除）时刷新推荐：服务端会按 active 匹配过滤掉已进入匹配的人，
+      // 避免「有人想和你玩」与「为你推荐」同时出现同一个人（点完一起玩后对方看到两个一样的用户）。
+      // 与 visibleCandidates 的即时去重互补：云端 creatorId 生效时秒级去重，未生效时本刷新在 ≤1 个轮询周期内自愈。
+      if (changed && !this.loading) this.loadRecommend()
     },
     // 驻留页面期间对"待接受邀请"轮询：有人现在邀你，无需退页重进即可看到/接受/拒绝。
     // 走云函数轮询而非客户端 watch——games 由服务端创建，跨用户文档直读会被安全规则拦截。

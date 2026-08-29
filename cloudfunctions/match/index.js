@@ -232,7 +232,7 @@ async function myPending({}, OPENID) {
       const u = await db.collection(USERS_COL).where({ openid: g.createdBy }).get()
       if (u.data && u.data[0]) creator = { nickname: u.data[0].nickname || '', avatarUrl: u.data[0].avatarUrl || '' }
     } catch (e) {}
-    return { gameId: g._id, creator, createdAt: g.createdAt }
+    return { gameId: g._id, creatorId: g.createdBy, creator, createdAt: g.createdAt }
   }))
   return { code: 0, data: { invites: withInfo } }
 }

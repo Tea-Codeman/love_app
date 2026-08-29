@@ -260,14 +260,29 @@ async function contact({ peerId } = {}, OPENID) {
   const user = (u.data && u.data[0]) || null
   if (!user) return { code: 404, message: '用户不存在' }
 
-  // M4.1：`contact_unlocked`（**SC3 加微信转化**的分子）。埋点失败静默。
-  // props 只带成长值 —— 微信号/昵称等 PII 一律不进 events。
-  metrics.track(metricsCtx, {
-    openid: OPENID,
-    eventName: 'contact_unlocked',
-    pairId: pairKeyOf(OPENID, peerId),
-    props: { growthValue }
-  }).catch(() => {})
+  // M4.1：`contact_unlocked`（**SC3 加微信转化**的分子）。
+  // 幂等：每个 pair 仅在「首次解锁联系方式」时上报一次，避免重复点击/多次查看放大 SC3 分母。
+  // 判重依据 = events 中该 pairId 是否已有 contact_unlocked（pairId 为双 openid 排序拼 `|`，与方向无关）。
+  const pairKey = pairKeyOf(OPENID, peerId)
+  let firstUnlock = true
+  try {
+    const prev = await db.collection('events')
+      .where({ eventName: 'contact_unlocked', pairId })
+      .limit(1)
+      .get()
+    firstUnlock = !(prev.data && prev.data.length)
+  } catch (e) {
+    firstUnlock = true // 查询失败保守上报，宁可多记不可漏记
+  }
+  if (firstUnlock) {
+    // props 只带成长值 —— 微信号/昵称等 PII 一律不进 events。埋点失败静默。
+    await metrics.track(metricsCtx, {
+      openid: OPENID,
+      eventName: 'contact_unlocked',
+      pairId,
+      props: { growthValue }
+    }).catch(() => {})
+  }
 
   return {
     code: 0,

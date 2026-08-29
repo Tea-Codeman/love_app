@@ -4,7 +4,7 @@
 //   2. **S1 解锁**：成长值 < 12（未到 S1）不能聊天，引导先一起玩
 //   3. **有效互聊 +2**：当「本条消息是对对方上一条消息的回复」时结算一次成长值（+2，含 streak）
 //   4. 黑名单双向拦截：任一方向拉黑都禁止发消息
-// 动作：send（发消息）/ list（拉历史）
+// 动作：send（发消息）/ list（拉历史）/ contact（S4 解锁联系方式）
 // 复用而非重写：审核走 safety 云函数、成长值走 growth 云函数，避免规则两份漂移。
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -14,9 +14,12 @@ const _ = db.command
 const MESSAGES_COL = 'messages'
 const PAIRS_COL = 'pairs'
 const BLOCKS_COL = 'blocks'
+const USERS_COL = 'users'
 
 // S1 门槛成长值（与 growth/index.js 的 STAGE_THRESHOLDS.S1 一致）
 const MIN_CHAT_GROWTH = 12
+// S4 门槛成长值：达到后才解锁联系方式
+const MIN_CONTACT_GROWTH = 150
 // 单条消息长度上限（与 safety.localCheckText 的 500 字保持一致）
 const MAX_LEN = 500
 // 一轮「有效互聊」的成长值增量
@@ -185,12 +188,44 @@ async function list({ peerId, limit = 50 } = {}, OPENID) {
   }
 }
 
+// 联系方式解锁（M3.4）：仅 S4（成长值 ≥150）可见，且任一方向拉黑即拒绝。
+// 微信号只在这一个出口返回——recommend / getGame 等接口一律不带，避免隐私字段到处漏。
+async function contact({ peerId } = {}, OPENID) {
+  if (!OPENID) return { code: 401, message: '未登录' }
+  if (!peerId) return { code: 400, message: '缺少 peerId' }
+  if (await isBlockedEitherWay(OPENID, peerId)) {
+    return { code: 403, message: '无法获取该用户联系方式' }
+  }
+  const pair = await getPair(OPENID, peerId)
+  const growthValue = Number(pair && pair.growthValue) || 0
+  if (growthValue < MIN_CONTACT_GROWTH) {
+    return {
+      code: 403,
+      message: '还没到解锁的时候，再相处一阵子吧',
+      data: { needGrowth: MIN_CONTACT_GROWTH - growthValue, growthValue }
+    }
+  }
+  const u = await db.collection(USERS_COL).where({ openid: peerId }).limit(1).get()
+  const user = (u.data && u.data[0]) || null
+  if (!user) return { code: 404, message: '用户不存在' }
+  return {
+    code: 0,
+    data: {
+      nickname: user.nickname || '',
+      avatarUrl: user.avatarUrl || '',
+      wechatId: user.wechatId || '',
+      wechatQrUrl: user.wechatQrUrl || ''
+    }
+  }
+}
+
 exports.main = async (event = {}) => {
   const action = event.action
   const OPENID = cloud.getWXContext().OPENID
   try {
     if (action === 'send') return await send(event, OPENID)
     if (action === 'list') return await list(event, OPENID)
+    if (action === 'contact') return await contact(event, OPENID)
     return { code: 404, message: 'unknown action: ' + action }
   } catch (e) {
     const msg = (e && e.message) || 'chat error'

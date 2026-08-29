@@ -97,5 +97,16 @@ function sanitizeProfile(p) {
     const t = p.mbti.trim().toUpperCase()
     if (MBTI_TYPES.includes(t)) out.mbti = t
   }
+  // 微信号（M3.4）：仅在 S4 解锁后展示给对方，平时不对外暴露。
+  // 微信官方规则：6–20 位、字母开头、仅字母/数字/-/_。非法值直接丢弃（不误清空已存值）。
+  if (typeof p.wechatId === 'string') {
+    const w = p.wechatId.trim()
+    if (/^[a-zA-Z][-_a-zA-Z0-9]{5,19}$/.test(w)) out.wechatId = w
+  }
+  // 微信二维码图（可选）：必须是 http(s) 链接，避免写入任意字符串后被当图片渲染
+  if (typeof p.wechatQrUrl === 'string') {
+    const u = p.wechatQrUrl.trim()
+    if (/^https?:\/\/\S+$/.test(u)) out.wechatQrUrl = u.slice(0, 500)
+  }
   return out
 }

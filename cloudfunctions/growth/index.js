@@ -131,7 +131,34 @@ async function listPairs({}, OPENID) {
     .orderBy('updatedAt', 'desc')
     .limit(50)
     .get()
-  const pairs = (mine.data || []).map(p => withStage(Object.assign({}, p, { exists: true })))
+  const rows = (mine.data || []).map(p => withStage(Object.assign({}, p, { exists: true })))
+
+  // 一次性补齐对方资料（昵称/头像/MBTI），避免前端逐条查 users（N+1）。
+  // 查不到资料的（已注销等）降级为「未知用户」，不阻断列表。
+  const peerIds = [...new Set(rows.map(p => (p.userA === OPENID ? p.userB : p.userA)).filter(Boolean))]
+  const profiles = {}
+  for (let i = 0; i < peerIds.length; i += 20) {
+    const ids = peerIds.slice(i, i + 20)
+    try {
+      const u = await db.collection('users')
+        .where({ openid: _.in(ids) })
+        .field({ openid: true, nickname: true, avatarUrl: true, mbti: true })
+        .get()
+      ;(u.data || []).forEach(x => {
+        profiles[x.openid] = { nickname: x.nickname || '', avatarUrl: x.avatarUrl || '', mbti: x.mbti || '' }
+      })
+    } catch (e) {
+      // 该批查不到就保持为空，前端按「未知用户」渲染
+    }
+  }
+
+  const pairs = rows.map(p => {
+    const peerId = p.userA === OPENID ? p.userB : p.userA
+    return Object.assign({}, p, {
+      peerId,
+      peer: profiles[peerId] || { nickname: '未知用户', avatarUrl: '', mbti: '' }
+    })
+  })
   return { code: 0, data: { pairs } }
 }
 

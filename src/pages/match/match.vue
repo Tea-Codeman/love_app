@@ -35,6 +35,8 @@
           </view>
           <text class="score" v-if="c.score > 0">契合度 {{ c.score }}</text>
           <text class="tacit" v-if="c.gameCount > 0">已玩{{ c.gameCount }}局 · 默契{{ c.gameTacit }}题</text>
+          <!-- M3.2：关系成长进度（数据来自 recommend 返回的 pairs.growthValue） -->
+          <growth-bar :growth-value="c.growthValue"></growth-bar>
         </view>
         <view class="cand-actions">
           <text class="btn play" @click="onPlay(c)">一起玩</text>
@@ -50,8 +52,10 @@
 <script>
 import { callFunction } from '../../utils/request'
 import { getOpenid } from '../../utils/storage'
+import growthBar from '../../components/growth-bar.vue'
 
 export default {
+  components: { growthBar },
   data() {
     return {
       openid: '',

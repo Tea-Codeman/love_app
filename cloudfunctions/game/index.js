@@ -1,7 +1,7 @@
-// cloudfunctions/game/index.js —— F4 双人默契问答（回合制弱实时 T1 已决）
+// cloudfunctions/game/index.js —— F4 双人默契问答（各自独立答题，终局对比 T1 已决）
 // 状态机：waiting → playing → done / cancelled
 // 动作：joinGame（受邀方加入→载入题目→playing）/ getGame（校验玩家后返回状态）
-//       submitAnswer（存答案，双方都提交则判定默契并自动 advanceRound；正常结束→matches 置 done）/ cancelGame（取消+match 失效）
+//       submitAnswer（按"题号+openid"各自独立落盘，互不阻塞；仅当双方都答完全部题才终局对比算默契→matches 置 done）/ cancelGame（取消+match 失效）
 // 匹配状态（matches.status）：active（进行中/待加入）→ done（玩完，可再次约）/ cancelled（拒绝或取消）
 // 题库：gameQuestions 集合首次为空时自动播种（与 community 种子话题同机制，仅播种数据，不建集合）。
 const cloud = require('wx-server-sdk')
@@ -82,9 +82,11 @@ async function getGame({ gameId } = {}, OPENID) {
   return { code: 0, data: { game: g.data } }
 }
 
-async function submitAnswer({ gameId, optionIndex } = {}, OPENID) {
+async function submitAnswer({ gameId, optionIndex, round } = {}, OPENID) {
   if (!gameId) return { code: 400, message: '缺少 gameId' }
   if (optionIndex === undefined || optionIndex === null) return { code: 400, message: '缺少选项' }
+  const rkNum = Number(round)
+  if (!rkNum || rkNum < 1) return { code: 400, message: '缺少题号' }
 
   const g = await db.collection(GAMES_COL).doc(gameId).get()
   if (!g.data) return { code: 404, message: '对局不存在' }
@@ -92,32 +94,57 @@ async function submitAnswer({ gameId, optionIndex } = {}, OPENID) {
   if (game.state !== 'playing') return { code: 400, message: '对局未在进行中' }
   if (!(game.players || []).includes(OPENID)) return { code: 403, message: '你不在该对局' }
 
-  const rk = String(game.round)
-  const current = (game.questions || [])[game.round - 1]
+  const total = game.totalRounds || 0
+  if (rkNum > total) return { code: 400, message: '题号越界' }
+  const current = (game.questions || [])[rkNum - 1]
   if (!current || optionIndex < 0 || optionIndex >= (current.options || []).length) {
     return { code: 400, message: '选项越界' }
   }
 
-  // 合并答案（read-modify-write，顺序写入安全；人类节奏下并发极低）
+  // 各自独立答题：答案按"题号 + openid"落盘，不依赖回合指针，互不打断。
   const answers = Object.assign({}, game.answers)
-  answers[rk] = Object.assign({}, answers[rk])
-  answers[rk][OPENID] = optionIndex
+  answers[String(rkNum)] = Object.assign({}, answers[String(rkNum)])
+  const prev = answers[String(rkNum)][OPENID]
+  if (prev !== undefined) {
+    // 幂等：重复提交（如网络重试）直接放行；作答不同才报错
+    if (prev === optionIndex) {
+      const same = await db.collection(GAMES_COL).doc(gameId).get()
+      return { code: 0, data: { game: same.data } }
+    }
+    return { code: 400, message: '本题已作答' }
+  }
+  answers[String(rkNum)][OPENID] = optionIndex
 
-  let { roundResults, tacitCount, round, state } = game
-  const ans = answers[rk]
-  const bothAnswered = (game.players || []).every(p => ans[p] !== undefined)
-  let justCompleted = null
-  if (bothAnswered) {
-    const tacit = ans[game.players[0]] === ans[game.players[1]]   // 双方选同一项 = 默契
-    roundResults = (roundResults || []).concat([{ round: game.round, tacit }])
-    if (tacit) tacitCount = (tacitCount || 0) + 1
-    round = game.round + 1
-    if (round > game.totalRounds) state = 'done'
-    justCompleted = { round: game.round, tacit }
+  const players = game.players || []
+  // 双方是否都已答完全部题 —— 只有此时才出结果、对比默契。
+  const bothComplete = players.length === 2 && players.every(p => {
+    let c = 0
+    for (let r = 1; r <= total; r++) {
+      if (answers[String(r)] && answers[String(r)][p] !== undefined) c++
+    }
+    return c === total
+  })
+
+  let { state, tacitCount, roundResults } = game
+  if (bothComplete) {
+    // 终局对比：逐题比较两人答案，答案选同一项即默契。
+    const [p0, p1] = players
+    let tc = 0
+    const rr = []
+    for (let r = 1; r <= total; r++) {
+      const a0 = answers[String(r)][p0]
+      const a1 = answers[String(r)][p1]
+      const tacit = a0 === a1
+      if (tacit) tc++
+      rr.push({ round: r, tacit })
+    }
+    tacitCount = tc
+    roundResults = rr
+    state = 'done'
   }
 
   await db.collection(GAMES_COL).doc(gameId).update({
-    data: { answers, roundResults, tacitCount, round, state }
+    data: { answers, state, tacitCount, roundResults }
   })
 
   // 游戏正常结束：把对应 matches 翻出 active，使双方回到大厅后仍互相可见、可再次约玩。
@@ -134,14 +161,14 @@ async function submitAnswer({ gameId, optionIndex } = {}, OPENID) {
           status: 'done',
           finishedAt: Date.now(),
           lastTacit: tacitCount || 0,
-          lastRounds: game.totalRounds || 0
+          lastRounds: total
         }
       })
       .catch(() => {})
   }
 
   const updated = await db.collection(GAMES_COL).doc(gameId).get()
-  return { code: 0, data: { game: updated.data, justCompleted } }
+  return { code: 0, data: { game: updated.data } }
 }
 
 async function cancelGame({ gameId } = {}, OPENID) {

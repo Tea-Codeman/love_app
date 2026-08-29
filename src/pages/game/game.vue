@@ -23,11 +23,11 @@
       <text class="tip">正在加入对局…</text>
     </view>
 
-    <!-- 进行中 -->
+    <!-- 进行中（各自独立答题，互不阻塞） -->
     <view class="playing" v-else-if="game.state === 'playing'">
       <view class="progress">
-        <text class="round">第 {{ game.round }} / {{ game.totalRounds }} 题</text>
-        <text class="tacit">默契 {{ game.tacitCount || 0 }}</text>
+        <text class="round">第 {{ Math.min(myRound + 1, game.totalRounds) }} / {{ game.totalRounds }} 题（你）</text>
+        <text class="tacit">对方已答 {{ oppRound }} / {{ game.totalRounds }}</text>
       </view>
       <quiz
         v-if="currentQuestion"
@@ -35,9 +35,10 @@
         :chosen="myAnswer"
         @answer="onAnswer"
       ></quiz>
-      <view class="status" v-if="hasSubmitted && !oppSubmitted">已选择，等待对方…</view>
-      <view class="status" v-else-if="!hasSubmitted">选一个你的答案吧</view>
-      <view class="status ok" v-else-if="hasSubmitted && oppSubmitted">双方已选，马上进入下一题</view>
+      <view class="status" v-if="!iAmDone">选一个你的答案吧</view>
+      <view class="status ok" v-else-if="iAmDone && game.state === 'playing'">
+        你的答案已提交，等对方答完即出结果
+      </view>
     </view>
 
     <!-- 结束 -->
@@ -64,29 +65,36 @@ export default {
       gameId: '',
       game: null,
       sync: null,
-      joining: false
+      joining: false,
+      myRound: 0,        // 我已答完的题数（本地进度，重连时从 answers 恢复）
+      myRoundInited: false
     }
   },
   computed: {
     currentQuestion() {
       if (!this.game || this.game.state !== 'playing') return null
       const qs = this.game.questions || []
-      return qs[this.game.round - 1] || null
+      return qs[this.myRound] || null
     },
     myAnswer() {
-      if (!this.game) return -1
-      const ans = this.game.answers && this.game.answers[String(this.game.round)]
-      if (ans && ans[this.openid] !== undefined) return ans[this.openid]
+      // 当前题尚未作答（答完即前进到下一题），无需高亮历史选择
       return -1
     },
-    hasSubmitted() {
-      return this.myAnswer !== -1
-    },
-    oppSubmitted() {
-      if (!this.game || !this.game.players) return false
+    oppRound() {
+      if (!this.game || !this.game.players) return 0
       const opp = this.game.players.find(p => p !== this.openid)
-      const ans = this.game.answers && this.game.answers[String(this.game.round)]
-      return !!(ans && ans[opp] !== undefined)
+      if (!opp) return 0
+      const total = this.game.totalRounds || 0
+      const ans = this.game.answers || {}
+      let c = 0
+      for (let r = 1; r <= total; r++) {
+        if (ans[String(r)] && ans[String(r)][opp] !== undefined) c++
+      }
+      return c
+    },
+    iAmDone() {
+      if (!this.game) return false
+      return this.myRound >= (this.game.totalRounds || 0)
     },
     resultText() {
       const t = this.game ? (this.game.tacitCount || 0) : 0
@@ -118,6 +126,7 @@ export default {
       const r = await callFunction('game', { action: 'getGame', gameId: this.gameId })
       if (r.ok && r.data) {
         this.game = r.data.game
+        this.ensureMyRound()
         this.maybeJoin()
       } else if (r.code === 500) {
         uni.showToast({ title: r.message, icon: 'none' })
@@ -125,7 +134,25 @@ export default {
     },
     onGameUpdate(g) {
       this.game = g
+      this.ensureMyRound()
       this.maybeJoin()
+    },
+    // 已答某玩家在全部题中的作答数（用于本地进度恢复 / 对方进度显示）
+    countAnswered(game, openid) {
+      if (!game || !game.players) return 0
+      const total = game.totalRounds || 0
+      const ans = game.answers || {}
+      let c = 0
+      for (let r = 1; r <= total; r++) {
+        if (ans[String(r)] && ans[String(r)][openid] !== undefined) c++
+      }
+      return c
+    },
+    // 首次拿到对局时，从已落盘答案恢复我的答题进度（重连/被杀重启后用）
+    ensureMyRound() {
+      if (this.myRoundInited || !this.game) return
+      this.myRound = this.countAnswered(this.game, this.openid)
+      this.myRoundInited = true
     },
     // 受邀方进入 waiting 局时自动加入
     async maybeJoin() {
@@ -140,16 +167,20 @@ export default {
       }
     },
     async onAnswer(i) {
-      if (this.hasSubmitted) return
+      if (!this.game || this.game.state !== 'playing') return
+      if (this.iAmDone) return
       const r = await callFunction('game', {
         action: 'submitAnswer',
         gameId: this.gameId,
-        optionIndex: i
+        optionIndex: i,
+        round: this.myRound + 1
       })
       if (!r.ok) {
         uni.showToast({ title: r.message || '提交失败', icon: 'none' })
+        return
       }
-      // 状态由同步（watch/轮询）刷新；此处不手动改，避免与权威状态冲突
+      // 本地前进到下一题；对方进度由同步（watch/轮询）刷新驱动
+      this.myRound++
     },
     async onCancel() {
       const r = await callFunction('game', { action: 'cancelGame', gameId: this.gameId })

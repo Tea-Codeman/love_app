@@ -1,7 +1,7 @@
 # M3 规划：升温·导流（关系成长 F5 + 轻聊导流 F6 + 关系主页 F7）
 
 > 本文档是 **M3 阶段执行规划**，基于 `spec/SPEC.md`（v1.0）、`tasks/plan.md`（已批准）、`tasks/todo.md`（M3 卡）与 `HANDOFF.md`（2026-08-29 实测修正）。  
-> 状态：**规划草案，待关键范围决策拍板后定稿**。仍不写实现代码，直至逐级签字放行。  
+> 状态：**已定稿**（2026-08-29 三项范围决策已拍板）。M3.0 集合已建 ✅，**M3.1 实现中**（2026-08-30）。  
 > 前置：M0/M1/M2 已完成并通过真机验证（含 MBTI 落库、拉黑闭环、契合度加成显示均正常）。
 
 ---
@@ -32,7 +32,8 @@ M3 打通"一起玩 → 关系成长 → 解锁联系方式"的升温·导流闭
 
 ## 2. 前置依赖（必须在写 M3 代码前完成）
 
-- [ ] 控制台**手动建集合**（代码不自动建，用户已否决）：`pairs`、`messages` 为 M3 必需；`events`、`metrics` 为 M4 用（建议本次一并建，避免回头）。
+- [x] 控制台**手动建集合**（代码不自动建，用户已否决）：`pairs`、`messages` 为 M3 必需；`events`、`metrics` 为 M4 用（建议本次一并建，避免回头）。
+  - **【2026-08-30 实测】4 个集合均已建且为空** ✅（`readNoSqlDatabaseContent` 逐个探测通过）。**M3.0 已完成，M3.1 可开工。**
   - **`pairs`** 字段（来自 plan §4 + M3 扩充）：`pairId`, `userA`, `userB`, `growthValue`, `stage`, `firstGameDone`, `gameCount`, `tacitTotal`, `lastGameAt`, `lastInteractionAt`, `weekStreakAdded`, `lastStreakDay`, `milestones[]`, `createdAt`, `updatedAt`
   - **`messages`** 字段：`msgId`, `pairId`, `senderId`, `content`, `type`(text/img/contact), `auditStatus`(pass/review/reject), `createdAt`
 
@@ -135,4 +136,4 @@ Plan §5 列了 5 类成长事件，其中两类依赖 M2 **尚未建** 的系�
 | 2 | `wechatId` 来源 | 新增 `users.wechatId` 字段（资料页授权输入 + `auth.sanitizeProfile` 同步） |
 | 3 | 集合建表          | 本次一并建 `pairs` / `messages` / `events` / `metrics`           |
 
-> 规划草案已定稿。下一步：用户手动建 4 个集合（M3.0）→ 逐级签字放行后开始 M3.1 实现。
+> 规划已定稿。**M3.0 已完成（4 个集合已建，2026-08-30）** → 逐级签字放行后开始 M3.1 实现（**进行中**）。

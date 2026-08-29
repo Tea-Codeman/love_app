@@ -159,17 +159,19 @@
   **Files likely touched:** `cloudfunctions/game/index.js`, `src/pages/game/`  
   **Estimated scope:** S
 
-### Task M2.3: F4 默契问答回合（弱实时）
+### Task M2.3: F4 默契问答（各自独立答题 · 终局对比）
 
-**Description:** `game.submitAnswer`/`game.advanceRound`；前端用云数据库 `watch` 订阅状态；判定"默契"（双方答案一致性）。回合制、秒级足够（T1 已决）。  
+**Description:** `game.submitAnswer`（客户端带 `round` 题号 + `optionIndex`，答案按 `answers[题号][openid]` 各自独立落盘，互不阻塞）；前端用云数据库 `watch` 订阅状态（轮询兜底）；**双方都答完全部题时才终局对比**两人答案，答案选同一项 = 默契。  
 **Acceptance criteria:**
 
-- 双端回合同步、判定一致  
+- 各自独立答题互不阻塞，双端进度实时可见
+- 终局对比判定一致、结束页同时出结果  
   **Verification:**
-- E2E: 双设备进同一局，回合状态一致  
+- E2E: 双设备进同一局，各自答完 5 题后同时出结果  
   **Dependencies:** M2.2  
-  **Files likely touched:** `cloudfunctions/game/index.js`, `src/pages/game/quiz.vue`, `src/utils/realtime.js`  
+  **Files likely touched:** `cloudfunctions/game/index.js`, `src/pages/game/quiz.vue`, `src/pages/game/game.vue`, `src/utils/realtime.js`  
   **Estimated scope:** M
+  > **注（2026-08-30 改版）**：原设计为回合制（双方都提交才 `round+1`），用户反馈"一人选完等另一人选完太死板"，改为独立答题 + 终局对比。提交 `ab8cbd8`。
 
 ### Task M2.4: F4 题库种子
 
@@ -183,11 +185,11 @@
   **Files likely touched:** `cloudfunctions/game/index.js`, 种子数据文件  
   **Estimated scope:** S
 
-### Checkpoint M2
+### Checkpoint M2 ✅ 已通过（2026-08-30）
 
-- [ ] 双设备进同一局、回合一致、玩完一局
-- [ ] 撮合→建局→答题闭环跑通
-- [ ] 人工评审后进入 M3
+- [x] 双设备进同一局、各自独立答题、玩完一局
+- [x] 撮合→建局→答题闭环跑通（V1–V4 云端佐证，见 `verification-log.md`）
+- [x] 人工评审后进入 M3
 
 ---
 

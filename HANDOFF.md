@@ -231,6 +231,11 @@
   2. ~~MBTI 与拉黑零数据~~ ✅ MBTI 已落库验证（`woailuo=ESTJ`、`我不爱罗=INFP`）；拉黑/解除闭环已验证。
   3. ~~cancelled 残留~~ ✅ 按方案 B 清理（`matches`/`games` 各 10→2），已云端核验。
 - **下一步里程碑**：**先把 M3 真机验证跑完**（详见 `tasks/verification-log.md`），人工评审通过后进入 **M4**。M3 范围与偏差记录见 `tasks/plan-m3.md`（注意：页面实际路径为 `src/pages/relation/relation.vue` 与 `src/pages/contact/contact.vue`，**非**规划草稿里的 `src/pages/growth/`、`src/pages/chat/contact.vue`）。
+- **M4 规划已定稿**（`tasks/plan-m4.md`，2026-08-30 三项决策已拍板）：
+  1. **看板形态** = `metrics.dashboard` 云函数返回 JSON（MCP/控制台/脚本查看），**不做小程序内看板页、不引入管理员鉴权**。
+  2. **入桩时机** = **等 M3 真机验证通过后**再往 `game`/`chat`/`match`/`safety` 插桩（保基线干净、缺陷可归因）。
+  3. **只补 SC4 自评入口**（关系主页「我们在一起了」）；**SC5 处置能力留到 M5**，M4 期间 SC5 为数据缺口、需人工终审放行。
+  - M4.1 的 13 个事件清单与 SC1–SC5 计算口径（分母定义）见 `tasks/plan-m4.md` §4–§5。
 - **M3 新增集合 `pairs` / `messages` / `events` / `metrics` 已建且为空**（2026-08-30 实测）。
 
 ---

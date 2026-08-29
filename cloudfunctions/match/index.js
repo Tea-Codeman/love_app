@@ -48,11 +48,17 @@ function scoreCandidate(me, other) {
   return { score, sharedTags: shared, mbtiFit }
 }
 
+// 双向黑名单：既要排除「我拉黑的人」（我不想见），也要排除「拉黑我的人」
+// （防止被拉黑方仍能看到我并发起「一起玩」，否则防骚扰形同虚设）。
 async function getBlockedIds(OPENID) {
   if (!OPENID) return []
   try {
-    const r = await db.collection(BLOCKS_COL).where({ blockerId: OPENID }).get()
-    return (r.data || []).map(b => b.blockedId)
+    const mine = await db.collection(BLOCKS_COL).where({ blockerId: OPENID }).get()
+    const theirs = await db.collection(BLOCKS_COL).where({ blockedId: OPENID }).get()
+    const set = new Set()
+    ;(mine.data || []).forEach(b => set.add(b.blockedId))
+    ;(theirs.data || []).forEach(b => set.add(b.blockerId))
+    return [...set]
   } catch (e) { return [] }
 }
 

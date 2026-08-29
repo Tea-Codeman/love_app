@@ -58,6 +58,7 @@ import { callFunction } from '../../utils/request'
 import { getOpenid } from '../../utils/storage'
 import growthBar from '../../components/growth-bar.vue'
 import { stageOf, reached } from '../../utils/growth'
+import { track, flushTrack } from '../../utils/track'
 
 export default {
   components: { growthBar },
@@ -94,6 +95,9 @@ export default {
   onHide() {
     this.stopPendingPolling()
     this.stopRecommendPolling()
+    // M4.1：页面切走时立即把攒批的埋点（含 recommend_view）发出去，
+    // 避免停留不足 10s 未触发攒批定时器就丢事件。
+    flushTrack()
   },
   onUnload() {
     this.stopPendingPolling()

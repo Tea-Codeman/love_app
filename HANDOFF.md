@@ -176,6 +176,7 @@
 14. **拉黑闭环（2026-08-29）**：① 匹配页候选卡「拉黑」按钮（带二次确认，调 `safety.block`，成功后本地移除候选，并修复空状态仍在引导去已隐藏社区的文案）；② `safety` 新增 `listBlocks`/`unblock` + 新建 `pages/settings/settings.vue` + 首页「设置 ›」入口。`listBlocks` 用 `users.where({ openid: _.in(ids) })` 一次 join（2 次查询，非 N+1），显式 `.limit()`，被拉黑者不存在时显示「已注销用户」。
 15. **撮合 N+1 优化（2026-08-29）**：`recommend` 原对每个候选各查一次 `matches`（最多 100 次），改为 `aggregateDoneStats` 按批（`AGG_BATCH=20`）一次查完再内存分组，查询次数从 N 降到 `ceil(N/20)`；输出结构不变。
 16. **Git 提交**：本轮共 12 个提交（自 `338cb5c` 起），按「功能 / 开关 / 文档 / 性能」原子拆分。工作树干净。
+17. **M3 真机佐证 + BUG-1/BUG-2 修复（2026-08-30）**：云端查库佐证 M3 的 8 项验证步骤（结论见 `tasks/verification-log.md`），查出 `chat`→`growth` 跨函数调用丢失 OPENID，导致 8 次有效互聊的成长值全写进 `"<openid>|undefined"` 幽灵 pair、真实关系 0 增长且主流程不报错。按用户拍板的方案①抽出 `cloudfunctions/growth/growth-core.js` 共享内核，`chat`/`game` 改为本进程内直接写 pairs，内核对 `openid` 缺失直接 401 作护栏；顺带修 `pairs.stage` 缓存漂移（stage 一律读时派生）并统一 streak 口径。新增 `npm run sync:core` 防止三份副本漂移。已部署 growth/game/chat/match 四函数并冒烟验证，提交 `9bf1eb8`。
 
 ---
 
@@ -221,8 +222,14 @@
 
 **【2026-08-29 17:30 由新 Agent 重写，旧版内容已作废】**
 
-- **进度位置**：M0 已验收、M1 Checkpoint 通过（step 1–6）、**M2 已收尾并通过 Checkpoint（2026-08-30）**。**M3（升温·导流）代码已全部完成并部署，待真机验证**（2026-08-30）。
-  - M3.0 ✅ 四个集合已建 ｜ M3.1 ✅ 成长累加 + pairs 权威源 ｜ M3.2 ✅ 阶段跃迁 + `growth-bar` ｜ M3.3 ✅ 轻聊（先审后发 / S1 门禁 / 互聊 +2）｜ M3.4 ✅ wechatId + S4 联系方式页 ｜ M3.5 ✅ F7 关系主页 ｜ M3.6 ✅ streak（并入 M3.1）
+- **进度位置**：M0 已验收、M1 Checkpoint 通过（step 1–6）、**M2 已收尾并通过 Checkpoint（2026-08-30）**。**M3（升温·导流）代码全部完成并部署；真机已跑（2026-08-30 01:21–01:30），云端佐证已完成 —— 发现 1 个严重 BUG，M3 判定「有条件通过，需修 BUG-1 后复验」**（详见 `tasks/verification-log.md` 的 M3 章节「云端佐证」）。
+  - M3.0 ✅ 四个集合已建 ｜ M3.1 ✅ 成长累加 + pairs 权威源 ｜ M3.2 ✅ 阶段跃迁 + `growth-bar` ｜ M3.3 ⚠️ 轻聊（门禁/审核/幂等逻辑全对，**成长值写错对象**）｜ M3.4 ✅ wechatId + S4 联系方式页 ｜ M3.5 ⚠️ F7 关系主页（会被幽灵关系污染）｜ M3.6 ✅ streak（并入 M3.1）
+  - **佐证结论速览**：8 项中 3 项明确 PASS（轻聊门禁 / 互聊幂等 / 微信号落库）、1 项间接 PASS（先审后发）、4 项存疑或 FAIL。
+  - 🔴→⏳ **BUG-1（严重 · 已修，待真机复验）**：`chat` 用 `cloud.callFunction` 调 `growth` → **被调用方 `getWXContext().OPENID` 为 `undefined`**（云函数间调用不带端用户身份）→ 8 次互聊成长值全部写进 `"<openid>|undefined"` 幽灵 pair，真实 pair 一分未得。详见「盲区防护」第 19 条。
+    - **修法（用户拍板方案①）**：成长规则抽到 `cloudfunctions/growth/growth-core.js`，`game`/`chat`/`match` 各存一份同步副本；`chat`/`game` 改为**本进程内直接写 pairs**，不再跨函数调用。内核对 `openid` 缺失直接 401（护栏，宁可响亮失败也不再造幽灵数据）。新增 `npm run sync:core` 防三份副本漂移。
+    - 提交 `9bf1eb8`，已部署 growth/game/chat/match 四函数并冒烟验证（均可加载共享模块；无 openid 的 `addGrowth` 返回 401 且不写库）。
+    - **剩余动作**：你真机重跑一轮互聊 → 我查库确认成长值落到真实 pair → 再清理 2 条幽灵 pair。
+  - 🟡→✅ **BUG-2（中 · 已修）**：`pairs.stage` 是缓存字段，`game` 直写分支会刷但**不结算 streak**（与 `growth.addGrowth` 口径不一致）；`match.recommend` 读时缓存优先 → 非代码途径改 `growthValue` 会造成「匹配页 S1 / 聊天页 S4」的口径打架。现改为：**`match` 的 stage 一律由 `growthValue` 读时派生**，且 `game` 结束也开始结算 streak（两处口径已统一）。
   - **真机验证步骤见 `tasks/verification-log.md` 的 M3 章节**（8 步）。**前端改动必须先 `npm run dev:mp-weixin` 重新构建 `dist/dev`**，否则 DevTools 仍加载旧包。
   - 新增前端文件：`src/utils/growth.js`、`src/components/growth-bar.vue`、`src/pages/chat/`、`src/pages/contact/`、`src/pages/relation/`。
 - **已核实完成（不再是阻塞项）**：7 个云函数全部部署且与本地一致；**14 个集合全部存在**（M2 的 10 个 + M3 新增 `pairs`/`messages`/`events`/`metrics`）；M2 主链路双设备真机闭环 PASS。
@@ -244,6 +251,10 @@
 
 | 优先级 | 问题 |
 |--------|------|
+| ✅→⏳ **【已修·待真机复验】** | **BUG-1：云函数间调用丢失 OPENID。** 已按方案①修复：成长规则抽共享内核 `cloudfunctions/growth/growth-core.js`，`game`/`chat`/`match` 各存同步副本；`chat`/`game` 本进程内直接写 pairs；内核对 `openid` 缺失直接 401。提交 `9bf1eb8`，四函数已部署并冒烟通过。**剩余：你真机重跑一轮互聊 → 我查库确认 → 再清理 2 条幽灵 pair。** |
+| ✅ **【已修】** | **BUG-2：`pairs.stage` 缓存漂移。** `match.recommend` 的 stage 改为一律 `stageOf(growthValue)` 读时派生（同提交 `9bf1eb8`）；`game` 结束现在也结算 streak，与 `growth.addGrowth` 口径统一。 |
+| **【🟡 中·待确认】** | **数据疑点 2 条**：① 真实 pair 的 `growthValue=150` 与自然累计（最多 32）不符、`updatedAt` 未变 → 疑似控制台手改（为测 S4？）。② `matches` 里 `10b550da6a93151800e2d6255f7aa2cf`（`lastTacit=3`）对应的 `games` 文档**不存在**，代码中无任何删除 `games` 的逻辑 → 疑似手删。**均未做任何改动。** |
+| **【🟡 中·M4 决策】** | **`6LrPFY↔sJ8Fv8` 打了 5 局却无 pairs 记录**：`recommend` 的 `getMatchedOpenids` 排除已匹配对象 → 已成 done 的对永不进候选 → `aggregateGrowthStats` 懒回填永不触发 → **「我的关系」页看不到任何历史关系**。M4 需决策是否做一次性全量回填。 |
 | ~~**【已解决 2026-08-29】**~~ | ~~部署 4 个云函数 + 确认 3 个集合已建~~ —— **实测已全部部署且一致、10 个集合全存在，`community` 也已补部署。此项关闭。** |
 | **【高·真机】** | 双设备跑 M2 Checkpoint：A 约 B → B 收到并接受 → 双方答题 5 轮 → 结束回大厅仍互相可见。**重点看回合同步延迟与结束页**。 |
 | **【高·真机】** | 验证 MBTI 全链路：资料页 12 题 → 保存 → 重进能回显 → 匹配推荐里契合度分数变化（`users` 至今无一条 `mbti`）。 |
@@ -261,6 +272,13 @@
 ---
 
 # 待确认事项
+
+**【2026-08-30 · M3 真机佐证后新增，最优先】**
+- ✅ **BUG-1 修法已拍板 = ①抽共享模块**（2026-08-30 已实施，提交 `9bf1eb8`）。
+- ⏳ **等你真机复验修复效果**：两部手机互发几条消息（注意：只有「回复对方上一条」才结算成长）。跑完说一声，我查库确认三件事 —— ① 真实 pair 的 `growthValue` 每次互聊 +2（含当日首次 +3 streak）；② `updatedAt` 晚于最后一条消息；③ **不再新增 `|undefined` 幽灵 pair**。
+- ⏳ **复验通过后再清理 2 条幽灵 pair**（`6LrPFY|undefined`、`Z|undefined`，各 growthValue=11）：**破坏性操作，删前我会列 `_id` 给你过目**。
+- ❓ **`growthValue=150` 是不是你手改的**（为测 S4 联系方式）？以及 `lastTacit=3` 那局 `games` 文档是不是你在控制台删的？—— 确认后我好判断是真 BUG 还是测试数据噪音。
+- ⏸️ **M4.1 暂缓开工**：`plan-m4.md` 决策 2 定的是「M3 真机验证通过后」才插桩。等上面复验 PASS 再进 M4，避免 events 里的成长类事件一起记错、污染指标基线。
 
 - **是否要推送本地 13 个提交**：需先 `git fetch` 修复无上游追踪引用的问题，再 push（**绝不 force**）。其中 `338cb5c` 用户曾决定不推送，若要推送需重新确认。
 - **【本轮新增，待用户拍板】**：下一步做什么？三选一 —— ① **跑真机验证**（双设备 M2 Checkpoint + MBTI + 拉黑，Agent 出步骤清单、用户执行）；② **直接开工 M3**（关系成长 `growth` + `chat` + 关系主页，需先建 `pairs`/`messages`/`events`/`metrics` 集合）；③ **先修小项**（MBTI 未答题显示 ESTJ 的 UX 问题、`mbtiFit` 未渲染、`FEATURES` 进 `data()` 等 4 个已列出未改的小项）。
@@ -316,7 +334,13 @@
    - 部署方式：既可 DevTools 右键「上传并部署：云端安装依赖」，也可 Agent 用 `manageFunctions(action=updateFunctionCode, functionRootPath="D:/Tencent/app/cloudfunctions", func={name, isWaitInstall:true})` 直接部署（已验证可用）。**不要选本地安装依赖**，本地 npm 会被 safe-delete 卡死。
 5. **云函数用 `DYNAMIC_CURRENT_ENV`**，所以部署环境必须 = `love-app-server-d2fhg32320d65c12`，否则读不到控制台建的集合，报"集合未创建"。
 6. 集合必须**手动**在控制台建，代码不自动建（用户已否决）。
-7. `safety` 必须先于 `community` 部署（后者会调用前者）；其余函数间无互相调用。
+7. `safety` 必须先于 `community` 部署（后者会调用前者）。**【2026-08-30 更正】现在存在 3 条跨函数调用**：`community`→`safety`、`chat`→`safety`、`chat`→`growth`。改动 `safety`/`growth` 的**入参或返回结构**时，必须同步检查所有调用方。
+19. **🔴 云函数 A 用 `cloud.callFunction` 调 B 时，B 里的 `cloud.getWXContext().OPENID` 是 `undefined`** —— 端到端用户身份**不会自动透传**（M3 真机佐证实测坐实，见 `verification-log.md` M3 章）。
+   - **症状**：被调用方用 `undefined` 拼业务主键 → 生成 `"<真实id>|undefined"` 这类**幽灵文档**，数据看起来"写了"其实全写错对象，且**主流程不报错**（`addGrowth` 返回 true）。极难从前端表现发现。
+   - **自查方法**：查库看主键里有没有 `undefined` 字面量；比对文档的 `updatedAt` 是否早于触发时间（若早于，说明该路径根本没写进来）。
+   - **修法**：① 抽共享模块给调用方 `require`，直接在本函数内写库（推荐）；② 显式传 `openid` + 内部令牌鉴权；③ 不要指望 `getWXContext()` 能拿到端用户。
+   - ⚠️ 同样的坑适用于任何"被调用方需要知道是谁"的跨函数场景。
+   - ✅ **本项目已按①落地**（2026-08-30，提交 `9bf1eb8`）：`cloudfunctions/growth/growth-core.js` 是唯一源头，`game`/`chat`/`match` 各存一份同步副本 —— 云函数独立打包无法跨目录 `require`，改完内核**必须跑 `npm run sync:core`** 再重新部署，否则副本还是旧的。
 
 **C. 代码结构暗坑**
 8. **`auth` 的 `sanitizeProfile` 是严格字段白名单**——新增任何用户资料字段，必须同时改这里，否则前端写入被静默丢弃。这是 MBTI 功能最容易漏的一步。

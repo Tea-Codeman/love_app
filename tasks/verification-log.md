@@ -152,5 +152,57 @@
 - 聊天用 3s 轮询（messages 由服务端写入，客户端直读会被安全规则拦截）。
 - M3 v1 不做「互加好友 +5」「赛后互评 ×1.5」（依赖 M2 未建系统）。
 
+### 云端佐证（2026-08-30 01:21–01:30 真机数据，查库时间 08-30）
+> 真机账号：`6LrPFY`（woailuo）↔ `Z` = `oUsf1xZonxm8p9DekXnHSh0YRbnE`（666）。
+> 时间窗：**01:21:28 – 01:29:58**（以下均为北京时间）。
+
+#### A. 逐条结论
+
+| # | 验证项 | 云端证据 | 结论 |
+|---|---|---|---|
+| 1 | 成长累加与阶段跃迁 | 2 局 done（01:21:51 / 01:26:19）→ `pairs.growthValue` 累加 8×2=**16**，`stage` 缓存 `S1`（≥12） | ⚠️ **部分通过**：阶段跃迁 S1 达成，但**成长值 16 ≠ 文档口径 19** |
+| 2 | 成长进度条 | `pairs` 有数据可渲染 | ⚠️ 纯前端渲染，**需目测确认** |
+| 3 | 轻聊解锁（S1 门禁） | 13 条 `messages` 全部落库、`auditStatus=pass`；发送时 growth=16 ≥ 12 门禁放行 | ✅ 门禁正确 |
+| 4 | 先审后发 | 13 条消息全 `pass`，**无任何违规测试消息落库**（被拒不入库） | ✅ 间接 PASS（弱证据，草稿保留需目测） |
+| 5 | 互聊幂等 +2 | 13 条消息按 `lastFromPeer` 规则应结算 **8 次**；实测每条幽灵 pair 各 `11 = 4×2 + streak3` → **正正好好每侧 4 次** | ✅ **判定逻辑 100% 正确** |
+| 6 | 联系方式（S4） | `growthValue=150` ≥ 150 → 应解锁 | ⚠️ **150 来源存疑，需确认** |
+| 7 | 微信号落库 | `users`: `6LrPFY` → `wechatId="x299_cy"`；`Z` → `wechatId="jiuzhe765"`，均合法 | ✅ **PASS** |
+| 8 | 关系主页 | `pairs` 3 条 = 1 真 + **2 条幽灵** | ❌ **FAIL**（幽灵关系会被展示） |
+
+#### B. 🐞 BUG-1（严重）：云函数间调用丢失 OPENID，轻聊成长值全部写错对象
+
+**现象**：本轮 8 次「有效互聊」应给真实关系 `6LrPFY|Z` 加 8×2=**16** 成长值，实际**一分未加**——真实 pair 的 `lastInteractionAt/updatedAt` 停在 `01:26:19`（第 2 局结束时），**早于**聊天开始时间 `01:26:56`。
+
+**根因**：`chat/index.js:75` 用 `cloud.callFunction({ name:'growth' })` 跨函数累加；被调用方 `growth/index.js:205` 取 `cloud.getWXContext().OPENID`。
+云函数 A 调 B 时，B 拿到的不是端用户上下文 → **`OPENID === undefined`** → `pairKeyOf(undefined, peerId)` 生成 `"<真实openid>|undefined"` 的幽灵 pair。
+
+**决定性证据**（时间戳逐一咬合）：
+
+| 幽灵 pair | 创建时刻 | 对应触发消息 | 差值 |
+|---|---|---|---|
+| `6LrPFY\|undefined` | 01:27:08.380 | 消息2「您好」Z→6LrPFY @01:27:08.197 | +183ms |
+| `Z\|undefined` | 01:27:46.558 | 消息3「你好」6LrPFY→Z @01:27:46.424 | +134ms |
+
+两条幽灵 pair 的 `growthValue` 均为 **11 = 4 次×2 + streak 3**，`lastInteractionAt` 分别咬合各自的第 4 次结算（01:29:58.138 vs 消息13 @01:29:57.980）。
+→ **互聊判定逻辑本身完全正确，只是写错了对象**；`weekKey=2026-W35`、`lastStreakDay=2026-08-29`、`weekStreakAdded=3` 证明 streak 也结算到了幽灵 pair 上。
+
+**影响面**：`chat.send` 的成长奖励 100% 失效；`chat.contact` 的 S4 门禁读的是真实 pair，**不受**此 bug 影响。
+
+#### C. 🐞 BUG-2（中）：`pairs.stage` 缓存漂移
+
+- `game/index.js:53` 直写 pairs 时会刷 `stage`，但**不结算 streak**（与 `growth.addGrowth` 口径不同）→ 验证步骤里「首局 = 8+3=11」的口径**实现与文档不符**。
+- `match/index.js:158` 读 pairs 时用 `p.stage || stageOf(p.growthValue)` → 缓存优先。一旦 `growthValue` 被非代码途径改动（见下），**匹配页候选卡显示 S1、聊天页/关系页显示 S4**，同一个关系两个入口口径打架。
+
+#### D. 两处待你确认的数据疑点（**未做任何改动**）
+
+1. **`growthValue=150` 从哪来**：2 局(16) + 聊天(16，去了幽灵) 最多 32，且 `updatedAt` 停在 01:26:19 未变 → **只能是非代码途径改的**（控制台手改 / MCP update）。是否为测 S4 联系方式手动置的 150？
+2. **第 1 局游戏文档缺失**：`matches` 有 `10b550da6a93151800e2d6255f7aa2cf`（01:21:28 建、01:21:51 完成、`lastTacit=3`），但 `games` 里**找不到**这一局（现存 9 条 games 无一匹配）。代码里没有任何删除 `games` 的逻辑（全仓仅 `safety` 有 `.remove()`，且作用于 `reports`）→ 疑似控制台手删。后果：`pairs.gameCount=2`/`tacitTotal=8` 统计了一局已不存在的对局。
+
+#### E. 附带观察（非 BUG）
+
+- 两条新 `matches` 的 `score=0`：因用户「666」资料全空（无 city/bio/tags/mbti）→ 契合度算不出分，**符合预期**，非回归。
+- **`6LrPFY↔sJ8Fv8` 打了 5 局却无 pairs 记录**：`recommend` 的 `getMatchedOpenids` 会排除已匹配对象 → 已成 done 的对永远不会出现在候选里 → `aggregateGrowthStats` 的懒回填永不触发 → **「我的关系」页看不到任何历史关系**。M4 需决策是否给「已有 done match 的对」做一次性全量回填。
+
 ### 回滚
 - 按功能逐提交 revert；云函数需重新部署对应版本。
+- BUG-1 只影响数据不影响结构，修复后**重跑一次聊天即可自愈**，无需数据迁移（幽灵 pair 需另行清理）。

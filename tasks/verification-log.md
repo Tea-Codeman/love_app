@@ -80,3 +80,25 @@
 - **方案 B（推荐）**：删除 8 对真·cancelled 残留（`games` state=cancelled 且 questions=[] + 对应 `matches` status=cancelled），并 `update` 那 2 条异常 match 的 `status` 由 `cancelled`→`done`（finishedAt/lastTacit/lastRounds 字段已存在，仅翻状态）。
 - **方案 A（粗暴）**：按状态全删 cancelled。简单但会误删 2 条应保留的 match 种子，不推荐。
 - 两种方案都**破坏性**，删除前我会先列出待删 `_id` 给你过目；绝不擅自动手。
+
+## cancelled 残留清理 —— 执行（方案 B ✅ 已落地，2026-08-29 ~22:0x）
+> 用户拍板「选择方案 B」。以下为云端实际操作与核验。
+
+### 操作清单（均通过 CloudBase MCP 执行）
+1. **删 8 条真·cancelled `matches`**（`deleted:8`）：
+   `0fb91b1d6a91a67b0128a8603afe0164`、`0fb91b1d6a91aadd0128f1a964aee99d`、`0fb91b1d6a91ab00012901c41e0e89ce`、`bf886e776a92ce4600b21ac85dab5abb`、`bf886e776a92cfdc00b22e0a37cda90f`、`37138adf6a92dda900c6269e7d79c654`、`0fb91b1d6a92e25501433ba65e436d5f`、`bf886e776a92e26d00b3e30d2fa8e463`
+2. **翻 2 条异常 `matches` `cancelled`→`done`**（`modifiedCount:2`，finishedAt/lastTacit/lastRounds 字段原已存在，仅翻状态）：
+   `10b550da6a92cdf000de885e67998567`、`bf886e776a92d78b00b2fa4b3847876a`
+3. **删 8 条 `state=cancelled` 且 `questions=[]` 的 `games`**（`deleted:8`）：
+   `10b550da6a91a67b00cc9df166f54452`、`10b550da6a91aadd00ccd6cb532e71a8`、`37138adf6a91ab0000b62c8c63df485d`、`0fb91b1d6a92ce4601416be73509db1b`、`10b550da6a92cfdc00deb26f4694c8dc`、`37138adf6a92dda900c626a138bc0603`、`10b550da6a92e25500dff83d0f24e147`、`10b550da6a92e26d00e00655180f9b1e`
+4. **保留 2 条 `done` `games`**（与上面翻状态的两 match 一一对应）：`10b550da6a92cdf000de88607843db13`、`0fb91b1d6a92d78b014234f547ed832a`
+
+### 核验（执行后重查）
+- `matches` `total=2`：两条均为 `status=done`、`lastTacit=4`、`lastRounds=5` ✅
+- `games` `total=2`：两条均为 `state=done` ✅
+- 与审查预期「精确清理 → matches 10→2、games 10→2」完全一致 ✅
+
+### 影响说明（印证此前审查结论）
+- 活跃流程零破坏：`recommend`/`myPending`/`accept`/`decline` 全部按显式状态或 `_id` 过滤，cancelled 残留本就不可见。
+- 副作用：翻成 `done` 的两对（`6LrPFY↔sJ8Fv8`）在彼此推荐里契合度各 +16（设计内，非回归）。
+- 无 UI / 无报表 / 无外键受影响。

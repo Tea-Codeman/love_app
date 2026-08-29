@@ -37,13 +37,46 @@
   - 附带坐实：此现象只有新代码（accept 查双向黑名单）才会产生，旧代码必建出 active/cancelled match → **反向证明 match 云函数部署确实落地**（此前对 codeSha256 是否反映部署的疑虑消除）。
   - 客户端 12s 自愈 + onPlay 403 本地移除两层无需库佐证，依赖前端预览编译，已随源码提交 `415aa51`。
 
-## V4 拒绝流程（可选）— 待跑
-- 判定：B 拒绝后 A 看到「对局已取消」，`games`/`matches` 出现 `cancelled`。
+## V4 拒绝流程 ✅ PASS（2026-08-29 ~21:44 查库佐证）
+- 判定：B 拒绝后 A 看到「对局已取消」，`games`/`matches` 出现 `cancelled`，且**不能**产生 `done`。
+- 证据（V4 期间新增，A=sJ8Fv8 发起、B=6LrPFY 受邀）：
+  - `matches`：`bf886e776a92e26d00b3e30d2fa8e463`（score 13, cancelled, 1788011117337）+ `0fb91b1d6a92e25501433ba65e436d5f`（score 13, cancelled, 1788011093460）
+  - `games`：`10b550da6a92e26d00e00655180f9b1e`（state cancelled, createdBy=sJ8Fv8, invited=6LrPFY, questions=[]）+ `10b550da6a92e25500dff83d0f24e147`（state cancelled, questions=[]）
+  - 两局 `questions=[]` → B 在 waiting 期间拒绝，`decline()` 把 `game→cancelled` + `match(active)→cancelled`，**正是拒绝预期**；无新 `done` 对 → 拒绝未误判完成。✓
+  - 出现 2 对（相隔 1.6s）≈ 拒绝测试跑了两次，无害。
+- `decline`（match:254）源码确认：先 `games.doc(state=cancelled)` 再 `matches.where(userA=createdBy,userB=OPENID,status=active).update(status=cancelled)` → 与数据一致。
+- `blocks` 当前 0（V4 前用户已解除，干净）。
 
 ---
-### 待清理残留（破坏性，需用户确认）
-- 当前 `matches`=8、`games`=8 总量中，仅 2 对 `done`（V1 重跑闭环，合法）与 1 对 `cancelled`（V2/V3 正常 accept 后取消，可留），**其余均为 cancelled 测试残留**：
-  - 08-28：×3 对（matches+games 各 3）
-  - 08-29 修 bug 前探查：×2 对（20:12、20:19）
-  - 08-29 V3.5 复测前重置：×1 对（`37138adf…`，21:25 cancelled）
-- 清理 = 删除 `status/cancelled` 且非业务价值的记录，需用户明确同意。
+## cancelled 残留清理 —— 代码审查（未执行，仅审查）
+> 用户要求：先不动清理代码，只审查相关代码并说明「改完（执行清理）会发生什么」。
+
+### 1. 残留界定（当前实况）
+- `matches` 共 10 条：
+  - **2 条「异常」**：`bf886e776a92d78b00b2fa4b3847876a`(20:58)、`10b550da6a92cdf000de885e67998567`(20:37) —— 状态 `cancelled` 但带 `finishedAt`/`lastTacit=4`/`lastRounds=5`，且各自对应的 `games` 是 `done`（带 5 轮答案）。
+    → 游戏明明打完，匹配却被标 cancelled。这是**数据不一致**（按当前代码 `decline`/`cancelGame` 均无法把 done 局翻成 cancelled，疑似早期测试序列产生；不影响功能，但属脏数据）。
+  - **8 条真·cancelled 残留**：21:44×2、21:25、20:19、20:12、08-28×3（均 `score` 10/13，无 done 游戏）。
+- `games` 共 10 条：2 条 `done`（对应上面 2 条「异常」match）+ **8 条 `cancelled` 残留**（与 8 条真·cancelled match 一一对应，均 `questions=[]`）。
+
+### 2. 依赖审计（matches/games 的每一处读写）
+| 函数 | 读写 | 对「删 cancelled 残留」的敏感性 |
+|---|---|---|
+| `match.recommend` | 读 `matches` WHERE `status='active'`(getMatchedOpenids) 与 `status='done'`(aggregateDoneStats) | 只碰 active/done；**删 cancelled 无影响**。若把上面 2 条异常 match 修成 `done`，该对会获得 `gameTacit×TACIT_WEIGHT(=4×4=16)` 的契合度加成（设计意图）。 |
+| `match.accept` | 查 existing match 是否 `active/pending` 去重；新增 `active` | 删 cancelled → 这些废弃对**重新可被撮合**（预期好处）。✓ |
+| `match.myPending` | 读 `games` WHERE `state='waiting'` | 只碰 waiting；**删 cancelled games 无影响**。✓ |
+| `match.decline` / `game.cancelGame` | 按 `_id` 或具体配对更新 | 无批量依赖，删历史记录不影响。✓ |
+| `game.joinGame/getGame/submitAnswer` | 全部按 `_id` 读 | 若某客户端仍持有已删 cancelled gameId 并尝试操作 → 返回「对局不存在」(404)。但这些是废弃 cancelled 局，本就不该被访问。✓ |
+| 前端 | 仅 match(轮询 waiting+recommend)、game(getGame by id)；**M2 无历史/战绩页** | 无历史列表依赖，删残留不破坏任何 UI。✓ |
+| `safety.report` | 仅把 `targetId` 存入独立 `reports` 集合 | **无外键级联**，删 games/matches 不留下悬空引用。✓ |
+
+### 3. 「改完会发生什么」（执行清理后的后果）
+- **活跃流程零破坏**：recommend/myPending/accept/decline 全部按显式状态或 `_id` 过滤，cancelled 残留对它们不可见。
+- **废弃对重新可撮合**：删掉 cancelled match 后，`accept` 的去重不再拦，双方可再「一起玩」（符合预期）。
+- **数量变化**：若「精确清理」（删 8 对真·cancelled + 修复 2 条异常 match 为 `done`）→ `matches` 10→2、`games` 10→2，且这 2 条 match 状态正确为 `done`。若「粗暴全删」（`status='cancelled' && state='cancelled`）→ `matches` 10→0、`games` 10→2，2 条 done 游戏的 match 被一并删掉（功能中性，但丢失了应保留的 match 种子）。
+- **唯一行为变化点**：若选择修复那 2 条异常 match 为 `done`，`6LrPFY↔sJ8Fv8` 这一对在彼此的推荐里契合度 +16（设计内，非回归）。
+- **无 UI/无报表/无外键受影响**。
+
+### 4. 推荐清理方案（待用户拍板，未执行）
+- **方案 B（推荐）**：删除 8 对真·cancelled 残留（`games` state=cancelled 且 questions=[] + 对应 `matches` status=cancelled），并 `update` 那 2 条异常 match 的 `status` 由 `cancelled`→`done`（finishedAt/lastTacit/lastRounds 字段已存在，仅翻状态）。
+- **方案 A（粗暴）**：按状态全删 cancelled。简单但会误删 2 条应保留的 match 种子，不推荐。
+- 两种方案都**破坏性**，删除前我会先列出待删 `_id` 给你过目；绝不擅自动手。

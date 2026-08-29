@@ -1,0 +1,9 @@
+{
+  "name": "growth",
+  "version": "1.0.0",
+  "description": "F5 关系成长累加云函数（M3.1 / M3.2 / M3.6）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "metrics",
+  "version": "1.0.0",
+  "description": "F9 埋点入口云函数（M4.1）—— 仅服务前端上报，服务端入桩走各函数内置 metrics-core",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

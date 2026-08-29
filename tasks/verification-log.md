@@ -312,3 +312,16 @@
 
 ### 结论
 **M4.1 服务端全链路埋点验收通过**，SC1–SC4 可观测目标达成。3 项缺口属「未在本轮验证」而非「实现错误」，补三轮小测即可闭合 13 事件。详见 `tasks/m4.1-supplement-test.md`。
+
+### 补测复核 + 代码复核（2026-08-30 04:4x）
+
+用户跑完 `tasks/m4.1-supplement-test.md` 后查库：共 **40 条**（首测 26 + 补测 14）。
+
+- ✅ `chat_unlocked` 缺口闭合：新 pair `R188…|6LrPFY` 首条消息触发恰好 1 次（ts 1788036077087）。
+- ❌ `profile_completed` / `recommend_view` 仍为 0 → **代码复核确认非 bug**：
+  - `profile_completed`：`auth/index.js:62-92,106-109`，`updateProfile` 内重读 user 后 `isProfileComplete` 四项齐全才报；本轮测试号资料仍不满足四项，属测试未填齐。
+  - `recommend_view`：`match.vue:124-138`，`loadRecommend()` 进页用 `_recommendViewSent` 守卫报 1 次；本轮未进匹配/推荐页，属测试未覆盖。`track()` 与已验证的 `app_open` 同源（track.js 已重建）。
+- 🟡 `contact_unlocked` 幂等修复已部署；本轮新测未产生全新 contact-unlock，无法从数据 100% 证明「每 pair 仅 1 次」，但新测未新增任何重复（与修复生效一致）。
+- ✅ **清理 3 条预修复陈旧 `contact_unlocked`**（pair `6LrPFY|sJ8Fv8`，ts 均早于本轮新测 ~22min）：`contact_unlocked` 现归零。清理用精确 `_id` 逐条删（注：`$in` 删除只命中 1 条，须逐条删）。
+
+**当前状态**：M4.1 服务端埋点验收通过；13 事件中 11 项已观测，`profile_completed`/`recommend_view` 待用户重跑补测轮次 2/3 后闭环。

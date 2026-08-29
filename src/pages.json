@@ -71,6 +71,12 @@
       "style": {
         "navigationBarTitleText": "默契问答"
       }
+    },
+    {
+      "path": "pages/chat/chat",
+      "style": {
+        "navigationBarTitleText": "轻聊"
+      }
     }
   ],
   "globalStyle": {

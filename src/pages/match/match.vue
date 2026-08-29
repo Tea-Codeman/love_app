@@ -40,6 +40,8 @@
         </view>
         <view class="cand-actions">
           <text class="btn play" @click="onPlay(c)">一起玩</text>
+          <!-- M3.3：关系到 S1（成长值 12）解锁轻聊，未解锁时不显示入口 -->
+          <text class="btn chat" v-if="canChat(c)" @click="onChat(c)">聊聊</text>
           <text class="btn block" @click="onBlock(c)">拉黑</text>
         </view>
       </view>
@@ -53,6 +55,7 @@
 import { callFunction } from '../../utils/request'
 import { getOpenid } from '../../utils/storage'
 import growthBar from '../../components/growth-bar.vue'
+import { stageOf, reached } from '../../utils/growth'
 
 export default {
   components: { growthBar },
@@ -95,6 +98,15 @@ export default {
     this.stopRecommendPolling()
   },
   methods: {
+    // 轻聊解锁门禁（S1）。前端只做入口显隐，真正的拦截在 chat.send（服务端权威）。
+    canChat(c) {
+      return reached(stageOf(c.growthValue), 'S1')
+    },
+    onChat(c) {
+      uni.navigateTo({
+        url: '/pages/chat/chat?peerId=' + c.userId + '&nickname=' + encodeURIComponent(c.nickname || 'TA')
+      })
+    },
     async loadAll() {
       await Promise.all([this.loadRecommend(), this.loadPending()])
     },
@@ -248,6 +260,7 @@ export default {
   flex-shrink: 0;
 }
 .btn.play { margin-bottom: 12rpx; }
+.btn.chat { background: #FFB199; margin-bottom: 12rpx; text-align: center; }
 .invite-actions, .cand-actions { display: flex; flex-direction: column; flex-shrink: 0; margin-left: 16rpx; }
 .btn.accept { margin-bottom: 12rpx; }
 .btn.decline { background: #ddd; color: #666; }

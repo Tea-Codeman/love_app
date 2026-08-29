@@ -175,6 +175,14 @@ async function accept({ candidateId } = {}, OPENID) {
   if (!candidateId) return { code: 400, message: '缺少 candidateId' }
   if (candidateId === OPENID) return { code: 400, message: '不能和自己匹配' }
 
+  // 防骚扰兜底：发起方与被邀方存在任一方向的拉黑关系时，服务端直接拒绝。
+  // 关键：客户端推荐列表是一次性快照，被拉黑方可能仍看到对方并发起「一起玩」，
+  // 仅靠客户端刷新无法保证实时，必须以服务端拦截为权威（客户端再旧也挡不住建局）。
+  const blocked = await getBlockedIds(OPENID)
+  if (blocked.includes(candidateId)) {
+    return { code: 403, message: '对方已不可见，无法发起邀请' }
+  }
+
   const cRes = await db.collection(USERS_COL).where({ openid: candidateId }).get()
   if (!cRes.data || !cRes.data[0]) return { code: 404, message: '候选用户不存在' }
 

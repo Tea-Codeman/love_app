@@ -59,7 +59,8 @@ export default {
       invites: [],
       loading: false,
       busy: false,
-      pendingTimer: null
+      pendingTimer: null,
+      recommendTimer: null
     }
   },
   computed: {
@@ -79,12 +80,15 @@ export default {
     }
     this.loadAll()
     this.startPendingPolling()
+    this.startRecommendPolling()
   },
   onHide() {
     this.stopPendingPolling()
+    this.stopRecommendPolling()
   },
   onUnload() {
     this.stopPendingPolling()
+    this.stopRecommendPolling()
   },
   methods: {
     async loadAll() {
@@ -128,6 +132,23 @@ export default {
         this.pendingTimer = null
       }
     },
+    // 推荐列表自愈：匹配大厅页面不是实时推送，被拉黑方可能停留在页面上看不到更新。
+    // 周期性（12s）重拉 recommend，让「对方已拉黑我」等情况在驻留页面期间也能自动生效，
+    // 无需用户退页重进。配合 accept 的服务端 403 兜底，客户端再旧也漏不了建局。
+    // （MVP 轮询方案；后续可改为 blocks 集合的 realtime watch 订阅，去掉轮询开销。）
+    startRecommendPolling() {
+      this.stopRecommendPolling()
+      this.recommendTimer = setInterval(() => {
+        if (!this.openid) return
+        this.loadRecommend()
+      }, 12000)
+    },
+    stopRecommendPolling() {
+      if (this.recommendTimer) {
+        clearInterval(this.recommendTimer)
+        this.recommendTimer = null
+      }
+    },
     // A 发起：创建匹配 + waiting 局，进入游戏房等待对方
     async onPlay(c) {
       if (this.busy) return
@@ -135,6 +156,11 @@ export default {
       const r = await callFunction('match', { action: 'accept', candidateId: c.userId })
       this.busy = false
       if (!r.ok) {
+        // 服务端兜底拦截：对方已拉黑/被拉黑时返回 403。
+        // 即使推荐快照未及时刷新、卡片还在，点击后本地立即移除并提示，避免「点了还能建局」。
+        if (r.code === 403) {
+          this.candidates = this.candidates.filter(x => x.userId !== c.userId)
+        }
         uni.showToast({ title: r.message || '操作失败', icon: 'none' })
         return
       }

@@ -247,6 +247,6 @@ export default {
 .invite-actions, .cand-actions { display: flex; flex-direction: column; flex-shrink: 0; margin-left: 16rpx; }
 .btn.accept { margin-bottom: 12rpx; }
 .btn.decline { background: #ddd; color: #666; }
-.btn.block { background: #f2f2f2; color: #999; font-size: 24rpx; padding: 10rpx 22rpx; }
+.btn.block { background: #f2f2f2; color: #999; font-size: 24rpx; padding: 10rpx 22rpx; text-align: center;}
 .empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
 </style>

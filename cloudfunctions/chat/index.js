@@ -1,0 +1,200 @@
+// cloudfunctions/chat/index.js —— F6 轻聊导流（M3.3）
+// 架构（plan-m3.md §1 已定）：
+//   1. **先审后发**：发消息前调用 safety.checkText，不过审直接拒（auditStatus 只会有 pass）
+//   2. **S1 解锁**：成长值 < 12（未到 S1）不能聊天，引导先一起玩
+//   3. **有效互聊 +2**：当「本条消息是对对方上一条消息的回复」时结算一次成长值（+2，含 streak）
+//   4. 黑名单双向拦截：任一方向拉黑都禁止发消息
+// 动作：send（发消息）/ list（拉历史）
+// 复用而非重写：审核走 safety 云函数、成长值走 growth 云函数，避免规则两份漂移。
+const cloud = require('wx-server-sdk')
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+
+const db = cloud.database()
+const _ = db.command
+const MESSAGES_COL = 'messages'
+const PAIRS_COL = 'pairs'
+const BLOCKS_COL = 'blocks'
+
+// S1 门槛成长值（与 growth/index.js 的 STAGE_THRESHOLDS.S1 一致）
+const MIN_CHAT_GROWTH = 12
+// 单条消息长度上限（与 safety.localCheckText 的 500 字保持一致）
+const MAX_LEN = 500
+// 一轮「有效互聊」的成长值增量
+const CHAT_GROWTH = 2
+
+function pairKeyOf(a, b) {
+  return [String(a), String(b)].sort().join('|')
+}
+
+// 双向拉黑检测：任一方向拉黑都不能发消息（与 match.recommend 的过滤口径一致）
+async function isBlockedEitherWay(a, b) {
+  try {
+    const r = await db.collection(BLOCKS_COL)
+      .where(_.or([
+        { blockerId: a, blockedId: b },
+        { blockerId: b, blockedId: a }
+      ]))
+      .limit(1)
+      .get()
+    return !!(r.data && r.data.length)
+  } catch (e) {
+    return false   // blocks 集合不可用时放行，不因安全组件故障阻断聊天
+  }
+}
+
+async function getPair(OPENID, peerId) {
+  try {
+    const r = await db.collection(PAIRS_COL).where({ pairKey: pairKeyOf(OPENID, peerId) }).limit(1).get()
+    return (r.data && r.data[0]) || null
+  } catch (e) {
+    return null
+  }
+}
+
+// 先审后发：复用 safety 云函数，避免违规词表在两处各维护一份
+async function audit(content) {
+  try {
+    const r = await cloud.callFunction({
+      name: 'safety',
+      data: { action: 'checkText', content }
+    })
+    const res = (r && r.result) || {}
+    // code 0 且 pass 为真才算通过；其余一律判定不通过（fail-closed）
+    return { pass: res.code === 0 && res.data && res.data.pass === true, reason: (res.data && res.data.reason) || res.message || '内容未通过审核' }
+  } catch (e) {
+    return { pass: false, reason: '内容审核服务暂不可用，请稍后再试' }
+  }
+}
+
+// 成长值累加：复用 growth 云函数（含 streak 结算），失败不影响消息已发出的事实
+async function addGrowth(peerId, delta, reason) {
+  try {
+    await cloud.callFunction({
+      name: 'growth',
+      data: { action: 'addGrowth', peerId, delta, reason }
+    })
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+async function send({ peerId, content, type = 'text' } = {}, OPENID) {
+  if (!OPENID) return { code: 401, message: '未登录' }
+  if (!peerId) return { code: 400, message: '缺少 peerId' }
+  if (peerId === OPENID) return { code: 400, message: '不能和自己聊天' }
+  const text = String(content || '').trim()
+  if (!text) return { code: 400, message: '消息不能为空' }
+  if (text.length > MAX_LEN) return { code: 400, message: '消息过长（最多 ' + MAX_LEN + ' 字）' }
+
+  // 1) 黑名单双向拦截
+  if (await isBlockedEitherWay(OPENID, peerId)) {
+    return { code: 403, message: '无法给该用户发消息' }
+  }
+
+  // 2) S1 门禁：关系未到 S1（成长值 < 12）不允许轻聊
+  const pair = await getPair(OPENID, peerId)
+  const growthValue = Number(pair && pair.growthValue) || 0
+  if (growthValue < MIN_CHAT_GROWTH) {
+    return {
+      code: 403,
+      message: '关系还不够熟，再一起玩几局就能聊天啦',
+      data: { needGrowth: MIN_CHAT_GROWTH - growthValue, growthValue }
+    }
+  }
+
+  // 3) 先审后发
+  const a = await audit(text)
+  if (!a.pass) return { code: 403, message: a.reason, data: { auditFailed: true } }
+
+  // 4) 有效互聊判定：对方上一条消息是我要回复的对象 → 本轮互聊成立
+  //    自然的幂等：我连发多条时，最后一条仍是「我发的」，不会重复计分。
+  const pairKey = pairKeyOf(OPENID, peerId)
+  let lastFromPeer = false
+  try {
+    const last = await db.collection(MESSAGES_COL)
+      .where({ pairKey })
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get()
+    const m = last.data && last.data[0]
+    lastFromPeer = !!(m && m.senderId === peerId)
+  } catch (e) {
+    lastFromPeer = false
+  }
+
+  const now = Date.now()
+  const add = await db.collection(MESSAGES_COL).add({
+    data: {
+      pairKey,
+      senderId: OPENID,
+      receiverId: peerId,
+      content: text,
+      type,
+      auditStatus: 'pass',   // 未过审的已在上面直接拒绝，不会落库
+      createdAt: now
+    }
+  })
+
+  // 5) 互聊结算（+2，含 streak）。失败不影响消息本身
+  let rewarded = false
+  if (lastFromPeer) {
+    rewarded = await addGrowth(peerId, CHAT_GROWTH, '一轮有效互聊')
+  }
+
+  return {
+    code: 0,
+    data: {
+      msgId: add._id,
+      createdAt: now,
+      rewarded,
+      growth: rewarded ? CHAT_GROWTH : 0
+    }
+  }
+}
+
+async function list({ peerId, limit = 50 } = {}, OPENID) {
+  if (!OPENID) return { code: 401, message: '未登录' }
+  if (!peerId) return { code: 400, message: '缺少 peerId' }
+  const n = Math.min(200, Math.max(1, Number(limit) || 50))
+  const pairKey = pairKeyOf(OPENID, peerId)
+  try {
+    const r = await db.collection(MESSAGES_COL)
+      .where({ pairKey })
+      .orderBy('createdAt', 'desc')
+      .limit(n)
+      .get()
+    const messages = (r.data || [])
+      .slice()
+      .reverse()
+      .map(m => ({
+        msgId: m._id,
+        content: m.content || '',
+        type: m.type || 'text',
+        senderId: m.senderId,
+        mine: m.senderId === OPENID,
+        createdAt: m.createdAt || 0
+      }))
+    return { code: 0, data: { messages } }
+  } catch (e) {
+    const msg = (e && e.message) || String(e)
+    if (/not exist|does not exist|no such collection/i.test(msg)) {
+      return { code: 500, message: '数据库集合未创建：请在 CloudBase 控制台创建 messages 集合' }
+    }
+    return { code: -1, message: '查询失败：' + msg }
+  }
+}
+
+exports.main = async (event = {}) => {
+  const action = event.action
+  const OPENID = cloud.getWXContext().OPENID
+  try {
+    if (action === 'send') return await send(event, OPENID)
+    if (action === 'list') return await list(event, OPENID)
+    return { code: 404, message: 'unknown action: ' + action }
+  } catch (e) {
+    const msg = (e && e.message) || 'chat error'
+    console.error('[chat.main] 未捕获异常 action=' + action + ' :', msg)
+    return { code: -1, message: msg }
+  }
+}

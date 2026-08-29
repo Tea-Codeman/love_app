@@ -1,0 +1,9 @@
+{
+  "name": "chat",
+  "version": "1.0.0",
+  "description": "F6 轻聊导流（先审后发 + 有效互聊成长值）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

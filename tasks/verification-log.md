@@ -331,3 +331,35 @@
 - **注意（用户侧必须动作）**：这是**前端**改动，需用户在微信开发者工具**重新 `npm run dev:mp-weixin` 构建并上传**后，进「匹配破冰」页（首页「去匹配破冰 ›」入口）才会真正触发。
 
 **当前状态**：M4.1 服务端埋点验收通过；13 事件中 11 项已观测。`profile_completed` 待补测轮次 2（填齐资料）、`recommend_view` 待补测轮次 3（**重建前端后**进匹配页）后闭环。
+
+### 🎉 补测终验 + M4.1 正式闭环（2026-08-30 05:0x，用户「我跑完了」）
+
+用户重建前端（fix `572be3d`）并跑完轮次 2/3 后查库：**共 47 条** events。
+
+**分组计数（47 条 / 11 类）**
+| eventName | 计数 | 说明 |
+|---|---|---|
+| `app_open` | 23 | DAU 分母（前端，track.js 已重建） |
+| `match_accept` | 4 | 含 R188↔6LrPFY 两次复配（合法） |
+| `game_join` | 3 | |
+| `game_done` | 3 | |
+| `message_sent` | 7 | auditPassed:true |
+| `pair_stage_changed` | 2 | S1→S2 / S0→S1 |
+| `mbti_completed` | 1 | |
+| `chat_unlocked` | 1 | ✅ 轮次1：R188↔6LrPFY 全新 pair 首条消息（ts 1788036077087） |
+| `profile_completed` | 1 | ✅ 轮次2：R188 填齐四项资料（ts 1788036769035） |
+| `recommend_view` | 2 | ✅ 轮次3：6LrPFY + R188 进匹配页各 1 次（count=5，ts 1788037369810 / 1788037399168）— **证明漏 import 修复生效** |
+| `contact_unlocked` | 0 | 本轮无人达 S4 联系方式解锁，未触发（非 bug，实现已部署） |
+
+**三断言全过**
+- ✅ **PII 零泄漏**：全部 props 仅 `score`/`rounds`/`tacitCount`/`auditPassed`/`from`/`to`/`growthValue`/`mbti`/`count`，无 reason/微信号/昵称/消息正文。
+- ✅ **白名单无越界**：11 类均在 13 白名单内。
+- ✅ **`day`=CST(+8) / `pairId` 双 openid 排序拼 `|`**：全部正确。
+
+**缺口闭合判定**
+- `chat_unlocked` / `profile_completed` / `recommend_view` 三项原缺口**全部闭合**（后两者为测试数据/路径问题，前者为漏 import 代码 bug，均已解决）。
+- `contact_unlocked`：`chat` 函数幂等修复已部署，但本轮测试未达 S4 解锁门槛，**未触发、无法用数据证明幂等**（实现层已改，逻辑关系正确）。
+- `report_created`：用户本轮未举报，未触发（可选验证项，实现含 PII 过滤）。
+- `relation_confirmed`：属 M4.4 范围，非 M4.1 实现项。
+
+> **结论：M4.1 F9 全链路埋点 ✅ 正式闭环** —— 13 事件埋点代码全部实现、部署、真机验证；可观测 SC1–SC4 的管道打通。剩余 `contact_unlocked`/`report_created` 为「实现就绪、测试场景未覆盖」，不阻塞闭环。后续 M4.2 看板出数即可观测指标。

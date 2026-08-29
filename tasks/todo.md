@@ -195,6 +195,17 @@
 
 ## Phase 3 · M3 升温·导流（关系成长 + 加微信 + 主页）
 
+> **进度（2026-08-30）**：M3.1–M3.6 **代码全部完成并部署、云端已核验**，**待真机验证**（8 步见 `tasks/verification-log.md`）。
+>
+> | 任务 | 状态 | 落地位置（与卡片预估的偏差） |
+> |---|---|---|
+> | M3.1 成长累加 | ✅ 已部署 | `growth` 云函数 + `game` done 分支 + `match.recommend` 改读 pairs |
+> | M3.2 阶段跃迁 + 可视化 | ✅ 已提交 | `src/components/growth-bar.vue`（卡片未列，新增） |
+> | M3.3 轻聊 | ✅ 已部署 | 动作 `send`/`list`（非 `sendMessage`/`listMessages`）；互聊判定内联在 `send`，未建 `markMutualChat` |
+> | M3.4 解锁联系方式 | ✅ 已部署 | `src/pages/contact/contact.vue`（**非** `src/pages/chat/contact.vue`） |
+> | M3.5 关系主页 | ✅ 已部署 | `src/pages/relation/relation.vue`（**非** `src/pages/growth/`） |
+> | M3.6 streak | ✅ 已部署 | 并入 M3.1 的 `addGrowth.streakDeltaFor`（如建议） |
+
 ### Task M3.1: F5 成长累加（只增不减）
 
 **Description:** `growth` 云函数，事件触发按 Plan §5 规则累加 `pairs.growthValue`（每局+8/互聊+2/互加好友+5/streak+3/天、双向正向×1.5），**只增不减**；建 `pairs` 文档。  

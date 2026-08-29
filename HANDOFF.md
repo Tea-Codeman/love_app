@@ -108,7 +108,7 @@
 - **【2026-08-30 实测】`pairs` / `messages` / `events` / `metrics` 4 个集合均已建且为空** ✅（M3.0 完成）。注意：**代码不自动建**（用户已否决），换环境仍需手动建在该环境。
   - **`pairs`（M3 默契度系统权威源）**：每对用户一条文档（`pairKey = sorted(openidA, openidB)`），存累计 `gamesPlayed`/`tacitTotal`/`lastGameAt`/维度分/`relationshipStage`。M3 从 `pairs` 读（O(1)），M2 的「聚合 done matches」仅作**历史回填来源**。
 
-**云函数（已实现 7 个）—— 2026-08-29 17:30 逐字节核实结果**
+**云函数（共 10 个，含 M4.1 埋点新增 `metrics`）—— 2026-08-29 17:30 逐字节核实结果（M4.1 部署核验 2026-08-30 补充）**
 | 函数 | 动作 | 云端 vs 本地 | 备注 |
 |------|------|------|------|
 | `auth` | login / updateProfile（含 MBTI 白名单） | ✅ **完全一致** | 已部署 |
@@ -122,6 +122,8 @@
 | `chat` | send / list / contact | ✅ **M3 新建并部署** | 先审后发（复用 `safety`）+ S1 门禁 + 有效互聊 +2 + S4 联系方式解锁 |
 | `match` | recommend / accept / myPending / decline | ✅ **M3 已更新** | `recommend` 改读 `pairs`（O(1)）+ 首访回填；超时 3s→10s |
 | `auth` | updateProfile / … | ✅ **M3 已更新** | `sanitizeProfile` 白名单新增 `wechatId` / `wechatQrUrl` |
+| `metrics` | track / trackBatch（**仅前端上报入口**） | ✅ **M4.1 新建并部署（Active）** | 只服务前端 `app_open`/`recommend_view`；收尾时修复漏 `package.json` 致 `wx-server-sdk` 未装，补后重部署（CodeSize 6KB→11MB） |
+| auth/chat/game/growth/match/safety | **M4.1 F9 全链路埋点入桩（服务端本进程直写 `events`）** | ✅ **M4.1 已部署（Active）** | 各函数 `index.js` require `./metrics-core` 并插 `metrics.track(...)`；白名单 13 事件；PII 过滤；openid 缺失护栏 401（BUG-1） |
 
 > **核实方法（可复现，勿再靠 ModTime 猜）**：`queryFunctions(action=getFunctionDownloadUrl)` 拿 zip → 解压取 `index.js` → 与本地 `cloudfunctions/<fn>/index.js` 比对。注意 zip 内是 CRLF，本地是 LF，**直接 diff 会误报整文件不同**，需先归一化换行符再比较。
 
@@ -178,6 +180,7 @@
 16. **Git 提交**：本轮共 12 个提交（自 `338cb5c` 起），按「功能 / 开关 / 文档 / 性能」原子拆分。工作树干净。
 17. **M3 真机佐证 + BUG-1/BUG-2 修复（2026-08-30）**：云端查库佐证 M3 的 8 项验证步骤（结论见 `tasks/verification-log.md`），查出 `chat`→`growth` 跨函数调用丢失 OPENID，导致 8 次有效互聊的成长值全写进 `"<openid>|undefined"` 幽灵 pair、真实关系 0 增长且主流程不报错。按用户拍板的方案①抽出 `cloudfunctions/growth/growth-core.js` 共享内核，`chat`/`game` 改为本进程内直接写 pairs，内核对 `openid` 缺失直接 401 作护栏；顺带修 `pairs.stage` 缓存漂移（stage 一律读时派生）并统一 streak 口径。新增 `npm run sync:core` 防止三份副本漂移。已部署 growth/game/chat/match 四函数并冒烟验证，提交 `9bf1eb8`。
 18. **BUG-1 修复真机复验 ✅ PASS（2026-08-30 02:32–02:36）**：账号 `6LrPFY`↔`sJ8Fv8`（此前打了 5 局却无 pairs 的那一对）。新建真实 pair `_id=10b550da6a93260900e36be766f2f7ee`，`pairKey` 无 `undefined`；`growthValue=25` = 游戏 8+streak3 / 游戏 8 / 互聊 2×3，逐笔与北京时间时间戳完全咬合；`lastInteractionAt` 比最后一条消息晚 **79ms**（证明写库由 `chat` 本进程触发）；`weekStreakAdded=3` 只给一次；**未新增任何幽灵 pair**。M3 判定「✅ 正式通过」，M4.1 前置条件已满足。逐笔推导表见 `tasks/verification-log.md` 末尾「BUG-1 / BUG-2 修复复验」章。
+19. **M4.1 F9 全链路埋点部署收尾（2026-08-30）**：将 checkpoint `5441779` 的埋点代码全量部署到云端 —— 6 个存量函数（auth/chat/game/growth/match/safety）`updateFunctionCode` 后 `Status: Active`，CodeInfo 逐函数确认含 `require('./metrics-core')` 与各事件 `metrics.track(...)`，PII 过滤到位（report_created 仅 `targetType` 不报 `reason`）；新建 `metrics` 函数首次部署因漏 `package.json` 导致 `wx-server-sdk` 未装、invoke 报模块缺失，**已补 `cloudfunctions/metrics/package.json` 并重部署修复**（CodeSize 6KB→11MB），复测通过。`events` 集合冒烟验证可写可读可删。前端 `track.js`/`App.vue`/`match.vue` 的 `app_open`/`recommend_view` 仍需用户本地 `npm run dev:mp-weixin` 重建并上传后真机验证。
 
 ---
 
@@ -281,9 +284,9 @@
 - ✅ **数据疑点已澄清**：`growthValue=150` 与缺失的 `games` 文档**均为你本人在控制台操作**，非代码 BUG。
 - ✅ **幽灵 pair 已清理**（2026-08-30 02:45，用户确认后删除）：`37138adf6a93166c00c8ca0e7fa2172d`、`37138adf6a93169200c8cac7230d182e`。**清理后云端核验：`pairs` 只剩 2 条真实关系**（`6LrPFY↔sJ8Fv8` gv25 / `6LrPFY↔Z` gv150）。两者原是 BUG-1 期间跨函数调用的产物，修复后已不可能再生。
 - 🟡 **顺带记一笔（M4 再说）**：云函数运行时是 UTC，`lastStreakDay` 会比北京时间慢一天（详见上表低优先级项）。
-- ▶️ **M4.1 可以开工**：`plan-m4.md` 决策 2 的前置条件（M3 真机验证通过）**已满足** —— 13 个事件插桩随时可开。
+- ✅ **M4.1 已部署并核验落地（2026-08-30 收尾）**：13 个事件插桩代码（checkpoint `5441779`）已全量部署 —— 6 个存量函数（auth/chat/game/growth/match/safety）经 `updateFunctionCode` 部署、`Status: Active` 且 CodeInfo 逐函数确认含 `require('./metrics-core')` 与各事件 `metrics.track(...)`（auth→mbti_completed/profile_completed；chat→message_sent/chat_unlocked/contact_unlocked/pair_stage_changed；game→game_join/game_done/pair_stage_changed；match→match_accept；safety→report_created；growth→pair_stage_changed），PII 过滤到位（report_created 仅 `targetType`、不报 `reason`）。**🔴 收尾中暴露并修复一个部署缺陷**：新建的 `metrics` 函数首次部署后虽 `Status: Active`，但 invoke 报 `Cannot find module 'wx-server-sdk'` —— 根因是 `cloudfunctions/metrics/` 漏了 `package.json`（其余存量函数自带），依赖未安装；已补 `cloudfunctions/metrics/package.json`（wx-server-sdk ~2.6.3）并重部署，CodeSize 由 6309B → 11110312B（~11MB，依赖已装），invoke 复测通过（无主事件触发 openid 缺失护栏，返回 `accepted:false`，符合 BUG-1 设计）。**真机联调（前端 `track.js`/`App.vue`/`match.vue` 的 `app_open`/`recommend_view`）仍待用户重跑 `npm run dev:mp-weixin` 并上传后验证**。
 
-- **是否要推送本地 13 个提交**：需先 `git fetch` 修复无上游追踪引用的问题，再 push（**绝不 force**）。其中 `338cb5c` 用户曾决定不推送，若要推送需重新确认。
+- **是否要推送本地 14 个提交（含本 checkpoint `5441779`）**：需先 `git fetch` 修复无上游追踪引用的问题，再 push（**绝不 force**）。其中 `338cb5c` 用户曾决定不推送，若要推送需重新确认。
 - **【本轮新增，待用户拍板】**：下一步做什么？三选一 —— ① **跑真机验证**（双设备 M2 Checkpoint + MBTI + 拉黑，Agent 出步骤清单、用户执行）；② **直接开工 M3**（关系成长 `growth` + `chat` + 关系主页，需先建 `pairs`/`messages`/`events`/`metrics` 集合）；③ **先修小项**（MBTI 未答题显示 ESTJ 的 UX 问题、`mbtiFit` 未渲染、`FEATURES` 进 `data()` 等 4 个已列出未改的小项）。
 - **是否删除死代码 `src/utils/invite.js`**（需用户点头）。
 - **MBTI 测评页的一个 UX 细节**（审查发现，未改）：未答任何题时 `calcMbti([])` 会返回 `ESTJ` 并显示在「正在成型的你」，有误导。建议加 `v-if="idx > 0"`。

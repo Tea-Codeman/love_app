@@ -297,13 +297,13 @@
 
 合计 26 条，9 类。
 
-### 3 项计数 0 的根因（均非代码 bug，是测试数据/路径未覆盖）
+### 3 项计数 0 的根因（2 项为测试数据/路径未覆盖，1 项为代码 bug）
 
 | eventName | 计数 | 根因（代码行号） | 补测方式 |
 |---|---|---|---|
 | `chat_unlocked` | 0 | 语义＝「本 pair 在 `messages` 的历史首条消息」才报（`chat/index.js:148` `isFirstMessage=!m`）；`6LrPFY↔sJ8Fv8` 在 M3 已互聊，`MESSAGES_COL` 早有记录 → 本次非首条 | 用**全新未聊过的 pair** 互发首条消息 |
 | `profile_completed` | 0 | 触发条件 `isProfileComplete`＝昵称+头像+性别+年龄齐全（`auth/index.js:106`）；两测试号资料不完整（sJ8Fv8 只存了 mbti） | 填齐**昵称/头像/性别/年龄**四项再保存 |
-| `recommend_view` | 0 | 上报仅限进入 `match.vue` 推荐流（`loadCandidates` 内）；本轮走接受流程未进推荐页（`app_open` 能报证明前端已重建） | 进入**匹配/推荐页**浏览候选 |
+| `recommend_view` | 0 | ⚠️ **代码 bug（已修）**：`match.vue` 在 `loadRecommend()` 调 `track('recommend_view', …)` 但漏 `import { track }`，运行时 `ReferenceError` 事件从未发出。**与「是否进页面」无关**，进页也不报 | 见下方「修复」：补 import + 重构建前端 |
 
 > 注：`report_created`（safety.report，仅 `targetType` 不报 `reason`）与 `relation_confirmed`（M4.4）本轮均未触发，属预期外（用户未举报、未确认关系），不计入缺口。
 
@@ -318,10 +318,16 @@
 用户跑完 `tasks/m4.1-supplement-test.md` 后查库：共 **40 条**（首测 26 + 补测 14）。
 
 - ✅ `chat_unlocked` 缺口闭合：新 pair `R188…|6LrPFY` 首条消息触发恰好 1 次（ts 1788036077087）。
-- ❌ `profile_completed` / `recommend_view` 仍为 0 → **代码复核确认非 bug**：
-  - `profile_completed`：`auth/index.js:62-92,106-109`，`updateProfile` 内重读 user 后 `isProfileComplete` 四项齐全才报；本轮测试号资料仍不满足四项，属测试未填齐。
-  - `recommend_view`：`match.vue:124-138`，`loadRecommend()` 进页用 `_recommendViewSent` 守卫报 1 次；本轮未进匹配/推荐页，属测试未覆盖。`track()` 与已验证的 `app_open` 同源（track.js 已重建）。
-- 🟡 `contact_unlocked` 幂等修复已部署；本轮新测未产生全新 contact-unlock，无法从数据 100% 证明「每 pair 仅 1 次」，但新测未新增任何重复（与修复生效一致）。
-- ✅ **清理 3 条预修复陈旧 `contact_unlocked`**（pair `6LrPFY|sJ8Fv8`，ts 均早于本轮新测 ~22min）：`contact_unlocked` 现归零。清理用精确 `_id` 逐条删（注：`$in` 删除只命中 1 条，须逐条删）。
+- ❌ `profile_completed` / `recommend_view` 仍为 0 → 初判为「测试未覆盖」，**后续二次复核修正**：
+  - `profile_completed`：`auth/index.js:62-92,106-109`，`updateProfile` 内重读 user 后 `isProfileComplete` 四项齐全才报；本轮测试号资料仍不满足四项，属测试未填齐（**确非 bug**）。
+  - ⚠️ `recommend_view`：初判「未进匹配/推荐页」是**误判**。二次全量扫 `src` 发现 `match.vue` 调用 `track(...)` **从未 import**（`App.vue` 有 import、`match.vue` 漏了），运行时 `ReferenceError: track is not defined`，事件**永远发不出**，与是否进页无关。属**代码 bug，已修**（见下）。
 
-**当前状态**：M4.1 服务端埋点验收通过；13 事件中 11 项已观测，`profile_completed`/`recommend_view` 待用户重跑补测轮次 2/3 后闭环。
+### ✅ 修复 `recommend_view` 漏 import（2026-08-30 05:0x）
+
+- **根因**：`src/pages/match/match.vue` 第 136 行 `track('recommend_view', …)` 调用了未引入的 `track`（`src/utils/track.js` 是具名导出，仅 `App.vue` import 了）。uni-app 编译后该引用为全局 undefined → 运行期抛 `ReferenceError` → 埋点静默失败、页面仍正常渲染（候选已在 throw 前 set），用户无感但事件为 0。
+- **修复**：
+  1. `match.vue` `<script>` 增加 `import { track, flushTrack } from '../../utils/track'`。
+  2. `match.vue` `onHide` 内调 `flushTrack()`，保证快速切走也能把攒批事件（含 recommend_view）发出，不依赖 10s 定时器。
+- **注意（用户侧必须动作）**：这是**前端**改动，需用户在微信开发者工具**重新 `npm run dev:mp-weixin` 构建并上传**后，进「匹配破冰」页（首页「去匹配破冰 ›」入口）才会真正触发。
+
+**当前状态**：M4.1 服务端埋点验收通过；13 事件中 11 项已观测。`profile_completed` 待补测轮次 2（填齐资料）、`recommend_view` 待补测轮次 3（**重建前端后**进匹配页）后闭环。

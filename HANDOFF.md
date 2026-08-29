@@ -123,7 +123,7 @@
 | `match` | recommend / accept / myPending / decline | ✅ **M3 已更新** | `recommend` 改读 `pairs`（O(1)）+ 首访回填；超时 3s→10s |
 | `auth` | updateProfile / … | ✅ **M3 已更新** | `sanitizeProfile` 白名单新增 `wechatId` / `wechatQrUrl` |
 | `metrics` | track / trackBatch（**仅前端上报入口**） | ✅ **M4.1 新建并部署（Active）** | 只服务前端 `app_open`/`recommend_view`；收尾时修复漏 `package.json` 致 `wx-server-sdk` 未装，补后重部署（CodeSize 6KB→11MB） |
-| auth/chat/game/growth/match/safety | **M4.1 F9 全链路埋点入桩（服务端本进程直写 `events`）** | ✅ **M4.1 已部署 + 真机验收通过（3 项事件待补测）** | 各函数 `index.js` require `./metrics-core` 并插 `metrics.track(...)`；白名单 13 事件；PII 过滤；openid 缺失护栏 401（BUG-1）。**真机验收 ✅（2026-08-30 凌晨，查库 26 条）**：9 类事件已实证，PII 零泄漏 / 白名单无越界 / day=CST(+8) / pairId 双 openid 排序拼接正确；`chat_unlocked`/`profile_completed`/`recommend_view` 计 0 为测试数据/路径未覆盖，非代码 bug |
+| auth/chat/game/growth/match/safety | **M4.1 F9 全链路埋点入桩（服务端本进程直写 `events`）** | ✅ **M4.1 已部署 + 真机验收通过（2 项待补测）** | 各函数 `index.js` require `./metrics-core` 并插 `metrics.track(...)`；白名单 13 事件；PII 过滤；openid 缺失护栏 401（BUG-1）。**真机验收 ✅（2026-08-30 凌晨，查库 26 条）**：9 类事件已实证，PII 零泄漏 / 白名单无越界 / day=CST(+8) / pairId 双 openid 排序拼接正确。3 项计 0 根因：① `chat_unlocked`=测试未用全新 pair；② `profile_completed`=资料未填齐四项（均非 bug）；③ **`recommend_view`=代码 bug 已修（match.vue 漏 import track，运行时 ReferenceError）**——修复后须重新 `npm run dev:mp-weixin` 构建上传才生效 |
 
 > **核实方法（可复现，勿再靠 ModTime 猜）**：`queryFunctions(action=getFunctionDownloadUrl)` 拿 zip → 解压取 `index.js` → 与本地 `cloudfunctions/<fn>/index.js` 比对。注意 zip 内是 CRLF，本地是 LF，**直接 diff 会误报整文件不同**，需先归一化换行符再比较。
 

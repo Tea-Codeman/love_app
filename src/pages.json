@@ -83,6 +83,12 @@
       "style": {
         "navigationBarTitleText": "联系方式"
       }
+    },
+    {
+      "path": "pages/relation/relation",
+      "style": {
+        "navigationBarTitleText": "我的关系"
+      }
     }
   ],
   "globalStyle": {

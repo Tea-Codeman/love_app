@@ -10,6 +10,7 @@
       <text class="link" @click="goProfile">去完善资料 ›</text>
       <text class="link" v-if="features.community" @click="goCommunity">去社区 ›</text>
       <text class="link" @click="goMatch">去匹配破冰 ›</text>
+      <text class="link" @click="goRelation">我的关系 ›</text>
       <text class="link" @click="goSettings">设置 ›</text>
     </view>
     <view class="state" v-else>
@@ -43,6 +44,10 @@ export default {
     },
     goMatch() {
       uni.navigateTo({ url: '/pages/match/match' })
+    },
+    // M3.5：F7 关系成长主页（复用 pairs，展示阶段/里程碑与聊天、联系方式入口）
+    goRelation() {
+      uni.navigateTo({ url: '/pages/relation/relation' })
     },
     goSettings() {
       uni.navigateTo({ url: '/pages/settings/settings' })

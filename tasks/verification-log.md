@@ -307,8 +307,8 @@
 
 > 注：`report_created`（safety.report，仅 `targetType` 不报 `reason`）与 `relation_confirmed`（M4.4）本轮均未触发，属预期外（用户未举报、未确认关系），不计入缺口。
 
-### 🟡 非阻塞瑕疵（建议 M4.x 修）
-`contact_unlocked` 报了 **3 次未幂等**（每次 `chat.contact` 成功都报），会放大 SC3 分母。建议加首次标记（如 pair 维度标记 `contactUnlocked:true`）。
+### ✅ 非阻塞瑕疵已修（2026-08-30 04:3x 部署）
+`contact_unlocked` 原每次 `chat.contact` 成功都报（真机报 3 次），会放大 SC3 分母。已改为**每 pair 首次解锁才报一次**：在 `chat/index.js` 的 `contact` 内查询 `events` 中该 `pairId` 是否已有 `contact_unlocked` 作为判重依据（pairId 为双 openid 排序拼 `|`，与方向无关），并对埋点 `await` 保证写入后再返回避免并发重复。`chat` 函数已 `updateFunctionCode` 部署、`Status: Active`、CodeInfo 确认含幂等逻辑。补测时该事件每个 pair 应只出现 1 次。
 
 ### 结论
 **M4.1 服务端全链路埋点验收通过**，SC1–SC4 可观测目标达成。3 项缺口属「未在本轮验证」而非「实现错误」，补三轮小测即可闭合 13 事件。详见 `tasks/m4.1-supplement-test.md`。

@@ -77,6 +77,12 @@
       "style": {
         "navigationBarTitleText": "轻聊"
       }
+    },
+    {
+      "path": "pages/contact/contact",
+      "style": {
+        "navigationBarTitleText": "联系方式"
+      }
     }
   ],
   "globalStyle": {

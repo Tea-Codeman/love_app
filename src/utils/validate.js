@@ -10,5 +10,10 @@ export function validateProfile(form) {
   if (form.city && form.city.trim().length > 30) errors.push('城市不超过 30 字')
   if (form.bio && form.bio.trim().length > 100) errors.push('签名不超过 100 字')
   if (Array.isArray(form.interestTags) && form.interestTags.length > 10) errors.push('兴趣标签最多 10 个')
+  // 微信号（M3.4）：规则与 auth.sanitizeProfile 的正则一致。服务端对非法值是「静默丢弃」，
+  // 不在此处拦截的话，用户会以为保存成功、实则没写进库。
+  if (form.wechatId && form.wechatId.trim() && !/^[a-zA-Z][-_a-zA-Z0-9]{5,19}$/.test(form.wechatId.trim())) {
+    errors.push('微信号需 6–20 位，字母开头，仅字母/数字/-/_')
+  }
   return { ok: errors.length === 0, errors }
 }

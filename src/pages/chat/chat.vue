@@ -5,6 +5,8 @@
       <view class="rel-head">
         <text class="peer">{{ nickname || 'TA' }}</text>
         <text class="stage">{{ stageLabel }}</text>
+        <!-- M3.4：S4 解锁后可在聊天里直达联系方式页 -->
+        <text class="goto" v-if="contactUnlocked" @click="goContact">联系方式 ›</text>
       </view>
       <growth-bar :growth-value="growthValue"></growth-bar>
     </view>
@@ -46,6 +48,8 @@ import { stageOf, stageInfo, reached } from '../../utils/growth'
 
 // 轻聊解锁门槛：S1（与服务端 chat 的 MIN_CHAT_GROWTH 一致）
 const CHAT_UNLOCK_STAGE = 'S1'
+// 联系方式解锁门槛：S4（与服务端 chat 的 MIN_CONTACT_GROWTH 一致）
+const CONTACT_UNLOCK_STAGE = 'S4'
 
 export default {
   components: { growthBar },
@@ -71,6 +75,9 @@ export default {
     },
     unlocked() {
       return reached(this.stage, CHAT_UNLOCK_STAGE)
+    },
+    contactUnlocked() {
+      return reached(this.stage, CONTACT_UNLOCK_STAGE)
     }
   },
   onLoad(options) {
@@ -126,6 +133,11 @@ export default {
         this.timer = null
       }
     },
+    goContact() {
+      uni.navigateTo({
+        url: '/pages/contact/contact?peerId=' + this.peerId + '&nickname=' + encodeURIComponent(this.nickname || 'TA')
+      })
+    },
     async onSend() {
       const text = (this.draft || '').trim()
       if (!text || this.sending) return
@@ -155,6 +167,7 @@ export default {
 .rel-head { display: flex; align-items: baseline; justify-content: space-between; }
 .peer { font-size: 30rpx; color: #333; font-weight: 600; }
 .stage { font-size: 22rpx; color: #FF6B81; }
+.goto { font-size: 22rpx; color: #7c5cff; }
 .locked { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80rpx 60rpx; }
 .locked-title { font-size: 30rpx; color: #666; font-weight: 600; }
 .locked-desc { font-size: 24rpx; color: #aaa; margin-top: 12rpx; text-align: center; }

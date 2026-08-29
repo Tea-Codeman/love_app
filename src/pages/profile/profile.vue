@@ -36,6 +36,12 @@
       <text class="label">签名</text>
       <textarea class="textarea" v-model="form.bio" maxlength="100" placeholder="一句话介绍自己"></textarea>
     </view>
+    <!-- M3.4：微信号仅在关系成长到 S4 后对对方可见，服务端按微信规则校验（6-20 位、字母开头） -->
+    <view class="field">
+      <text class="label">微信号</text>
+      <input class="input" v-model="form.wechatId" maxlength="20" placeholder="选填，方便以后互加" />
+    </view>
+    <text class="privacy-tip">微信号不会公开展示；只有和你的关系成长到 S4（心动确认）的人才能看到。</text>
     <button class="save-btn" :loading="saving" @click="onSave">保存</button>
     <text class="tip" v-if="msg">{{ msg }}</text>
   </view>
@@ -50,7 +56,7 @@ import { getRole } from '../../utils/mbti'
 export default {
   data() {
     return {
-      form: { nickname: '', avatarUrl: '', gender: 0, age: 0, city: '', interestTags: [], bio: '', mbti: '' },
+      form: { nickname: '', avatarUrl: '', gender: 0, age: 0, city: '', interestTags: [], bio: '', mbti: '', wechatId: '' },
       genders: ['保密', '男', '女'],
       tagsText: '',
       avatarPreview: '',
@@ -68,7 +74,8 @@ export default {
       city: u.city || '',
       interestTags: u.interestTags || [],
       bio: u.bio || '',
-      mbti: u.mbti || ''
+      mbti: u.mbti || '',
+      wechatId: u.wechatId || ''
     }
     this.tagsText = (u.interestTags || []).join(',')
   },
@@ -131,6 +138,7 @@ export default {
 .mbti-val { flex: 1; font-size: 28rpx; color: #FF6B81; }
 .mbti-empty { flex: 1; font-size: 28rpx; color: #bbb; }
 .arrow { font-size: 32rpx; color: #ccc; }
+.privacy-tip { display: block; font-size: 22rpx; color: #aaa; padding: 16rpx 8rpx 0; line-height: 1.6; }
 .save-btn { margin-top: 48rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff; border-radius: 44rpx; font-size: 32rpx; }
 .tip { display: block; text-align: center; margin-top: 20rpx; font-size: 24rpx; color: #e74c3c; }
 </style>

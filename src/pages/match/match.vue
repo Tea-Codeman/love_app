@@ -42,6 +42,8 @@
           <text class="btn play" @click="onPlay(c)">一起玩</text>
           <!-- M3.3：关系到 S1（成长值 12）解锁轻聊，未解锁时不显示入口 -->
           <text class="btn chat" v-if="canChat(c)" @click="onChat(c)">聊聊</text>
+          <!-- M3.4：S4（成长值 150）解锁联系方式 -->
+          <text class="btn contact" v-if="canContact(c)" @click="onContact(c)">联系方式</text>
           <text class="btn block" @click="onBlock(c)">拉黑</text>
         </view>
       </view>
@@ -105,6 +107,15 @@ export default {
     onChat(c) {
       uni.navigateTo({
         url: '/pages/chat/chat?peerId=' + c.userId + '&nickname=' + encodeURIComponent(c.nickname || 'TA')
+      })
+    },
+    // 联系方式解锁门禁（S4）。同样只是入口显隐，服务端 chat.contact 才是权威拦截。
+    canContact(c) {
+      return reached(stageOf(c.growthValue), 'S4')
+    },
+    onContact(c) {
+      uni.navigateTo({
+        url: '/pages/contact/contact?peerId=' + c.userId + '&nickname=' + encodeURIComponent(c.nickname || 'TA')
       })
     },
     async loadAll() {
@@ -261,6 +272,7 @@ export default {
 }
 .btn.play { margin-bottom: 12rpx; }
 .btn.chat { background: #FFB199; margin-bottom: 12rpx; text-align: center; }
+.btn.contact { background: #7c5cff; margin-bottom: 12rpx; text-align: center; font-size: 24rpx; padding: 10rpx 22rpx; }
 .invite-actions, .cand-actions { display: flex; flex-direction: column; flex-shrink: 0; margin-left: 16rpx; }
 .btn.accept { margin-bottom: 12rpx; }
 .btn.decline { background: #ddd; color: #666; }

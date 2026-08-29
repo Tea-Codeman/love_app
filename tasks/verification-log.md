@@ -102,3 +102,23 @@
 - 活跃流程零破坏：`recommend`/`myPending`/`accept`/`decline` 全部按显式状态或 `_id` 过滤，cancelled 残留本就不可见。
 - 副作用：翻成 `done` 的两对（`6LrPFY↔sJ8Fv8`）在彼此推荐里契合度各 +16（设计内，非回归）。
 - 无 UI / 无报表 / 无外键受影响。
+
+## M2 答题逻辑改版（各自独立答题 · 终局对比）—— 2026-08-30
+> 用户反馈：回合制「一人选完等另一人选完」太死板。改为匹配后各自答题，最后出结果时再对比两人答案算默契度。
+
+### 改动
+- 服务端 `cloudfunctions/game/index.js#submitAnswer`：去掉回合推进。客户端传 `round`（1-based）+ `optionIndex`；答案按 `answers[题号][openid]` 落盘，互不阻塞；仅当**双方都答完全部 `totalRounds` 题**才终局对比（逐题 `a0===a1` → 默契），算 `tacitCount`、写 `roundResults`、翻 `matches` 为 `done`。
+- 前端 `src/pages/game/game.vue`：去掉「已选择，等待对方」的回合阻塞；本地 `myRound` 跟踪已答数（重连时从 `answers` 恢复）；进度显示「你 X/N · 对方 Y/N」；答完显示「等对方答完即出结果」。
+- 已部署 `game` 云函数（`getFunctionDetail` CodeInfo 已核验为新逻辑，Status: Active）。代码提交 `ab8cbd8`。
+
+### 真机验证步骤
+1. 拉测试号 A/B，A 发起邀请 → B 加入，进入游戏页。
+2. **各自独立**：A 连答 5 题（B 不操作），确认 A 端显示「你 5/5 · 对方 0/5」+「等对方答完即出结果」；B 端实时看到「对方已答 0/5 → 5/5」（靠 watch/轮询同步）。
+3. B 再答 5 题，B 答完即双方完成 → 两端同时出结果页（默契 X/5）。
+4. 默契计算：故意选不同选项，确认默契数 = 选项相同的题数。
+5. 落库核验：查库确认对应 `match` `status=done`、`lastTacit=X`、`lastRounds=5`（M3 契合度加成种子）。
+6. 断点续答：A 答 3 题后杀进程重进，确认从「你 3/5」续答而非从头。
+
+### 回滚
+- `git revert ab8cbd8` + 重新部署 `game` 函数即可回到回合制。
+- 前端改动需重新 `npm run dev:mp-weixin` 构建 `dist/dev`（DevTools 加载的是 dist/dev，不是 src）。

@@ -5,6 +5,11 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const users = db.collection('users')
 
+// M4.1 F9 埋点：共享内核，本进程内直接写 events。
+// ⚠️ 绝不用 cloud.callFunction 调 metrics —— 跨函数调用会丢失 OPENID（BUG-1）。
+const metrics = require('./metrics-core')
+const metricsCtx = { db }
+
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   if (!OPENID) return { code: 401, message: 'no openid' }
@@ -59,7 +64,31 @@ exports.main = async (event) => {
     if (!patch) return { code: 400, message: '资料非法' }
     await users.where({ openid: OPENID }).update({ data: patch })
     const r = await users.where({ openid: OPENID }).get()
-    return { code: 0, data: { user: (r.data && r.data[0]) || null } }
+    const user = (r.data && r.data[0]) || null
+
+    // M4.1 F9 埋点（plan-m4.md 决策 1：凡有云函数的动作一律服务端入桩）。
+    // 规划里 `mbti_completed` 写的是 auth.updateProfile（服务端），`profile_completed` 写的是
+    // 「前端资料保存成功」；但资料保存本来就走本函数，服务端入桩更可信 → 两个都在这里上报。
+    // 埋点失败静默，绝不影响资料保存结果。
+    if (user) {
+      if (patch.mbti) {
+        metrics.track(metricsCtx, {
+          openid: OPENID,
+          eventName: 'mbti_completed',
+          props: { mbti: patch.mbti }
+        }).catch(() => {})
+      }
+      // 「资料完整」定义：撮合打分真正依赖的四项齐全 —— 昵称 / 头像 / 性别 / 年龄。
+      // （city、bio、interestTags 属加分项，不作为完成门槛；口径写死，否则漏斗不可复算）
+      if (isProfileComplete(user)) {
+        metrics.track(metricsCtx, {
+          openid: OPENID,
+          eventName: 'profile_completed'
+        }).catch(() => {})
+      }
+    }
+
+    return { code: 0, data: { user } }
   }
 
   return { code: 404, message: 'unknown action: ' + action }
@@ -71,6 +100,13 @@ const MBTI_TYPES = [
   'INTJ', 'INTP', 'ENTJ', 'ENTP', 'INFJ', 'INFP', 'ENFJ', 'ENFP',
   'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 'ISTP', 'ISFP', 'ESTP', 'ESFP'
 ]
+
+// 资料完整度口径（M4.1）：撮合打分真正依赖的四项齐全即算完成 —— 昵称 / 头像 / 性别 / 年龄。
+// city / bio / interestTags 属加分项，不作门槛。口径一旦改动，漏斗历史不可复算，改前先改 plan-m4.md。
+function isProfileComplete(u) {
+  if (!u) return false
+  return !!(u.nickname && u.avatarUrl && u.gender && Number(u.age) > 0)
+}
 
 // 服务端白名单校验：仅允许约定字段 + 范围/长度约束（最小必要 + 防注入）
 function sanitizeProfile(p) {

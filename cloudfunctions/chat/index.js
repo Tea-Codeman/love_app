@@ -27,6 +27,11 @@ const core = require('./growth-core')
 const growthCtx = { db, _ }
 const { pairKeyOf } = core
 
+// M4.1 F9 埋点：共享内核，本进程内直接写 events。
+// ⚠️ 绝不用 cloud.callFunction 调 metrics —— 跨函数调用会丢失 OPENID（BUG-1）。
+const metrics = require('./metrics-core')
+const metricsCtx = { db }
+
 // 一轮「有效互聊」的成长值增量（唯一定义处在 growth-core.js）
 const CHAT_GROWTH = core.CHAT_GROWTH
 
@@ -73,17 +78,18 @@ async function audit(content) {
 // ⚠️ 绝不再 cloud.callFunction 到 growth —— 跨函数调用时被调用方的 getWXContext().OPENID 恒为
 //    undefined（端用户身份不自动透传），成长值会被写进 "<openid>|undefined" 的幽灵 pair，
 //    且失败被吞、主流程不报错。详见 growth-core.js 头部说明（BUG-1）。
+// 返回内核原始结果（含 `applied.stageFrom/stageTo`，供 M4.1 埋点判断阶段跃迁）；失败返回 null。
 async function addGrowth(OPENID, peerId, delta, reason) {
   try {
     const res = await core.addGrowth(growthCtx, { openid: OPENID, peerId, delta, reason })
     if (res.code !== 0) {
       console.error('[chat.addGrowth] 成长累加失败：', res.message)
-      return false
+      return null
     }
-    return true
+    return res
   } catch (e) {
     console.error('[chat.addGrowth] 异常：', (e && e.message) || e)
-    return false
+    return null
   }
 }
 
@@ -113,12 +119,24 @@ async function send({ peerId, content, type = 'text' } = {}, OPENID) {
 
   // 3) 先审后发
   const a = await audit(text)
-  if (!a.pass) return { code: 403, message: a.reason, data: { auditFailed: true } }
+  if (!a.pass) {
+    // M4.1：`message_sent`（auditPassed=false）—— 未过审的消息**不会落库**，
+    // 这里是内容安全违规率的唯一观测点（先审后发下，入库的消息必然是 pass）。
+    // props 只放布尔，绝不带消息正文（隐私红线）。
+    metrics.track(metricsCtx, {
+      openid: OPENID,
+      eventName: 'message_sent',
+      pairId: pairKeyOf(OPENID, peerId),
+      props: { auditPassed: false }
+    }).catch(() => {})
+    return { code: 403, message: a.reason, data: { auditFailed: true } }
+  }
 
   // 4) 有效互聊判定：对方上一条消息是我要回复的对象 → 本轮互聊成立
   //    自然的幂等：我连发多条时，最后一条仍是「我发的」，不会重复计分。
   const pairKey = pairKeyOf(OPENID, peerId)
   let lastFromPeer = false
+  let isFirstMessage = true
   try {
     const last = await db.collection(MESSAGES_COL)
       .where({ pairKey })
@@ -127,8 +145,10 @@ async function send({ peerId, content, type = 'text' } = {}, OPENID) {
       .get()
     const m = last.data && last.data[0]
     lastFromPeer = !!(m && m.senderId === peerId)
+    isFirstMessage = !m
   } catch (e) {
     lastFromPeer = false
+    isFirstMessage = true
   }
 
   const now = Date.now()
@@ -144,10 +164,36 @@ async function send({ peerId, content, type = 'text' } = {}, OPENID) {
     }
   })
 
+  // M4.1：`message_sent`（auditPassed=true）+ 首次通过 S1 门禁时补 `chat_unlocked`（S1 转化漏斗）。
+  // 「首次」= 本 pair 此前一条消息都没有 —— 也就是第一次真正踩过 S1 门禁。
+  metrics.track(metricsCtx, {
+    openid: OPENID,
+    eventName: 'message_sent',
+    pairId: pairKey,
+    props: { auditPassed: true }
+  }).catch(() => {})
+  if (isFirstMessage) {
+    metrics.track(metricsCtx, {
+      openid: OPENID,
+      eventName: 'chat_unlocked',
+      pairId: pairKey,
+      props: { growthValue }
+    }).catch(() => {})
+  }
+
   // 5) 互聊结算（+2，含 streak）。失败不影响消息本身
   let rewarded = false
   if (lastFromPeer) {
-    rewarded = await addGrowth(OPENID, peerId, CHAT_GROWTH, '一轮有效互聊')
+    const res = await addGrowth(OPENID, peerId, CHAT_GROWTH, '一轮有效互聊')
+    rewarded = !!res
+    // M4.1：`pair_stage_changed`（SC1 阶段分布）。仅阶段真的跃迁时才写。
+    if (res && res.data && res.data.applied) {
+      metrics.trackIfStageChanged(metricsCtx, {
+        openid: OPENID,
+        pairId: pairKey,
+        applied: res.data.applied
+      }).catch(() => {})
+    }
   }
 
   return {
@@ -213,6 +259,16 @@ async function contact({ peerId } = {}, OPENID) {
   const u = await db.collection(USERS_COL).where({ openid: peerId }).limit(1).get()
   const user = (u.data && u.data[0]) || null
   if (!user) return { code: 404, message: '用户不存在' }
+
+  // M4.1：`contact_unlocked`（**SC3 加微信转化**的分子）。埋点失败静默。
+  // props 只带成长值 —— 微信号/昵称等 PII 一律不进 events。
+  metrics.track(metricsCtx, {
+    openid: OPENID,
+    eventName: 'contact_unlocked',
+    pairId: pairKeyOf(OPENID, peerId),
+    props: { growthValue }
+  }).catch(() => {})
+
   return {
     code: 0,
     data: {

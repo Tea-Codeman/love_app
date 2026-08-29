@@ -19,6 +19,11 @@ const core = require('./growth-core')
 const ctx = { db, _ }
 const { pairKeyOf, withStage } = core
 
+// M4.1 F9 埋点：共享内核，本进程内直接写 events。
+// ⚠️ 绝不用 cloud.callFunction 调 metrics —— 跨函数调用会丢失 OPENID（BUG-1）。
+const metrics = require('./metrics-core')
+const metricsCtx = { db }
+
 async function getPair({ peerId } = {}, OPENID) {
   if (!peerId) return { code: 400, message: '缺少 peerId' }
   const pair = await core.readPair(ctx, OPENID, peerId)
@@ -86,7 +91,16 @@ async function listPairs({}, OPENID) {
 // 累加成长值（只增不减）+ 顺带结算 streak。
 // 直接在本进程内写 pairs —— 不再 callFunction 转一手（跨函数调用会丢 OPENID，见 growth-core.js 头部说明）。
 async function addGrowth({ peerId, delta, reason, skipStreak } = {}, OPENID) {
-  return await core.addGrowth(ctx, { openid: OPENID, peerId, delta, reason, skipStreak })
+  const res = await core.addGrowth(ctx, { openid: OPENID, peerId, delta, reason, skipStreak })
+  // M4.1：`pair_stage_changed`（SC1 阶段分布）。仅阶段真的跃迁时才写；失败静默。
+  if (res.code === 0 && res.data && res.data.applied && peerId) {
+    metrics.trackIfStageChanged(metricsCtx, {
+      openid: OPENID,
+      pairId: pairKeyOf(OPENID, peerId),
+      applied: res.data.applied
+    }).catch(() => {})
+  }
+  return res
 }
 
 exports.main = async (event = {}) => {

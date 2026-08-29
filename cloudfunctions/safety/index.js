@@ -13,6 +13,11 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// M4.1 F9 埋点：共享内核，本进程内直接写 events。
+// ⚠️ 绝不用 cloud.callFunction 调 metrics —— 跨函数调用会丢失 OPENID（BUG-1）。
+const metrics = require('./metrics-core')
+const metricsCtx = { db }
+
 const USE_WX_SECURITY = false
 
 // 示例违规词（原型样本，仅用于验证"不过审→不发"链路；真实判定由微信官方 API 完成）
@@ -58,6 +63,17 @@ async function report(event, OPENID) {
       createdAt: Date.now()
     }
   })
+
+  // M4.1：`report_created`（SC5 的分子侧观测）。
+  // ⚠️ `report_handled` 未入白名单 —— 处置能力留到 M5（plan-m4.md 决策 3），
+  //    现在上报会让「24h 处置率」分母虚高。SC5 在 M4 期间标为数据缺口。
+  // ⚠️ 不上报 reason：前端是自由文本 textarea，属 UGC 可能含 PII（隐私红线 §1.6）。
+  metrics.track(metricsCtx, {
+    openid: OPENID,
+    eventName: 'report_created',
+    props: { targetType: String(targetType) }
+  }).catch(() => {})
+
   return { code: 0, data: { ok: true } }
 }
 

@@ -127,6 +127,14 @@ export default {
       this.loading = false
       if (r.ok) this.candidates = (r.data && r.data.candidates) || []
       else if (r.code === 500) uni.showToast({ title: r.message, icon: 'none' })
+
+      // M4.1：`recommend_view` —— 曝光→配对转化漏斗的第一环。
+      // 口径「每次进页 1 条」：本页有 12s 轮询，绝不能放在轮询里报（会把曝光量放大几十倍）。
+      // 用 _recommendViewSent 保证一次进页只报一次，onShow 时重置。
+      if (!this._recommendViewSent) {
+        this._recommendViewSent = true
+        track('recommend_view', { count: (this.candidates || []).length })
+      }
     },
     async loadPending() {
       const r = await callFunction('match', { action: 'myPending' })

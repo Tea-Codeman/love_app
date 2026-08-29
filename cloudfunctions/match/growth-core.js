@@ -157,6 +157,7 @@ async function addGrowth(ctx, opts = {}) {
   const pair = await ensurePair(ctx, openid, peerId)
   const now = Date.now()
 
+  const before = Number(pair.growthValue) || 0
   let total = d
   const set = { lastInteractionAt: now, updatedAt: now }
   if (!opts.skipStreak) {
@@ -166,8 +167,9 @@ async function addGrowth(ctx, opts = {}) {
     set.weekStreakAdded = s.weekStreakAdded
     set.lastStreakDay = s.lastStreakDay
   }
+  const after = before + total
   // stage 仅作缓存冗余写入，方便控制台肉眼查看；**任何读路径都必须用 withStage 重新派生**
-  set.stage = stageOf((Number(pair.growthValue) || 0) + total)
+  set.stage = stageOf(after)
 
   if (opts.extraSet) Object.assign(set, opts.extraSet)
 
@@ -180,7 +182,16 @@ async function addGrowth(ctx, opts = {}) {
     code: 0,
     data: {
       pair: withStage(updated.data),
-      applied: { base: d, streak: opts.skipStreak ? 0 : total - d, total },
+      applied: {
+        base: d,
+        streak: opts.skipStreak ? 0 : total - d,
+        total,
+        // M4.1：阶段跃迁前后值，供 `pair_stage_changed` 埋点消费（SC1 阶段分布）。
+        // 只有阶段真的变了才应上报 —— 判断交给 metrics-core.trackIfStageChanged。
+        stageFrom: stageOf(before),
+        stageTo: stageOf(after),
+        growthValue: after
+      },
       reason: opts.reason || ''
     }
   }

@@ -19,6 +19,10 @@ const PAIRS_COL = 'pairs'
 const core = require('./growth-core')
 const { pairKeyOf, stageOf } = core
 const GAME_GROWTH = core.GAME_GROWTH
+// M4.1 F9 埋点：共享内核，本进程内直接写 events。
+// ⚠️ 绝不用 cloud.callFunction 调 metrics —— 跨函数调用会丢失 OPENID（BUG-1）。
+const metrics = require('./metrics-core')
+const metricsCtx = { db }
 // 每题"默契"（双方选同一项）折算到契合度的权重：游戏结果在资料分之上累加
 const TACIT_WEIGHT = 4
 // MBTI 维度契合权重：每有一个维度字母相同 +2（0–8）；EI 互补（一外向一内向）另 +3。
@@ -307,6 +311,15 @@ async function accept({ candidateId } = {}, OPENID) {
     createdAt: Date.now()
   }
   const gAdd = await db.collection(GAMES_COL).add({ data: gameDoc })
+
+  // M4.1：`match_accept`（**配对分母** —— SC1/SC2/SC3 三个指标都用它做分母，
+  // 少记一条就会把转化率整体算高，所以必须服务端入桩）。埋点失败静默。
+  metrics.track(metricsCtx, {
+    openid: OPENID,
+    eventName: 'match_accept',
+    pairId: core.pairKeyOf(OPENID, candidateId),
+    props: { score: score }
+  }).catch(() => {})
 
   return { code: 0, data: { matchId: mAdd._id, gameId: gAdd._id } }
 }

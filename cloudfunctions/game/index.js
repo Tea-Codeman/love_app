@@ -22,6 +22,12 @@ const ROUNDS_PER_GAME = 5
 const core = require('./growth-core')
 const growthCtx = { db, _ }
 
+// M4.1 F9 埋点：同样走共享内核，在**本进程内**直接写 events。
+// ⚠️ 绝不用 cloud.callFunction 调 metrics —— 跨函数调用会丢失 OPENID（BUG-1），
+//    每条事件的 userId 都会变成 undefined，整张 events 表直接废掉。
+const metrics = require('./metrics-core')
+const metricsCtx = { db }
+
 // 游戏结束时累加 pairs：成长值 +8（含 streak）、默契题数累加、局数 +1、首局标记
 // 走共享内核，与 growth.addGrowth 完全同源 —— 现在**也会结算 streak**（旧内联版不结算，是 BUG-2 的一部分）
 async function upsertPairOnGameDone(userA, userB, tacit) {
@@ -103,6 +109,14 @@ async function joinGame({ gameId } = {}, OPENID) {
     }
   })
   const updated = await db.collection(GAMES_COL).doc(gameId).get()
+
+  // M4.1：`game_join`（漏斗：邀请 → 加入的流失点）。埋点失败静默，不影响加入。
+  metrics.track(metricsCtx, {
+    openid: OPENID,
+    eventName: 'game_join',
+    pairId: core.pairKeyOf(g.data.createdBy, OPENID)
+  }).catch(() => {})
+
   return { code: 0, data: { game: updated.data } }
 }
 
@@ -198,11 +212,30 @@ async function submitAnswer({ gameId, optionIndex, round } = {}, OPENID) {
       })
       .catch(() => {})
 
+    // M4.1：`game_done`（成长主引擎 + 漏斗）。埋点失败静默。
+    metrics.track(metricsCtx, {
+      openid: OPENID,
+      eventName: 'game_done',
+      pairId: core.pairKeyOf(game.createdBy, game.invitedUserId),
+      props: { tacitCount: tacitCount || 0, rounds: total }
+    }).catch(() => {})
+
     // M3.1：同步累加关系成长（pairs 权威源）。失败不阻断游戏主流程（已结束的对局不应因成长写入失败而报错）。
-    await upsertPairOnGameDone(game.createdBy, game.invitedUserId, tacitCount || 0)
+    const growthRes = await upsertPairOnGameDone(game.createdBy, game.invitedUserId, tacitCount || 0)
       .catch(err => {
         console.error('[game.submitAnswer] pairs 累加失败（不影响主流程）:', (err && err.message) || err)
+        return null
       })
+
+    // M4.1：`pair_stage_changed`（SC1 阶段分布）。仅阶段真的跃迁时才写，且上报方用
+    // 完成对局的两人之一作为 userId（此处取提交最后一题的人 OPENID）。
+    if (growthRes && growthRes.code === 0 && growthRes.data && growthRes.data.applied) {
+      metrics.trackIfStageChanged(metricsCtx, {
+        openid: OPENID,
+        pairId: core.pairKeyOf(game.createdBy, game.invitedUserId),
+        applied: growthRes.data.applied
+      }).catch(() => {})
+    }
   }
 
   const updated = await db.collection(GAMES_COL).doc(gameId).get()

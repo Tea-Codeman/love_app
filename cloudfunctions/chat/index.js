@@ -12,7 +12,6 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 const MESSAGES_COL = 'messages'
-const PAIRS_COL = 'pairs'
 const BLOCKS_COL = 'blocks'
 const USERS_COL = 'users'
 
@@ -22,12 +21,14 @@ const MIN_CHAT_GROWTH = 12
 const MIN_CONTACT_GROWTH = 150
 // 单条消息长度上限（与 safety.localCheckText 的 500 字保持一致）
 const MAX_LEN = 500
-// 一轮「有效互聊」的成长值增量
-const CHAT_GROWTH = 2
+// 【2026-08-30 BUG-1 修复】成长规则统一走共享内核 ./growth-core.js（与 growth/game 同源）。
+// 改规则请改 cloudfunctions/growth/growth-core.js，再跑 `npm run sync:core` 同步到本目录。
+const core = require('./growth-core')
+const growthCtx = { db, _ }
+const { pairKeyOf } = core
 
-function pairKeyOf(a, b) {
-  return [String(a), String(b)].sort().join('|')
-}
+// 一轮「有效互聊」的成长值增量（唯一定义处在 growth-core.js）
+const CHAT_GROWTH = core.CHAT_GROWTH
 
 // 双向拉黑检测：任一方向拉黑都不能发消息（与 match.recommend 的过滤口径一致）
 async function isBlockedEitherWay(a, b) {
@@ -47,8 +48,7 @@ async function isBlockedEitherWay(a, b) {
 
 async function getPair(OPENID, peerId) {
   try {
-    const r = await db.collection(PAIRS_COL).where({ pairKey: pairKeyOf(OPENID, peerId) }).limit(1).get()
-    return (r.data && r.data[0]) || null
+    return await core.readPair(growthCtx, OPENID, peerId)
   } catch (e) {
     return null
   }
@@ -69,15 +69,20 @@ async function audit(content) {
   }
 }
 
-// 成长值累加：复用 growth 云函数（含 streak 结算），失败不影响消息已发出的事实
-async function addGrowth(peerId, delta, reason) {
+// 成长值累加：直接在本进程内写 pairs（共享内核，含 streak 结算），失败不影响消息已发出的事实。
+// ⚠️ 绝不再 cloud.callFunction 到 growth —— 跨函数调用时被调用方的 getWXContext().OPENID 恒为
+//    undefined（端用户身份不自动透传），成长值会被写进 "<openid>|undefined" 的幽灵 pair，
+//    且失败被吞、主流程不报错。详见 growth-core.js 头部说明（BUG-1）。
+async function addGrowth(OPENID, peerId, delta, reason) {
   try {
-    await cloud.callFunction({
-      name: 'growth',
-      data: { action: 'addGrowth', peerId, delta, reason }
-    })
+    const res = await core.addGrowth(growthCtx, { openid: OPENID, peerId, delta, reason })
+    if (res.code !== 0) {
+      console.error('[chat.addGrowth] 成长累加失败：', res.message)
+      return false
+    }
     return true
   } catch (e) {
+    console.error('[chat.addGrowth] 异常：', (e && e.message) || e)
     return false
   }
 }
@@ -142,7 +147,7 @@ async function send({ peerId, content, type = 'text' } = {}, OPENID) {
   // 5) 互聊结算（+2，含 streak）。失败不影响消息本身
   let rewarded = false
   if (lastFromPeer) {
-    rewarded = await addGrowth(peerId, CHAT_GROWTH, '一轮有效互聊')
+    rewarded = await addGrowth(OPENID, peerId, CHAT_GROWTH, '一轮有效互聊')
   }
 
   return {

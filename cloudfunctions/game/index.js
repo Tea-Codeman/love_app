@@ -12,71 +12,38 @@ const _ = db.command
 const GAMES_COL = 'games'
 const QUESTIONS_COL = 'gameQuestions'
 const MATCHES_COL = 'matches'
-const PAIRS_COL = 'pairs'
 const ROUNDS_PER_GAME = 5
 
 // M3.1：游戏完成 -> 关系成长（plan-m3.md §4 M3.1）。pairs 为权威累计源，此处原子 upsert。
-// 与 growth 云函数各自独立部署，故键规则/阶段阈值在此内联一份（云函数间不共享代码的既定约束）。
-const GAME_GROWTH = 8
+// 【2026-08-30 BUG-1 修复】成长规则统一走共享内核 ./growth-core.js（与 growth/chat 同源）。
+// 此前在这里内联一份，是为了绕开「云函数间不共享代码」的部署约束；现改为同步副本，规则只有一处定义。
+// 副作用（有意为之）：旧内联版不结算 streak，与 growth.addGrowth 口径不一致；现在两者完全对齐。
+// 改规则请改 cloudfunctions/growth/growth-core.js，再跑 `npm run sync:core` 同步到本目录。
+const core = require('./growth-core')
+const growthCtx = { db, _ }
 
-function pairKeyOf(a, b) {
-  return [String(a), String(b)].sort().join('|')
-}
-
-function stageOf(v) {
-  const n = Number(v) || 0
-  if (n >= 150) return 'S4'
-  if (n >= 90) return 'S3'
-  if (n >= 40) return 'S2'
-  if (n >= 12) return 'S1'
-  return 'S0'
-}
-
-// 游戏结束时累加 pairs：成长值 +8、默契题数累加、局数 +1、首局标记
+// 游戏结束时累加 pairs：成长值 +8（含 streak）、默契题数累加、局数 +1、首局标记
+// 走共享内核，与 growth.addGrowth 完全同源 —— 现在**也会结算 streak**（旧内联版不结算，是 BUG-2 的一部分）
 async function upsertPairOnGameDone(userA, userB, tacit) {
-  const pairKey = pairKeyOf(userA, userB)
-  const now = Date.now()
   const t = Number(tacit) || 0
-  const r = await db.collection(PAIRS_COL).where({ pairKey }).limit(1).get()
-
-  if (r.data && r.data.length) {
-    const p = r.data[0]
-    const next = (Number(p.growthValue) || 0) + GAME_GROWTH
-    await db.collection(PAIRS_COL).doc(p._id).update({
-      data: {
-        growthValue: _.inc(GAME_GROWTH),
-        tacitTotal: _.inc(t),
-        gameCount: _.inc(1),
-        firstGameDone: true,
-        lastGameAt: now,
-        lastInteractionAt: now,
-        stage: stageOf(next),
-        updatedAt: now
-      }
-    })
-    return
-  }
-
-  await db.collection(PAIRS_COL).add({
-    data: {
-      pairKey,
-      userA,
-      userB,
-      growthValue: GAME_GROWTH,
-      stage: stageOf(GAME_GROWTH),
+  const now = Date.now()
+  const res = await core.addGrowth(growthCtx, {
+    openid: userA,
+    peerId: userB,
+    delta: core.GAME_GROWTH,
+    reason: '共同完成一局默契问答',
+    extraSet: {
+      tacitTotal: _.inc(t),
+      gameCount: _.inc(1),
       firstGameDone: true,
-      gameCount: 1,
-      tacitTotal: t,
-      lastGameAt: now,
-      lastInteractionAt: now,
-      weekStreakAdded: 0,
-      weekKey: '',
-      lastStreakDay: '',
-      milestones: [],
-      createdAt: now,
-      updatedAt: now
+      lastGameAt: now
     }
   })
+  if (res.code !== 0) {
+    // 失败不外抛：已结束的对局不应因成长写入失败而报错（调用处另有 catch）
+    console.error('[game.upsertPairOnGameDone] 成长累加失败：', res.message)
+  }
+  return res
 }
 
 // 题库种子（v1：双人默契选择题，2-4 选项；correctPairHint 备用，v1 判定用"双方一致即默契"）

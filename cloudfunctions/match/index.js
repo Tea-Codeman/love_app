@@ -13,24 +13,12 @@ const GAMES_COL = 'games'
 const USERS_COL = 'users'
 const BLOCKS_COL = 'blocks'
 const PAIRS_COL = 'pairs'
-// M3.1：一场游戏带来的成长值（与 growth.addGrowth 的 game 分支约定一致），
-// 仅用于「历史对局回填」——把 M3.1 之前打完的局折算回 pairs，使老数据不丢失。
-const GAME_GROWTH = 8
-
-// pairs 唯一键：两个 openid 排序后拼接（必须与 growth/index.js 的 pairKeyOf 完全一致）
-function pairKeyOf(a, b) {
-  return [String(a), String(b)].sort().join('|')
-}
-
-// 阶段由成长值读时派生（阈值 12/40/90/150），与 growth/index.js 保持一致
-function stageOf(growthValue) {
-  const v = Number(growthValue) || 0
-  if (v >= 150) return 'S4'
-  if (v >= 90) return 'S3'
-  if (v >= 40) return 'S2'
-  if (v >= 12) return 'S1'
-  return 'S0'
-}
+// M3.1：一场游戏带来的成长值，仅用于「历史对局回填」——把 M3.1 之前打完的局折算回 pairs，使老数据不丢失。
+// 【2026-08-30 BUG-1 修复】键规则 / 阶段阈值 / 成长增量统一走共享内核 ./growth-core.js
+// （与 growth/game/chat 同源，全仓只有一处定义）。改规则请改 growth 目录下的内核，再跑 `npm run sync:core`。
+const core = require('./growth-core')
+const { pairKeyOf, stageOf } = core
+const GAME_GROWTH = core.GAME_GROWTH
 // 每题"默契"（双方选同一项）折算到契合度的权重：游戏结果在资料分之上累加
 const TACIT_WEIGHT = 4
 // MBTI 维度契合权重：每有一个维度字母相同 +2（0–8）；EI 互补（一外向一内向）另 +3。
@@ -146,7 +134,7 @@ async function aggregateGrowthStats(OPENID, userIds) {
     try {
       const r = await db.collection(PAIRS_COL)
         .where({ pairKey: _.in(batch) })
-        .field({ pairKey: true, growthValue: true, tacitTotal: true, gameCount: true, stage: true })
+        .field({ pairKey: true, growthValue: true, tacitTotal: true, gameCount: true })
         .get()
       ;(r.data || []).forEach(p => {
         const id = keyToId[p.pairKey]
@@ -155,7 +143,10 @@ async function aggregateGrowthStats(OPENID, userIds) {
           count: Number(p.gameCount) || 0,
           tacit: Number(p.tacitTotal) || 0,
           growthValue: Number(p.growthValue) || 0,
-          stage: p.stage || stageOf(p.growthValue)
+          // BUG-2 修复：阶段一律读时派生，绝不信 pairs.stage 缓存。
+          // 缓存会被「非代码途径改 growthValue」（控制台手改/回填）打漂，
+          // 导致同一个关系在匹配页显示 S1、在聊天页显示 S4。
+          stage: stageOf(Number(p.growthValue) || 0)
         }
         missing.delete(id)
       })

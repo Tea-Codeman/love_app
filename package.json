@@ -5,7 +5,8 @@
   "description": "恋爱成长型社交小程序（v1 单身主链路：社区融入 → 游戏结识 → 自然升温 → 导向恋爱）",
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
-    "build:mp-weixin": "uni build -p mp-weixin"
+    "build:mp-weixin": "uni build -p mp-weixin",
+    "sync:core": "node scripts/sync-growth-core.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5020420260813003",

@@ -363,3 +363,49 @@
 - `relation_confirmed`：属 M4.4 范围，非 M4.1 实现项。
 
 > **结论：M4.1 F9 全链路埋点 ✅ 正式闭环** —— 13 事件埋点代码全部实现、部署、真机验证；可观测 SC1–SC4 的管道打通。剩余 `contact_unlocked`/`report_created` 为「实现就绪、测试场景未覆盖」，不阻塞闭环。后续 M4.2 看板出数即可观测指标。
+
+---
+
+### M4.2 北极星看板 ✅ 已上线（2026-08-30 05:0x）
+
+实现 `metrics.dashboard`（plan-m4.md §5 决策 1：**云函数返回 JSON**，无小程序内看板页、不引入管理员鉴权）。
+
+- **部署**：`cloudfunctions/metrics/index.js` 新增 `dashboard` action（只读聚合，分页拉全量 `events`），`updateFunctionCode` 部署，`Status: Active`，CodeInfo 确认含完整聚合逻辑。
+- **口径严格照搬 plan-m4.md §5，保证可复算**：
+  - SC1 = 达 S2（`growthValue≥40`）的 pair ÷ 期间有 `game_done` 的 pair，目标 ≥30%
+  - SC2 = 配对日 +7 当天有互动（`game_done`/`message_sent`）的 pair ÷ 期间 `match_accept` 的 pair，目标 ≥25%
+  - SC3 = `contact_unlocked` 去重 pair ÷ 期间 `match_accept` pair，目标 ≥15%
+  - SC4 = `relation_confirmed` 的 pair 数（定性证据待人工回访）
+  - SC5 = 数据缺口（`report_handled` 未入白名单，处置能力留 M5）
+  - 漏斗：`recommend_view`(users) → `match_accept` → `game_join` → `game_done` → `chat_unlocked` → `contact_unlocked`
+
+**invoke 实测输出（action=dashboard, days=30，47 条 events）**
+
+```
+windowStartDay: 2026-08-01
+sc:
+  SC1_stage_s2_rate: 50
+  SC2_d7_retention: 0
+  SC3_contact_conv: 0
+  SC4_relation_confirmed_pairs: 0
+  SC5_report_24h: { status: "no_data", reason: "report_handled 未入白名单（M4 不做处置能力，留 M5）" }
+sc_detail:
+  SC1_pairs_reached_S2: 1   / SC1_pairs_with_game_done: 2
+  SC2_pairs_matched: 3      / SC2_pairs_d7_active: 0
+  SC3_pairs_contact: 0
+funnel:
+  recommend_view_users: 2 / match_accept_pairs: 3 / game_join_pairs: 2
+  game_done_pairs: 2 / chat_unlocked_pairs: 1 / contact_unlocked_pairs: 0
+```
+
+**手工复算（口径一致 ✅）**
+
+- `match_accept` 4 条事件 → 3 去重 pair（R188↔6LrPFY 复配 2 次合法）✅
+- `game_join` 3 条 → 2 pair、`game_done` 3 条 → 2 pair ✅
+- **SC1** = 1/2 = 50%（1 个 pair 有 `growthValue≥40` 的 `pair_stage_changed` S1→S2）≥ 30% 目标 ✅
+- **SC2** = 0%：全部事件 `day=2026-08-30`，D7=2026-09-06 无数据 → 单日测试测不出 7 日留存，**口径正确非 bug** ✅
+- **SC3** = 0%：`contact_unlocked` 已清理且无新解锁（幂等修复已部署）✅
+- **SC4**=0 / **SC5**=no_data：均未实现（M4.4 / M5 范围）✅
+- 漏斗各阶段去重计数与 47 条分布逐一吻合 ✅
+
+> **结论：M4.2 ✅ 看板可出数，口径可复算。** Checkpoint M4 第一项「能观测 SC1–SC4（看板有数、口径可复算）」达成；SC5 仍为数据缺口，Checkpoint M4 该项需人工终审放行。下一步：M4.3 阈值校准（12/40/90/150 → 校准值或「样本不足沿用初值」）、M4.4 SC4 自评入口。

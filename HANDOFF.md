@@ -81,6 +81,8 @@
   - **答题逻辑已改版**：用户反馈回合制"一人选完等另一人选完太死板" → 改为**匹配后各自独立答题、最后出结果时对比两人答案算默契度**（提交 `ab8cbd8`，`game` 云函数已部署并核验落地）。
   - **cancelled 残留已清理**：按方案 B 执行，`matches` / `games` 各 10→2（8 条真残留删除 + 2 条异常 match 翻 `done`），已云端核验。
 - **本轮（2026-08-29）额外完成**：MBTI 资料项、社区特性开关、拉黑闭环（拉黑按钮 + 黑名单管理页）、撮合 N+1 优化。**全部已提交，工作树干净**。
+- **M3 升温·导流 ✅ 代码完成 + 已部署（v0.3.0）**：pairs 默契度系统、先审后发、S1 门禁、联系方式解锁、拉黑闭环，全部部署并真机验证（详见 `tasks/verification-log.md` 与上方云函数表）。
+- **M4 验证（F9 埋点 + 北极星看板）✅ M4.1 已闭环 + M4.2 看板已上线（2026-08-30）**：13 事件全链路埋点真机验收通过（查库 47 条）；`metrics.dashboard` 聚合 SC1–SC5 上线，47 条数据口径复算一致（SC1=50% / SC2=0% 单日测试测不出 D7 / SC3=0% / SC4=0 待 M4.4 / SC5=数据缺口待 M5）。**M4.3 阈值校准、M4.4 SC4 自评入口待做**（M4.5 SC5 处置能力留 M5）。
 - **【2026-08-29 17:30 核实】M2 云端实测证据**：CLS 日志（2026-08-28 23:00–23:59，`game` 函数 30 条调用，全部 `status_code=200`）显示用户 `6LrPFY` × `actAho` 的一局走完：`waiting(players=1)` → `joinGame` → `playing(round=1/5, players=2, q=5)` → 逐轮 2/5、3/5、4/5、5/5 → `state=done, round=6/5`。**说明撮合→建局→加入→答题→结束的主链路在真实环境可用。**
 - **【同批核实】未被验证的功能**：`users` 5 条数据**无一有 `mbti` 字段**、`blocks` 集合 **0 条** → MBTI 测评保存与拉黑/解除两项新功能**至今零数据、从未真实验证过**（代码已部署，只差真机点一遍）。
 
@@ -93,6 +95,7 @@
 **Git 状态（重要，2026-08-30 更新）**
 - **远端 `main` 已同步**：2026-08-29 用 `git fetch` 修好 `origin/main` 追踪引用后推送，25 个历史提交全部上远端（含旧的 `338cb5c`）。**"本地领先 13 提交未推送"的旧账已结清。**
 - **上游追踪正常**（`main` → `origin/main`），推送直接 `git push origin main`，**绝不 force push**。
+- **【2026-08-30 05:0x 推送】M4.1 + M4.2 全部本地提交（累计 68+，至 `e7f40ef`）已快进推送至 `origin/main`，远程 `main` 与本地 HEAD 对齐，零 force push、零历史改写**。
 - **用户重视提交作为回滚锚点**：改功能前先确认/补齐提交，按关注点拆原子提交（功能 / 开关 / 文档 / 性能 / 纯格式 各自独立）。
 - 工作树**干净**。旧文档提到的 `PRECONTEXT.md` / `CONRRENTCONTEXT.md` / `SKILL.md` **均已不存在**（已清理，勿再挂念）。
 
@@ -123,7 +126,7 @@
 | `match` | recommend / accept / myPending / decline | ✅ **M3 已更新** | `recommend` 改读 `pairs`（O(1)）+ 首访回填；超时 3s→10s |
 | `auth` | updateProfile / … | ✅ **M3 已更新** | `sanitizeProfile` 白名单新增 `wechatId` / `wechatQrUrl` |
 | `metrics` | track / trackBatch（**仅前端上报入口**） | ✅ **M4.1 新建并部署（Active）** | 只服务前端 `app_open`/`recommend_view`；收尾时修复漏 `package.json` 致 `wx-server-sdk` 未装，补后重部署（CodeSize 6KB→11MB） |
-| auth/chat/game/growth/match/safety | **M4.1 F9 全链路埋点入桩（服务端本进程直写 `events`）** | ✅ **M4.1 已闭环（2026-08-30 05:0x 终验，查库 47 条）** | 各函数 `index.js` require `./metrics-core` 并插 `metrics.track(...)`；白名单 13 事件；PII 过滤；openid 缺失护栏 401（BUG-1）。3 项原缺口（chat_unlocked/profile_completed/recommend_view）已全部闭合：recommend_view 曾因 match.vue 漏 import track 的 bug 不触发，已修（commit `572be3d`）+ 用户重建前端后终验通过。SC1–SC4 可观测管道打通，待 M4.2 看板出数 |
+| auth/chat/game/growth/match/safety | **M4.1 F9 全链路埋点入桩（服务端本进程直写 `events`）** | ✅ **M4.1 已闭环（2026-08-30 05:0x 终验，查库 47 条）** | 各函数 `index.js` require `./metrics-core` 并插 `metrics.track(...)`；白名单 13 事件；PII 过滤；openid 缺失护栏 401（BUG-1）。3 项原缺口（chat_unlocked/profile_completed/recommend_view）已全部闭合：recommend_view 曾因 match.vue 漏 import track 的 bug 不触发，已修（commit `572be3d`）+ 用户重建前端后终验通过。SC1–SC4 可观测管道打通；**M4.2 看板已上线**（`metrics.dashboard` 聚合 SC1–SC5，47 条数据口径复算一致） |
 
 > **核实方法（可复现，勿再靠 ModTime 猜）**：`queryFunctions(action=getFunctionDownloadUrl)` 拿 zip → 解压取 `index.js` → 与本地 `cloudfunctions/<fn>/index.js` 比对。注意 zip 内是 CRLF，本地是 LF，**直接 diff 会误报整文件不同**，需先归一化换行符再比较。
 

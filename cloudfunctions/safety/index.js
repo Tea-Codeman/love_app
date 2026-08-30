@@ -1,6 +1,7 @@
 // cloudfunctions/safety/index.js —— F8 内容安全 / 举报 / 拉黑（M1.2 / M1.4）
 // 动作：checkText / checkImage（内容审核）
-//       report（举报入队）/ handleReport（管理员处置举报，M5.1）
+//       report（举报入队）/ handleReport（管理员处置举报，M5.1）/ isAdmin（查管理员白名单，M6.1）
+//       listReports（管理员查举报列表，M6.3）
 //       block（拉黑，去重写入）
 //       listBlocks（黑名单列表，一次 join users 取昵称头像）/ unblock（解除拉黑）
 // 架构约定：**过滤只能由服务端执行**。拉黑是安全机制，若改成由前端传列表给后端过滤，
@@ -88,6 +89,13 @@ async function isAdmin(OPENID) {
   return !!(r.data && r.data.length)
 }
 
+// M6.1（plan-m6.md 决策 2-a）：管理员身份查询。仅查 admins 集合，不外泄集合内容给客户端。
+// 返回 { isAdmin: boolean }；未登录 401。纯读，不改任何数据。
+async function isAdminAction(event, OPENID) {
+  if (!OPENID) return { code: 401, message: '未登录' }
+  return { code: 0, data: { isAdmin: await isAdmin(OPENID) } }
+}
+
 async function handleReport(event, OPENID) {
   if (!OPENID) return { code: 401, message: '未登录' }
   if (!(await isAdmin(OPENID))) return { code: 403, message: '仅管理员可处置举报' }
@@ -124,6 +132,49 @@ async function handleReport(event, OPENID) {
   }).catch(() => {})
 
   return { code: 0, data: { ok: true, status: decision } }
+}
+
+// M6.3（plan-m6.md）：管理员查举报列表。仅管理员可看（admins 白名单服务端校验，复用 isAdmin）。
+// 按 status 过滤（pending/handled/dismissed/all）；返回举报人昵称（join users，2 次查询非 N+1）。
+// 注意：reporterId/targetId 属内部标识，对管理员可见；reason 截断 60 字仅用于列表预览，详情由控制台查看。
+async function listReports(event, OPENID) {
+  if (!OPENID) return { code: 401, message: '未登录' }
+  if (!(await isAdmin(OPENID))) return { code: 403, message: '仅管理员可查看' }
+
+  const status = event.status || 'pending'
+  let q = db.collection('reports')
+  if (status && status !== 'all') q = q.where({ status })
+  const r = await q.orderBy('createdAt', 'desc').limit(100).get()
+  const rows = r.data || []
+
+  // 批量取举报人昵称（一次 in 查询）
+  const reporterIds = rows.map(x => x.reporterId).filter(Boolean)
+  let nickMap = {}
+  if (reporterIds.length) {
+    const us = await db.collection('users')
+      .where({ openid: _.in(reporterIds) })
+      .field({ openid: true, nickname: true })
+      .get()
+    ;(us.data || []).forEach(u => { nickMap[u.openid] = u.nickname || '未知用户' })
+  }
+
+  return {
+    code: 0,
+    data: {
+      reports: rows.map(x => ({
+        id: x._id,
+        targetType: x.targetType,
+        targetId: x.targetId,
+        reporterId: x.reporterId,
+        reporterNickname: (x.reporterId && nickMap[x.reporterId]) || '未知用户',
+        reasonPreview: (x.reason || '').slice(0, 60),
+        status: x.status,
+        createdAt: x.createdAt,
+        handledAt: x.handledAt || null,
+        decision: x.decision || null
+      }))
+    }
+  }
 }
 
 // 拉黑：写入 blocks，去重；被拉黑方在匹配/互动/信息流中被过滤
@@ -204,7 +255,9 @@ exports.main = async (event = {}) => {
       return { code: 0, data: r }
     }
     if (action === 'report') return await report(event, OPENID)
+    if (action === 'isAdmin') return await isAdminAction(event, OPENID)
     if (action === 'handleReport') return await handleReport(event, OPENID)
+    if (action === 'listReports') return await listReports(event, OPENID)
     if (action === 'block') return await block(event, OPENID)
     if (action === 'listBlocks') return await listBlocks(event, OPENID)
     if (action === 'unblock') return await unblock(event, OPENID)

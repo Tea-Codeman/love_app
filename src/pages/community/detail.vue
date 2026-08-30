@@ -20,12 +20,14 @@
     </view>
 
     <view class="comments">
-      <text class="c-title">评论（{{ comments.length }}）</text>
+      <text class="c-title">评论（{{ post.commentCount || comments.length }}）</text>
       <view class="c-item" v-for="c in comments" :key="c._id">
         <text class="c-name">{{ c.nickname || '匿名' }}</text>
         <text class="c-text">{{ c.content }}</text>
       </view>
       <view class="c-empty" v-if="comments.length === 0">还没有评论，来抢沙发</view>
+      <view class="c-more" v-if="commentHasMore && !commentLoading" @click="loadMoreComments">加载更多评论</view>
+      <view class="c-more loading" v-if="commentLoading">加载中…</view>
     </view>
 
     <view class="comment-bar">
@@ -47,7 +49,11 @@ export default {
       comments: [],
       commentText: '',
       liked: false,
-      likeCount: 0
+      likeCount: 0,
+      commentPage: 1,
+      commentPageSize: 30,
+      commentHasMore: false,
+      commentLoading: false
     }
   },
   onLoad(options) {
@@ -63,12 +69,14 @@ export default {
         uni.showToast({ title: (r.message || ('错误码 ' + r.code)), icon: 'none' })
         return
       }
-      const { post, comments } = r.data || {}
+      const { post, comments, commentHasMore } = r.data || {}
       this.post = post
       const likes = (post && post.likes) || []
       this.likeCount = likes.length
       this.liked = likes.includes(getOpenid())
       this.comments = comments || []
+      this.commentPage = 1
+      this.commentHasMore = !!commentHasMore
     },
     async onLike() {
       const r = await callFunction('community', { action: 'likePost', postId: this.postId })
@@ -86,6 +94,28 @@ export default {
       this.comments.push(r.data.comment)
       if (this.post) this.post.commentCount = (this.post.commentCount || 0) + 1
       uni.showToast({ title: '评论成功', icon: 'success' })
+    },
+    // 评论懒加载：首屏只取 30 条，点「加载更多」按页 append 后续评论。
+    async loadMoreComments() {
+      if (this.commentLoading || !this.commentHasMore) return
+      this.commentLoading = true
+      try {
+        const r = await callFunction('community', {
+          action: 'listComments',
+          postId: this.postId,
+          page: this.commentPage,
+          pageSize: this.commentPageSize
+        })
+        if (!r.ok) { uni.showToast({ title: r.message || '加载失败', icon: 'none' }); return }
+        const list = (r.data && r.data.comments) || []
+        if (list.length) {
+          this.comments = this.comments.concat(list)
+          this.commentPage += 1
+        }
+        this.commentHasMore = !!(r.data && r.data.hasMore)
+      } finally {
+        this.commentLoading = false
+      }
     },
     preview(i) {
       uni.previewImage({ current: i, urls: this.post.images })
@@ -136,6 +166,8 @@ export default {
 .c-name { font-size: 26rpx; color: #FF6B81; margin-right: 12rpx; }
 .c-text { font-size: 28rpx; color: #333; }
 .c-empty { text-align: center; font-size: 24rpx; color: #bbb; padding: 40rpx 0; }
+.c-more { text-align: center; font-size: 26rpx; color: #FF6B81; padding: 28rpx 0; }
+.c-more.loading { color: #bbb; }
 .comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; padding: 16rpx 24rpx; background: #fff; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.05); }
 .c-input { flex: 1; background: #f5eef0; border-radius: 32rpx; padding: 16rpx 28rpx; font-size: 28rpx; }
 .c-send { margin-left: 16rpx; background: #FF6B81; color: #fff; font-size: 28rpx; border-radius: 32rpx; padding: 0 32rpx; }

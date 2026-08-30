@@ -10,6 +10,9 @@ const TOPICS_COL = 'topics'
 const POSTS_COL = 'posts'
 const COMMENTS_COL = 'comments'
 const BLOCKS_COL = 'blocks'
+// 评论首屏分页大小：详情首屏只取前 COMMENT_PAGE_SIZE 条，避免长帖一次拉 100 条堵塞首屏。
+// 后续页由 listComments action 按 page 懒加载（命中 comments{postId,auditStatus,createdAt} 复合索引后效果最佳）。
+const COMMENT_PAGE_SIZE = 30
 
 // 种子话题（冷启动分类，非 UGC 假数据）
 const SEED_TOPICS = [
@@ -116,7 +119,7 @@ async function getPostDetail({ postId }) {
       db.collection(COMMENTS_COL)
         .where({ postId, auditStatus: 'pass' })
         .orderBy('createdAt', 'asc')
-        .limit(100)
+        .limit(COMMENT_PAGE_SIZE)
         .get()
     ])
     if (postRes.data) post = postRes.data
@@ -133,7 +136,28 @@ async function getPostDetail({ postId }) {
     }
     return { code: -1, message: '查询失败：' + dbg }
   }
-  return { code: 0, data: { post, comments } }
+  return { code: 0, data: { post, comments, commentHasMore: comments.length === COMMENT_PAGE_SIZE } }
+}
+
+// 评论分页加载：详情首屏只取前 COMMENT_PAGE_SIZE 条，下拉/点击「加载更多」按 page 取后续页，
+// 避免长帖一次拉 100 条堵塞首屏（命中 comments{postId,auditStatus,createdAt} 复合索引后效果最佳）。
+async function listComments({ postId, page = 0, pageSize = COMMENT_PAGE_SIZE } = {}) {
+  if (!postId) return { code: 400, message: '缺少 postId' }
+  const n = Math.min(50, Math.max(1, Number(pageSize) || COMMENT_PAGE_SIZE))
+  try {
+    const res = await db.collection(COMMENTS_COL)
+      .where({ postId, auditStatus: 'pass' })
+      .orderBy('createdAt', 'asc')
+      .skip(Math.max(0, Number(page)) * n)
+      .limit(n)
+      .get()
+    const list = res.data || []
+    return { code: 0, data: { comments: list, hasMore: list.length === n } }
+  } catch (e) {
+    const msg = (e && e.message) || 'listComments error'
+    console.error('[listComments] postId=' + postId + ' :', msg)
+    return { code: -1, message: '评论加载失败：' + msg }
+  }
 }
 
 // 发帖：先审后发。调 safety 云函数审核，过审才入库（auditStatus=pass）。
@@ -193,6 +217,7 @@ exports.main = async (event = {}) => {
     if (action === 'likePost') return await likePost(event, OPENID)
     if (action === 'addComment') return await addComment(event, OPENID)
     if (action === 'getPostDetail') return await getPostDetail(event)
+    if (action === 'listComments') return await listComments(event)
     return { code: 404, message: 'unknown action: ' + action }
   } catch (e) {
     const msg = (e && e.message) || 'community error'

@@ -2,7 +2,7 @@
 
 > 本文档是 **M8 阶段执行规划**，基于 `HANDOFF.md`（M7 收官现状、待确认事项「账号主体/社交类目资质现状？内容安全云调用权限是否就绪？隐私政策文案进度？」）、`cloudfunctions/safety/index.js`（内容安全开关现状）、`src/pages/privacy/privacy.vue`（占位文案）、`tasks/plan-m7.md`（「明确不做」清单已把四项留 M8）。
 > 状态：**已签字放行（2026-08-30 用户签字），按 M8.1→M8.4 落地**。**M8.1 为用户侧资质门禁（Agent 出指引+核验）；M8.3 强依赖 M8.1；M8.2 / M8.4 由 Agent 并行落地。** **🔻 2026-08-31 用户决策降级：M8.1 资质仍在申请中 → 维持个人账号「受限邀请原型验证」模式（不公开上架）；M8.3 同步降级维持 `USE_WX_SECURITY=false`（本地关键词兜底），待资质就绪再 flip。M8.2/M8.4 已落地不受影响。**
-> M8 = v1 正式上架前的最后准备；收尾后即进入「收官 / 灰度上线」。**优化（O1/O4/O5）已落地（2026-08-31）：上架开关外置 server_config / 隐私版本强制重同意 / 上架 Playbook 文档；O2 图像异步回调 / O6 分享入口留未来资质就绪后补。**
+> M8 = v1 正式上架前的最后准备；收尾后即进入「收官 / 灰度上线」。**优化（O1/O4/O5）已落地（2026-08-31）：上架开关外置 server_config / 隐私版本强制重同意 / 上架 Playbook 文档；O2 已落地（imgSecCheck 同步内联，免回调/HTTP函数/控制台配置）/ O6 分享入口留未来资质就绪后补。**
 
 ## 1. 本轮目标
 
@@ -50,10 +50,10 @@
 - 改 `cloudfunctions/safety/index.js:23` `const USE_WX_SECURITY = false` → `true`；`checkText` 分支（249 行）即切到 `wxCheckText`（`cloud.openapi.security.msgSecCheck`）。
 - 验收 `msgSecCheck` 真实判定：构造一条违规文本（涉黄/赌博类）+ 一条正常文本，经 `community`/`chat` 触发 `safety.checkText` → 断言违规被拒（不过审不落库）、正常放行。
 - 🔴 **前置门禁 = M8.1**：个人/未认证主体调 `msgSecCheck` 报 `48001`；必须由 M8.1 主体+内容安全权限就绪后才执行。
-- 🟡 **图像审核缺口（记录不实现）**：`safety/index.js` 有 `checkImage` 动作（254 行本地模式恒 `pass:true`），但全仓 **无任何调用点**（community/chat 仅调 `checkText`），故 M8.3 不接 `mediaCheckAsync` 异步回调（`wxCheckImage` 走 `mediaCheckAsync` 需配内容安全消息推送 → 回调云函数）。待日后启用图像上传功能（帖子图/头像审核）时再补回调云函数。verification-log 记此缺口。
+- 🟡 **图像审核（O2 ✅ 已落地，2026-08-31）**：原 M8.3 规划「不接 `mediaCheckAsync` 异步回调」（需配内容安全消息推送+回调云函数）。现改为 `wxCheckImage` 走 `cloud.openapi.security.imgSecCheck`（**同步内联判定**，免异步回调/HTTP函数/控制台配置），基础设施就绪；全仓暂无图像上传调用点，启用图像上传功能（帖子图/头像审核）即生效，翻 O1 开关即真审。O2 详情见 verification-log「M8 优化 O1/O4/O5」章。
 - 部署 `safety` → `Status=Active`，`getFunctionDetail` 核验 `CodeInfo` 含 `USE_WX_SECURITY = true`。
 
-**Acceptance criteria:** `USE_WX_SECURITY=true` 部署落地；违规文本真机/云函数触发 `checkText` 被拒、正常文本放行；无 `48001`。图像异步回调明确记为「待启用图像上传时再补」。
+**Acceptance criteria:** `USE_WX_SECURITY=true` 部署落地；违规文本真机/云函数触发 `checkText` 被拒、正常文本放行；无 `48001`。图像审核（O2）已用同步 imgSecCheck 落地基础设施（免异步回调），无调用点待图像上传功能启用即生效。
 **Dependencies:** M8.1
 **Files likely touched:** `cloudfunctions/safety/index.js`（1 行 + 注释）、`cloudfunctions/safety/package.json`（确认 `wx-server-sdk` 版本支持 `openapi.security`，当前 `~2.6.3` 应已支持）
 **Estimated scope:** M
@@ -83,7 +83,7 @@
 ## 3. 本轮明确不做（留收官后 / 后续）
 
 - 阈值回灌重算（维持 12/40/90/150，待自然用户 ≥10 对再回灌，见 threshold-calibration.md）
-- 图像审核异步回调（无调用点，待图像上传功能启用）
+- 图像审核：O2 已用同步 imgSecCheck 落地基础设施（免异步回调），无调用点待图像上传功能启用即生效（无需再补回调云函数）
 - 老对时区回填（M7.3 已决不回填）
 - 灰度/增长（邀请裂变、运营活动）属 v1 后范围
 - 营收（内购/情侣经营）明确 Out of scope

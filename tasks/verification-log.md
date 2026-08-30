@@ -728,7 +728,7 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 ## M8 优化 O1/O4/O5 ✅（2026-08-31）
 
 ### 背景
-用户决策：「现在不能上架、未来可能上架」→ v1 定位个人自用小工具，但要把未来公开上架的切换成本压到最低。落地 O1/O4/O5；O2（图像异步回调）/O6（分享入口）因个人号不可测 / 需产品决策，留未来资质就绪后。
+用户决策：「现在不能上架、未来可能上架」→ v1 定位个人自用小工具，但要把未来公开上架的切换成本压到最低。落地 O1/O4/O5；O2（图像内容安全·同步 imgSecCheck 内联判定，已落地，免异步回调/HTTP函数/控制台配置）/O6（分享入口）因产品决策留未来资质就绪后。
 
 ### O1 上架开关外置为云端配置 ✅（已部署 Active）
 - **改什么**：`cloudfunctions/safety/index.js` 删除硬编码 `const USE_WX_SECURITY = false`，改为 `getUseWxSecurity()` 读 `server_config` 文档(`_id=launch`)，带 60s TTL 内存缓存，文档缺失/读失败回落 `false`（原型行为不变）。`checkText`/`checkImage` 分支改为 `await getUseWxSecurity()`。
@@ -743,12 +743,18 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 - **验证**：`npm run build:mp-weixin` EXIT=0，`src/utils` 完好（仅 `storage.js` 改动）。调用方核对：仅 App.vue 布尔判定 + privacy.vue 无参调用，无残参调用。
 
 ### O5 上架 Playbook 文档 ✅
-- `tasks/launch-playbook.md`：未来公开上架切换清单（资质就绪→翻 O1 开关→补 O2 图像异步回调→M8.3 文本真审验收无 48001→恢复 O6 分享/邀请入口→隐私真实邮箱+备案→提交审核）+ 回滚方案（翻回 false 即回落本地兜底）。零代码风险。
+- `tasks/launch-playbook.md`：未来公开上架切换清单（资质就绪→翻 O1 开关→O2 图像真审已随基础设施就绪（同步 imgSecCheck，免异步回调）→M8.3 文本真审验收无 48001→恢复 O6 分享/邀请入口→隐私真实邮箱+备案→提交审核）+ 回滚方案（翻回 false 即回落本地兜底）。零代码风险。
+
+### O2 图像内容安全 ✅（已部署 Active，2026-08-31）
+- **改什么**：`cloudfunctions/safety/index.js` 的 `wxCheckImage` 由 `mediaCheckAsync`（异步，返回值 ≠ 判定，原实现不正确）改为 `cloud.openapi.security.imgSecCheck`（**同步内联判定**：`errCode===0` 通过、`87014` 违规）。`checkImage` action 加 `event.media.base64` 校验，缺图返回 400。`getUseWxSecurity()` 为 false（原型期）时图片默认通过；翻 O1 开关即走真审，免重部署。
+- **部署**：`manageFunctions.updateFunctionCode(safety)` → 轮询 `Status=Updating`→`Active`，CodeInfo 实证含 `imgSecCheck`、无 `mediaCheckAsync`（盲区防护 #23 复核通过）。
+- **收益**：未来上架无需新增回调云函数/控制台注册回调 URL/签名校验/公共图床——相比原 O2 异步方案，切换成本压到最低；O2 随 v1 基础设施就绪（全仓暂无图像上传调用点，启用即生效）。
+- **验证**：`node --check` SYNTAX_OK；`grep` 确认 `mediaCheckAsync` 已全删、`imgSecCheck`/`wxCheckImage` 在列；云端 CodeInfo 实证。
 
 ### Checkpoint O1/O4/O5
 - [x] safety 开关外置 server_config（建集合+文档+部署 Active，CodeInfo 实证）
 - [x] 隐私版本+强制重同意（build DONE，调用方核对干净）
 - [x] 上架 Playbook 文档发布
-- [ ] O2 图像异步回调（未来资质就绪后补；mediaCheckAsync 异步，需独立回调云函数）
+- [x] O2 图像内容安全已落地（imgSecCheck 同步内联判定，免异步回调/HTTP函数/控制台配置；未来翻 O1 开关即生效，无需额外动作）
 - [ ] O6 分享/邀请入口恢复（未来资质就绪后，需产品决策）
 - [ ] 人工终审 → 用户受限邀请实测 → 资质就绪后补 M8.1/M8.3 公开上架

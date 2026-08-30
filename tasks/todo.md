@@ -494,7 +494,7 @@
 **Estimated scope:** S
 
 ### Task M8.3: 内容安全切换 USE_WX_SECURITY=true 🔻 降级·维持 false（待 M8.1 资质，延后 flip）
-**Description:** `cloudfunctions/safety/index.js:23` 置 true；验收 `msgSecCheck` 违规拒/正常放行。🟡 图像 `mediaCheckAsync` 异步回调无调用点，记为缺口不实现。
+**Description:** `cloudfunctions/safety/index.js:23` 置 true；验收 `msgSecCheck` 违规拒/正常放行。🟡 图像审核（O2 ✅ 已落地，2026-08-31）：改用同步 `imgSecCheck` 内联判定，免异步回调/HTTP函数/控制台配置；无调用点待图像上传功能启用即生效。
 **Acceptance criteria:** 部署 Active + CodeInfo 含 `USE_WX_SECURITY=true` + 文本真审验收。
 **Dependencies:** M8.1
 **Files likely touched:** `cloudfunctions/safety/index.js`
@@ -518,7 +518,7 @@
 
 ## 优化项 O1/O4/O5（2026-08-31 · 个人自用 + 未来上架低成本）
 
-> 用户决策「现在不能上架、未来可能上架」→ 优化使未来切换成本最低。范围 O1/O4/O5（O2 图像异步 / O6 分享留未来资质就绪后）。
+> 用户决策「现在不能上架、未来可能上架」→ 优化使未来切换成本最低。范围 O1/O4/O5（O2 已落地（imgSecCheck 同步内联，免回调）/ O6 分享留未来资质就绪后）。
 
 ### Task O1: 上架开关外置为云端配置 ✅ 已落地（已部署 Active）
 **Description:** `safety/index.js` 的 `USE_WX_SECURITY` 硬编码改为读 `server_config` 文档(`_id=launch`)，带 60s TTL 缓存，缺失回落 false。已建 `server_config` 集合+文档(`useWxSecurity:false,requireInvite:false`)，重部署 safety 至 Active（CodeInfo 落地新代码）。
@@ -535,7 +535,7 @@
 **Estimated scope:** S
 
 ### Task O5: 上架 Playbook 文档 ✅ 已落地
-**Description:** `tasks/launch-playbook.md` —— 未来公开上架切换清单（资质→翻开关 O1→补 O2 图像异步→M8.3 文本验收→恢复 O6 分享→隐私备案→审核）+ 回滚方案。
+**Description:** `tasks/launch-playbook.md` —— 未来公开上架切换清单（资质→翻开关 O1→O2 图像真审已随基础设施就绪（同步 imgSecCheck，免异步回调）→M8.3 文本验收→恢复 O6 分享→隐私备案→审核）+ 回滚方案。
 **Acceptance:** 文档就绪，零代码风险。
 **Dependencies:** 无
 **Files likely touched:** 文档
@@ -545,7 +545,7 @@
 - [x] safety 开关外置 server_config（建集合+文档+部署 Active，CodeInfo 实证）
 - [x] 隐私版本+强制重同意（build DONE，调用方核对干净）
 - [x] 上架 Playbook 文档发布
-- [ ] O2 图像异步回调（未来资质就绪后补）
+- [x] O2 图像内容安全已落地（imgSecCheck 同步内联，免回调/HTTP函数/控制台配置；未来翻 O1 开关即生效，无需额外动作）
 - [ ] O6 分享/邀请入口恢复（未来资质就绪后，需产品决策）
 
 ---

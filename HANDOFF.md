@@ -2,7 +2,7 @@
 
 # 项目/任务
 
-从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M4 全部完成；**M5 全收官（2026-08-30）**：M5.1–M5.4 落地部署、线上验收 PASS（SC5 rate=100 / 双计修复实证）、阈值回灌评估 #2 维持初值、**人工终审 21:40 签字通过**。**下一步 = M6 规划**（候选：管理员 UI + 403/幂等真机补验、冷启动准备、自然用户数据观察）。
+从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M4 全部完成；**M5 全收官（2026-08-30）**：M5.1–M5.4 落地部署、线上验收 PASS（SC5 rate=100 / 双计修复实证）、阈值回灌评估 #2 维持初值、**人工终审 21:40 签字通过**。**M6 规划定稿（2026-08-30）：范围 = A 收 M5 尾（管理员处置 UI 闭环 M6.1–M6.3 + config.js 提交 community=true），isAdmin 走云函数动作；冷启动准备/技术债留 M7。待签字放行动码。**
 
 > **⚠️ 2026-08-29 实测推翻旧版前提**：旧版 HANDOFF 称"4 个云函数未部署、3 个集合未建、从未真机验证"。**实测全不成立**——7 个存量云函数全部已部署且与本地逐字节一致；10+ 个集合全部已建且有数据；M2 主链路云端跑通过完整一局。瓶颈从来不是部署，而是**真机验证**与**埋点校准**。
 
@@ -166,6 +166,7 @@
     - **403 / alreadyHandled 未走真实登录态**（逻辑经代码审查覆盖），待管理员 UI 上线补验。
     - 阈值回灌评估 #2（`4666752`）：样本无增量（n=3 对测试数据 / 0 自然用户 / 无跨天），**维持沿用初值 12/40/90/150**；唯一新信号=SC5 首次有数（n=1，不构成校准依据）。下次回灌条件：自然用户 ≥10 对 + 跨天可算。
     - **人工终审通过（21:40，用户签字）→ M5 全收官，下一步 = M6 规划**。
+24. **M6 规划定稿（2026-08-30 21:56）**：用户选 **范围 A 收 M5 尾** + `config.js` 提交 `community=true`。M6 = 管理员处置 UI 闭环（M6.1 `safety.isAdmin` 云函数动作 / M6.2 前端 `isCurrentUserAdmin()` + settings 页条件入口 / M6.3 `pages/admin/reports.vue` 处置页 pending 列表+处置/驳回+幂等禁用）；isAdmin 走服务端（admins 集合不外泄客户端）；冷启动准备（资质/类目/隐私/索引）与技术债（时区/streak、删 invite.js、老对回填）整线延后留 **M7**。产出 `tasks/plan-m6.md` + todo.md M6 任务卡（M6.1–M6.4 + Checkpoint M6）。**状态：待用户签字放行动码。**
 
 ---
 
@@ -204,7 +205,7 @@
 
 # 当前状态
 
-**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、M4 全部完成 ✅、**M5 全收官 ✅（2026-08-30：代码落地 + 线上验收 PASS + 阈值回灌评估 #2 + 人工终审 21:40 签字通过）**。**下一步 = M6 规划**。Checkpoint M4/M5 均已终审放行。
+**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、M4 全部完成 ✅、**M5 全收官 ✅（2026-08-30：代码落地 + 线上验收 PASS + 阈值回灌评估 #2 + 人工终审 21:40 签字通过）**。**M6 规划定稿 ✅（2026-08-30：范围 A 收 M5 尾，待签字放行动码）**。Checkpoint M4/M5 均已终审放行。
 
 **M4.1 埋点终验结果（2026-08-30，查库 47 条 / 11 类事件）**
 - `app_open`×23、`match_accept`×4、`game_join`×3、`game_done`×3、`message_sent`×7、`pair_stage_changed`×2、`mbti_completed`×1、`chat_unlocked`×1、`profile_completed`×1、`recommend_view`×2
@@ -330,14 +331,14 @@
 
 # 新 Agent 接手指南
 
-1. **当前最重要的问题**：M5 代码已全部落地并部署（见已完成工作 22）。**剩余人工项：① 建 `admins` 集合并插入管理员 openid（users 现有 6 个：oUsf1xRnPxcjWLiSG3XFR-6LrPFY「woailuo」/ oUsf1xaoXeRqW5dqbCkjDfsJ8Fv8「我不爱罗」/ oUsf1xZonxm8p9DekXnHSh0YRbnE「666」/ oUsf1xS6FdqC72DUf9uGkOactAho「1」/ oUsf1xVZcfgUuM4e3vJ8WXWhfyhk（无昵称）/ oUsf1xR188Rzm5l1mAxrlZiwaxcc「测试账号1」）——未建前 handleReport 全 403；② 真机验收（普通账号举报 → 管理员处置 → dashboard SC5 出 rate；非管理员 403；重复 handle alreadyHandled；冷启动无成对 app_open）**。可用报告：reports 集合 1 条 pending（_id `0fb91b1d6a9096dc010ed1b84230ff4f`）。
+1. **当前最重要的问题**：M0–M5 全收官（M5 人工终审 21:40 签字通过）。**M6 规划已定稿（`tasks/plan-m6.md`，2026-08-30 范围 A 收 M5 尾 + community 提交 true），等签字放行动码**——范围 = 管理员处置 UI 闭环（M6.1 `safety.isAdmin` / M6.2 前端判定+守卫 / M6.3 处置页）+ config.js 提交 true；`safety` 已有 `handleReport` 底子，缺管理员界面。冷启动准备/技术债留 M7。
 2. **从哪一步继续**：
    - 若用户确认管理员 openid → 建 `admins` 集合（控制台或经 MCP 确认后创建）+ 插 `{openid, createdAt}` → 真机验收 Checkpoint M5。
    - 若用户说"做 M4.4" → 已完成（双边邀请，见已完成工作 16–19），勿重做。
    - 若用户报 bug → 先核实云端代码是否与本地一致（下载 zip 归一化 diff），再查逻辑；勿默认"没部署"。
 3. **不要重复**：不重跑需求澄清/Plan/Tasks；不用裸 npm install；不写死 env / 不提议自动建集合；不重新提议"前端传黑名单给后端过滤"；不擅自重加 `onShareAppMessage`/邀请入口；不擅自删 `src/utils/invite.js`；不擅自删云端数据（强删前必列 `_id`）。
 4. **隐含约束（极易漏）**：云函数部署环境必须 = `love-app-server-d2fhg32320d65c12`；新集合仍需手动建在该环境；DevTools 加载 `dist/dev`；本环境纯 NoSQL，别提 PG/RLS/MySQL；改 `growth-core.js` 后必须 `npm run sync:core` 再部署。
-5. **信息不足时优先问**：① M5 规划已定稿（plan-m5.md），是否签字放行动码？② 是否做存量老对全量回填？③ 是否修 UTC 时区（streak 的 dayOf）？④ 是否删 `src/utils/invite.js`？⑤ 账号主体与社交类目资质现状（决定冷启动线何时启动）？
+5. **信息不足时优先问**：① M6 规划已定稿（plan-m6.md，范围 A 收 M5 尾），是否签字放行动码？② 是否做存量老对全量回填？③ 是否修 UTC 时区（streak 的 dayOf）？④ 是否删 `src/utils/invite.js`？⑤ 账号主体与社交类目资质现状（决定冷启动线何时启动）？
 6. **动手前必读**：`spec/SPEC.md` → `tasks/plan.md` → `tasks/todo.md` → `tasks/plan-m4.md` → 本文件「盲区防护」与「已尝试但失败/放弃的方案」→ `.workbuddy/memory/` 最近几天记录。
 
 ---
@@ -345,7 +346,7 @@
 # 极简版
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
-- **现状**：M0/M1/M2/M3/M4 全部完成；**M5 全收官 ✅（2026-08-30 21:40 人工终审通过）**：M5.1–M5.4 落地部署、验收 PASS（SC5 rate=100%、双计修复实证、admins 已建）、回灌评估 #2 维持初值。**遗留 1 项进 M6：403/alreadyHandled 待管理员 UI 上线后真机补验**。下一步 = M6 规划。
+- **现状**：M0/M1/M2/M3/M4 全部完成；**M5 全收官 ✅（2026-08-30 21:40 人工终审通过）**：M5.1–M5.4 落地部署、验收 PASS（SC5 rate=100%、双计修复实证、admins 已建）、回灌评估 #2 维持初值。**M6 规划定稿 ✅（2026-08-30）：范围 A 收 M5 尾 = 管理员处置 UI 闭环（M6.1 isAdmin / M6.2 前端判定+守卫 / M6.3 处置页）+ config.js 提交 community=true；冷启动准备/技术债留 M7**。下一步 = 用户签字放行 M6 动码。
 - **Git**：远程 `main` 已对齐本地（2026-08-30 20:25 实测 `c8e3e2d`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。

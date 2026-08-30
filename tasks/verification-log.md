@@ -548,3 +548,30 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 ### 数据质量观察（2026-08-30 19:40 代码级复核修正）
 1. growthValue 区分度弱系**测试污染**而非权重偏高：实际权重（游戏 +8/局、聊天 +2/轮、streak +3/天）下纯游戏到 S4 需约 19 局，「2 局即 150」的大额成长来自 M4.1 期手工 addGrowth 测试调用。真实权重配比是否合理待自然用户数据判定。
 2. `app_open` 冷启动双计对现行看板**零影响**（SC1–SC5 均不消费 app_open，SC2 为 pair 维度 D7 互动留存）；仅影响未来从 events 裸数 DAU——按 (userId, day) 去重即可消除。修复不紧急，App.vue 过时注释已更正。详见 threshold-calibration.md 观察节。
+
+---
+
+## M5 验证记录（2026-08-30）
+
+### M5 代码落地 + 云端部署（Agent 执行）
+
+| 项 | 结果 |
+|---|---|
+| 语法校验 | `node --check` safety/index.js、metrics/index.js、metrics-core.js 全过 |
+| 生产构建 | `npm run build:mp-weixin` DONE（App.vue 双计修复编译通过） |
+| safety 部署 | updateFunctionCode 受理 → getFunctionDetail `Status=Active`（ModTime 20:38:27），CodeInfo 含 `handleReport`/`isAdmin`（管理员校验） |
+| metrics 部署 | updateFunctionCode 受理 → `Status=Active`（ModTime 20:38:33），CodeInfo 含 `computeSC5`/`fetchAllReports` |
+| dashboard 冒烟 | MCP invoke `action=dashboard` → code=0，`SC5_report_24h={status:"no_data", pendingCount:1, handledCount:0, source:"reports"}`，SC1–SC4 读数与 M4 复算一致（SC1=50%，SC4=1），_note 已更新口径说明 |
+| 提交 | `993e1c0`(M5.2 白名单) → `6a7c486`(M5.1 handleReport) → `74e0cf0`(M5.3 dashboard) → `022cdad`(M5.4 双计修复)，原子分提 |
+
+### 数据盘点
+
+- `reports` 集合现有 1 条 pending（_id `0fb91b1d6a9096dc010ed1b84230ff4f`，targetType=post）——真机验收可直接用它走处置闭环
+- `admins` 集合**未创建**——handleReport 现阶段对所有人返回 403（护栏生效，但也意味着无人能处置）
+
+### 待人工验收（Checkpoint M5）
+
+1. 控制台建 `admins` 集合 + 插入管理员 openid（users 现有 6 个 openid 可选）
+2. 真机：普通账号举报 → 管理员处置 → reports.status 变更 + handledAt → dashboard SC5 出 rate
+3. 非管理员调 handleReport 返回 403；重复 handle 返回 alreadyHandled
+4. 冷启动小程序 → events 无毫秒级成对 app_open；切后台回前台各报一条

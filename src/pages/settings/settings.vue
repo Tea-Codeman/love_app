@@ -1,5 +1,14 @@
 <template>
   <view class="settings">
+    <view class="section" v-if="isAdmin">
+      <text class="section-title">管理</text>
+      <text class="section-desc">管理员专属：处置用户举报</text>
+      <view class="row" @click="goAdmin">
+        <text class="row-label">管理后台</text>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+
     <view class="section">
       <text class="section-title">黑名单</text>
       <text class="section-desc">拉黑后你们不会再出现在彼此的推荐里</text>
@@ -21,19 +30,28 @@
 
 <script>
 import { callFunction } from '../../utils/request'
+import { isCurrentUserAdmin } from '../../utils/admin'
 
 export default {
   data() {
     return {
       blocks: [],
       loading: false,
-      busy: false
+      busy: false,
+      isAdmin: false
     }
   },
   onShow() {
     this.loadBlocks()
+    this.loadAdmin()
   },
   methods: {
+    async loadAdmin() {
+      this.isAdmin = await isCurrentUserAdmin()
+    },
+    goAdmin() {
+      uni.navigateTo({ url: '/pages/admin/reports' })
+    },
     async loadBlocks() {
       this.loading = true
       const r = await callFunction('safety', { action: 'listBlocks' })
@@ -101,5 +119,17 @@ export default {
   flex-shrink: 0;
 }
 .btn.unblock { background: #f2f2f2; color: #666; }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 28rpx 24rpx;
+  margin-bottom: 18rpx;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 129, 0.08);
+}
+.row-label { font-size: 30rpx; color: #333; font-weight: 600; }
+.arrow { font-size: 36rpx; color: #ccc; }
 .empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
 </style>

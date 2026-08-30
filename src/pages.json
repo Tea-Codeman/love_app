@@ -89,6 +89,12 @@
       "style": {
         "navigationBarTitleText": "我的关系"
       }
+    },
+    {
+      "path": "pages/admin/reports",
+      "style": {
+        "navigationBarTitleText": "管理后台"
+      }
     }
   ],
   "globalStyle": {

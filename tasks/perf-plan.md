@@ -93,5 +93,9 @@
   - `getPostDetail` 评论 `limit(100)→limit(30)`，返回 `commentHasMore`
   - 新增 `listComments` action（page 懒加载，命中 comments 复合索引）
   - detail.vue 首屏 30 条 + 「加载更多评论」按钮；标题用 `post.commentCount` 真实总数
-- [ ] **P0 索引（唯一未释放杠杆）** → 仍需在 CloudBase 控制台手动建 7 集合索引（MCP 无建索引能力），规格见 §2。建好后 ① 社区详情/信息流、③ 聊天 list 才从全表扫描变索引命中。
+- [ ] **P0 索引（复核结论 2026-08-31）** → 已用 `readNoSqlDatabaseStructure.listIndexes` 复核用户控制台所建索引：
+  - ✅ 完全命中：comments（`postId:1,auditStatus:1,createdAt:1`）、messages（`pairKey:1,createdAt:1`）、games（`invitedUserId:1,state:1,createdAt:1`）、pairs（`pairKey:1`）、users（`createdAt:1`）。方向 1/-1 不影响排序（可逆扫）。
+  - ⚠️ posts：建了 3 字段复合 `auditStatus:1,createdAt:1,topicId:1` —— 主查询 `where auditStatus=pass orderBy createdAt desc` 命中；但话题筛选场景 `where({auditStatus,topicId})` 因 topicId 在尾部键、排序字段在中间，无法在排序前用 topicId 等值 → 退化为审计分区内内存过滤（非阻塞，v1 话题列表量小）。
+  - 🔴 **matches 缺口（唯一硬伤）**：只建了 `{userA:1,status:1,userB:1}` 单一复合，覆盖 userA 分支；但 `match/index.js` 有 3 处 `_.or([{userA..},{userB..}])` 查询（:80、:101、:289），userB 分支无前导索引 → 退化全扫。**需补建 `{userB:1, status:1}`**（建议再补 `{userB:1}` 覆盖 :289 无 status 分支）。
+  - 结论：建议补 matches 的 `{userB:1,status:1}` 后，P0 即全量释放。
 - 远端 HEAD：`origin/main = efb305b`

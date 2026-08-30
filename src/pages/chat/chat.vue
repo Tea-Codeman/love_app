@@ -109,25 +109,35 @@ export default {
       if (r.ok && r.data && r.data.pair) this.growthValue = Number(r.data.pair.growthValue) || 0
     },
     async loadMessages() {
+      // 防并发：轮询与 onSend 可能重叠，重叠时共享过期游标会各拉一份并重复 append
+      if (this._fetching) return
+      this._fetching = true
       const since = this.lastCreatedAt
-      const r = await callFunction('chat', { action: 'list', peerId: this.peerId, limit: 50, since })
-      if (!r.ok) {
-        if (r.code === 500) uni.showToast({ title: r.message, icon: 'none' })
-        return
+      try {
+        const r = await callFunction('chat', { action: 'list', peerId: this.peerId, limit: 50, since })
+        if (!r.ok) {
+          if (r.code === 500) uni.showToast({ title: r.message, icon: 'none' })
+          return
+        }
+        const incoming = (r.data && r.data.messages) || []
+        if (since <= 0) {
+          // 首屏 / 重新进入：全量替换（服务端 since<=0 时返回全部）
+          this.messages = incoming
+        } else if (incoming.length) {
+          // 轮询增量：按 msgId 去重后仅追加真正的新消息，杜绝重复拼接旧记录
+          const have = new Set(this.messages.map(m => m.msgId))
+          const fresh = incoming.filter(m => !have.has(m.msgId))
+          if (fresh.length) this.messages = this.messages.concat(fresh)
+        }
+        // 推进游标：取当前已知最新一条的 createdAt（messages 始终按 createdAt 升序）
+        const known = this.messages
+        const latest = known.length ? known[known.length - 1] : null
+        if (latest) this.lastCreatedAt = latest.createdAt
+        // 仅首屏或本次确有新消息时才自动滚到底（避免轮询空拉时抢走滚动位置）
+        if (since <= 0 || incoming.length) this.scrollToBottom()
+      } finally {
+        this._fetching = false
       }
-      const incoming = (r.data && r.data.messages) || []
-      if (since <= 0) {
-        // 首屏 / 重新进入：全量替换（服务端 since<=0 时返回全部）
-        this.messages = incoming
-      } else if (incoming.length) {
-        // 轮询增量：仅追加新消息（服务端用 _.gt(lastCreatedAt) 去重，不重复末条）
-        this.messages = this.messages.concat(incoming)
-      }
-      // 推进游标：取当前已知最新一条的 createdAt（incoming 已按 createdAt 升序）
-      const latest = incoming.length ? incoming[incoming.length - 1] : this.messages[this.messages.length - 1]
-      if (latest) this.lastCreatedAt = latest.createdAt
-      // 仅首屏或本次确有新消息时才自动滚到底（避免轮询空拉时抢走滚动位置）
-      if (since <= 0 || incoming.length) this.scrollToBottom()
     },
     scrollToBottom() {
       const last = this.messages[this.messages.length - 1]
@@ -169,8 +179,19 @@ export default {
         return uni.showToast({ title: r.message || '发送失败', icon: 'none' })
       }
       this.draft = ''
-      // 互聊结算会让成长值上涨，顺带刷新关系状态条
-      await Promise.all([this.loadMessages(), this.loadPair()])
+      // 乐观追加自己刚发的消息（服务端已返回 msgId/createdAt）；轮询按 msgId 去重不会重复
+      this.messages = this.messages.concat([{
+        msgId: r.data.msgId,
+        content: text,
+        type: 'text',
+        senderId: this.openid,
+        mine: true,
+        createdAt: r.data.createdAt
+      }])
+      this.lastCreatedAt = Math.max(this.lastCreatedAt || 0, r.data.createdAt || 0)
+      this.scrollToBottom()
+      // 互聊结算会让成长值上涨，顺带刷新关系状态条（消息已在本地乐观追加，无需再 loadMessages）
+      await this.loadPair()
     }
   }
 }

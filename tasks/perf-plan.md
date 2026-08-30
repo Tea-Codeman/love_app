@@ -99,4 +99,35 @@
   - ⚠️ posts 非阻塞：建的 `auditStatus:1,createdAt:1,topicId:1` 主信息流命中；话题筛选 `where({auditStatus,topicId})` 因 topicId 在尾部键、createdAt 在中间，无法在排序前用 topicId 等值 → 退化为审计分区内内存过滤。v1 话题列表量小，非阻塞；可选补 `{topicId:1,createdAt:-1}`。
   - 💡 可选补强（非本次范围）：`users.openid` 无独立索引，`community/match` 中 `where({openid})` 作者查询走全 users 扫；v1 量小可忽略，未来可在 users 建 `openid` 唯一索引。
   - **结论：P0 全量释放。** ① 社区详情/信息流、② 大厅 recommend、③ 聊天 list 均由全表扫描变索引命中；P1/P2/P3 代码侧收益现全部生效。
-- 远端 HEAD：`origin/main = efb305b`
+- 远端 HEAD：`origin/main = 29bafbc`
+
+## 10. DevTools 计时复核协议（2026-08-31，用户选 C）
+> 本沙箱无法启动微信开发者工具/真机，无法替用户跑出真实数字；下列为**用户在 DevTools 自行测量**的标准流程与判据。
+
+### 10.1 开启埋点（一次性）
+`src/utils/request.js` 的 `callFunction` 已加计时埋点，运行时开关、默认关、不影响线上。
+- 开启：DevTools Console 执行 `uni.setStorageSync('__perf_on', true)`，然后**重进页面/重新触发**动作。
+- 关闭：`uni.setStorageSync('__perf_on', false)`。
+- 开启后每次云函数调用在 Console 打印：`[perf] <name>.<action> = <ms>ms`（客户端往返耗时 = 用户体感延迟）。
+
+### 10.2 三个慢点各测什么
+1. **① 社区详情/评论**（原慢点 1）
+   - 进入帖子详情 → 看 `community.getPostDetail` ms（首屏 post + 30 评论）。
+   - 点「加载更多评论」→ 看 `community.listComments` ms（翻页）。
+2. **② 大厅 recommend**（原慢点 2）
+   - 进入匹配大厅 → 看 `match.recommend` ms（userB 分支现走 uB 索引，不再全扫）。
+3. **③ 聊天 list**（原慢点 3）
+   - 打开会话 → 看 `chat.list` 首屏 ms（全量）。
+   - 一方发消息后，看对端 `chat.list` 增量轮询 ms（带 `since`，只返新消息，**应明显小于首屏**）。
+
+### 10.3 优化后目标阈值（参考，含网络往返）
+- `community.getPostDetail` < 500ms（索引命中后，首屏 post+30 评论）
+- `community.listComments` < 300ms
+- `match.recommend` < 400ms
+- `chat.list` 增量（since 命中）< 200ms，且显著低于首屏全量
+- 注：真机/WiFi 网络差异大，关注「是否秒开」与增量是否比首屏小一个量级，不必苛求绝对值。
+
+### 10.4 判据与边界
+- 索引已建（§9 二次复核全绿），故判据是「索引命中后体感是否明显快」，而非 A/B 前后对比。
+- 真正的 before/after A/B 需回滚旧代码 + 删索引才能复现，当前不值得；若坚持要量化对比，可临时在 CloudBase 控制台删某集合索引复测再建回（有抖动风险，慎做）。
+- 可选增强：若想区分「网络耗时 vs 云函数 DB 耗时」，可让 hot path 云函数返回 `_costMs`（服务端 `Date.now()` 前后差），request.js 埋点一并打印——按需再加。

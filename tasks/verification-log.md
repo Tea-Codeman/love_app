@@ -703,7 +703,7 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 
 ### LA.1 终态部署核验 ✅
 - `npm run build:mp-weixin` → `DONE Build complete`（EXIT=0），`src/utils` 完好。
-- 云端 `safety` 代码包下载归一化 grep：`index.js:23` `const USE_WX_SECURITY = false`；249/254 行走本地兜底分支 → **降级态实证为线上真实态**。
+- 云端 `safety` 代码包下载归一化 grep（M8.1 降级时）：`index.js:23` `const USE_WX_SECURITY = false`；249/254 行走本地兜底分支 → **降级态实证为线上真实态**。（⚠️ 该记录为 O1 之前；O1 已将开关外置为 `server_config.launch.useWxSecurity`，见下章。）
 - 7 云函数态 = M7.1 部署态（ModTime 2026-08-30 23:01:15），M8 未改云函数源码（仅前端隐私文案 + DB 索引）。
 
 ### LA.2 主链路 + 受限邀请 gate 冒烟 ✅（只读）
@@ -722,4 +722,33 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 - [x] 主链路接线完整 + 受限邀请 gate 确认（LA.2）
 - [x] 收官文档 `launch-readiness.md` 发布（LA.3）
 - [x] 交接更新 HANDOFF/todo（LA.4）
+
+---
+
+## M8 优化 O1/O4/O5 ✅（2026-08-31）
+
+### 背景
+用户决策：「现在不能上架、未来可能上架」→ v1 定位个人自用小工具，但要把未来公开上架的切换成本压到最低。落地 O1/O4/O5；O2（图像异步回调）/O6（分享入口）因个人号不可测 / 需产品决策，留未来资质就绪后。
+
+### O1 上架开关外置为云端配置 ✅（已部署 Active）
+- **改什么**：`cloudfunctions/safety/index.js` 删除硬编码 `const USE_WX_SECURITY = false`，改为 `getUseWxSecurity()` 读 `server_config` 文档(`_id=launch`)，带 60s TTL 内存缓存，文档缺失/读失败回落 `false`（原型行为不变）。`checkText`/`checkImage` 分支改为 `await getUseWxSecurity()`。
+- **建数据**：CloudBase MCP `createCollection('server_config')` + `insert({_id:'launch', useWxSecurity:false, requireInvite:false})`。
+- **部署**：`manageFunctions.updateFunctionCode(safety)` → 轮询 `Status` 由 `Updating`→`Active`，CodeInfo 实证新代码落地（getUseWxSecurity + server_config 读取）。
+- **收益**：未来上架 = 控制台改 `server_config.launch.useWxSecurity` 一处即生效（≤60s），**免重部署 7 函数**。
+- **验证**：`getFunctionDetail(safety).Status=Active` + CodeInfo 含 `getUseWxSecurity`/`server_config`。
+
+### O4 隐私版本 + 强制重同意 ✅（build DONE）
+- **改什么**：`src/utils/storage.js` 加 `export const PRIVACY_VERSION='1.0.0'`；`getPrivacyAgreed()` 改为比对版本（旧版/未同意 → false）；`setPrivacyAgreed()` 改存版本号；新增 `getPrivacyAgreedVersion()`。`src/pages/privacy/privacy.vue` 展示版本 + `data(){return {version: PRIVACY_VERSION}}` + `onAgree` 存版本。`App.vue:43` 入口 `!getPrivacyAgreed()` 现已版本感知，自动重弹。
+- **收益**：政策重大变更提升 `PRIVACY_VERSION` → 旧用户强制重同意（合规必备）；当前 `1.0.0`。
+- **验证**：`npm run build:mp-weixin` EXIT=0，`src/utils` 完好（仅 `storage.js` 改动）。调用方核对：仅 App.vue 布尔判定 + privacy.vue 无参调用，无残参调用。
+
+### O5 上架 Playbook 文档 ✅
+- `tasks/launch-playbook.md`：未来公开上架切换清单（资质就绪→翻 O1 开关→补 O2 图像异步回调→M8.3 文本真审验收无 48001→恢复 O6 分享/邀请入口→隐私真实邮箱+备案→提交审核）+ 回滚方案（翻回 false 即回落本地兜底）。零代码风险。
+
+### Checkpoint O1/O4/O5
+- [x] safety 开关外置 server_config（建集合+文档+部署 Active，CodeInfo 实证）
+- [x] 隐私版本+强制重同意（build DONE，调用方核对干净）
+- [x] 上架 Playbook 文档发布
+- [ ] O2 图像异步回调（未来资质就绪后补；mediaCheckAsync 异步，需独立回调云函数）
+- [ ] O6 分享/邀请入口恢复（未来资质就绪后，需产品决策）
 - [ ] 人工终审 → 用户受限邀请实测 → 资质就绪后补 M8.1/M8.3 公开上架

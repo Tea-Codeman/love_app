@@ -516,6 +516,40 @@
 
 ---
 
+## 优化项 O1/O4/O5（2026-08-31 · 个人自用 + 未来上架低成本）
+
+> 用户决策「现在不能上架、未来可能上架」→ 优化使未来切换成本最低。范围 O1/O4/O5（O2 图像异步 / O6 分享留未来资质就绪后）。
+
+### Task O1: 上架开关外置为云端配置 ✅ 已落地（已部署 Active）
+**Description:** `safety/index.js` 的 `USE_WX_SECURITY` 硬编码改为读 `server_config` 文档(`_id=launch`)，带 60s TTL 缓存，缺失回落 false。已建 `server_config` 集合+文档(`useWxSecurity:false,requireInvite:false`)，重部署 safety 至 Active（CodeInfo 落地新代码）。
+**Acceptance:** 未来上架 = 控制台翻 `useWxSecurity` 一处即生效、免重部署 7 函数；当前行为不变。
+**Dependencies:** 无
+**Files likely touched:** `cloudfunctions/safety/index.js`、CloudBase `server_config` 集合
+**Estimated scope:** M
+
+### Task O4: 隐私版本 + 强制重同意 ✅ 已落地（build 通过）
+**Description:** `storage.js` 加 `PRIVACY_VERSION=1.0.0`，同意标记改存版本号；`privacy.vue` 展示版本；`App.vue` 入口比对版本、落后强制重弹门禁。
+**Acceptance:** 政策重大变更提升版本号 → 旧用户自动重同意；build DONE。
+**Dependencies:** 无
+**Files likely touched:** `src/utils/storage.js`、`src/pages/privacy/privacy.vue`
+**Estimated scope:** S
+
+### Task O5: 上架 Playbook 文档 ✅ 已落地
+**Description:** `tasks/launch-playbook.md` —— 未来公开上架切换清单（资质→翻开关 O1→补 O2 图像异步→M8.3 文本验收→恢复 O6 分享→隐私备案→审核）+ 回滚方案。
+**Acceptance:** 文档就绪，零代码风险。
+**Dependencies:** 无
+**Files likely touched:** 文档
+**Estimated scope:** S
+
+### Checkpoint O1/O4/O5
+- [x] safety 开关外置 server_config（建集合+文档+部署 Active，CodeInfo 实证）
+- [x] 隐私版本+强制重同意（build DONE，调用方核对干净）
+- [x] 上架 Playbook 文档发布
+- [ ] O2 图像异步回调（未来资质就绪后补）
+- [ ] O6 分享/邀请入口恢复（未来资质就绪后，需产品决策）
+
+---
+
 ## 收官/灰度上线（受限邀请原型）
 
 > 规划：`tasks/plan-launch.md`（2026-08-31 启动，M8.1 降级后「往后」阶段）。**LA.1–LA.3 已落地、LA.4 交接更新已同步**。

@@ -1,6 +1,7 @@
 // cloudfunctions/safety/index.js —— F8 内容安全 / 举报 / 拉黑（M1.2 / M1.4）
 // 动作：checkText / checkImage（内容审核）
-//       report（举报入队）/ block（拉黑，去重写入）
+//       report（举报入队）/ handleReport（管理员处置举报，M5.1）
+//       block（拉黑，去重写入）
 //       listBlocks（黑名单列表，一次 join users 取昵称头像）/ unblock（解除拉黑）
 // 架构约定：**过滤只能由服务端执行**。拉黑是安全机制，若改成由前端传列表给后端过滤，
 // 客户端传空数组即可绕过，防骚扰能力会完全失效。前端只负责"显示"黑名单。
@@ -64,10 +65,9 @@ async function report(event, OPENID) {
     }
   })
 
-  // M4.1：`report_created`（SC5 的分子侧观测）。
-  // ⚠️ `report_handled` 未入白名单 —— 处置能力留到 M5（plan-m4.md 决策 3），
-  //    现在上报会让「24h 处置率」分母虚高。SC5 在 M4 期间标为数据缺口。
+  // M4.1：`report_created`（SC5 分母侧观测）。
   // ⚠️ 不上报 reason：前端是自由文本 textarea，属 UGC 可能含 PII（隐私红线 §1.6）。
+  // 处置侧见 handleReport（M5.1）→ report_handled；SC5 权威源为 reports 集合。
   metrics.track(metricsCtx, {
     openid: OPENID,
     eventName: 'report_created',
@@ -75,6 +75,55 @@ async function report(event, OPENID) {
   }).catch(() => {})
 
   return { code: 0, data: { ok: true } }
+}
+
+// M5.1（plan-m5.md）：举报处置。只标记 + 留痕，不做自动下架/封号/通知（决策 3）。
+// 权限：仅管理员可调 —— 白名单载体为 `admins` 集合（openid + createdAt），
+// 增删管理员无需重部署函数（决策 1-a）。白名单在服务端校验，不是前端隐藏入口。
+// 幂等：report 已非 pending 时返回 alreadyHandled，不重复写、不重复上报。
+// note 截断 200 字，只落 reports 集合，**不入埋点**（自由文本可能含 PII）。
+async function isAdmin(OPENID) {
+  if (!OPENID) return false
+  const r = await db.collection('admins').where({ openid: OPENID }).limit(1).get()
+  return !!(r.data && r.data.length)
+}
+
+async function handleReport(event, OPENID) {
+  if (!OPENID) return { code: 401, message: '未登录' }
+  if (!(await isAdmin(OPENID))) return { code: 403, message: '仅管理员可处置举报' }
+
+  const { reportId, decision, note } = event
+  if (!reportId) return { code: 400, message: '缺少 reportId' }
+  if (decision !== 'handled' && decision !== 'dismissed') {
+    return { code: 400, message: 'decision 必须为 handled 或 dismissed' }
+  }
+
+  const q = await db.collection('reports').doc(reportId).get().catch(() => null)
+  const rep = q && q.data
+  if (!rep) return { code: 404, message: '举报不存在' }
+  if (rep.status !== 'pending') {
+    return { code: 0, data: { alreadyHandled: true, status: rep.status } }
+  }
+
+  await db.collection('reports').doc(reportId).update({
+    data: {
+      status: decision,             // 'handled' | 'dismissed'
+      decision,
+      handledAt: Date.now(),
+      handledBy: OPENID,
+      note: (note || '').trim().slice(0, 200)
+    }
+  })
+
+  // 观测流：SC5 的权威源是 reports 集合（status/handledAt），
+  // 此事件仅供 dashboard 之外的观测使用，props 只含枚举，无 note（防 PII）。
+  metrics.track(metricsCtx, {
+    openid: OPENID,
+    eventName: 'report_handled',
+    props: { targetType: String(rep.targetType || ''), decision }
+  }).catch(() => {})
+
+  return { code: 0, data: { ok: true, status: decision } }
 }
 
 // 拉黑：写入 blocks，去重；被拉黑方在匹配/互动/信息流中被过滤
@@ -155,6 +204,7 @@ exports.main = async (event = {}) => {
       return { code: 0, data: r }
     }
     if (action === 'report') return await report(event, OPENID)
+    if (action === 'handleReport') return await handleReport(event, OPENID)
     if (action === 'block') return await block(event, OPENID)
     if (action === 'listBlocks') return await listBlocks(event, OPENID)
     if (action === 'unblock') return await unblock(event, OPENID)

@@ -318,21 +318,23 @@
   **Files likely touched:** 调参记录/配置  
   **Estimated scope:** M
 
-### Task M4.4: SC4 关系确认自评入口 ✅ 已完成（2026-08-30，待真机验证）
+### Task M4.4: SC4 关系确认双边邀请 ✅ 已完成（2026-08-30，待真机验证）
 
-**Description:** 关系主页「我们在一起了 🎉」自评入口 → `growth.confirmRelation` action（写 `pair.milestones` + 上报 `relation_confirmed`），幂等（同 pair 只写一次）。不新建云函数（沿用 M3 `growth`）。  
+**Description:** 关系主页「我们在一起了 🎉」由单边自评升级为**双边邀请**：A 发起 `sendConfirmInvite`（写 `pairs.confirmInvite={from,at,expiresAt}`，TTL=10min）→ B 关系页轮询收到后弹窗 → B `acceptConfirmInvite`（落 milestones + 上报 relation_confirmed）/ `rejectConfirmInvite` 清空 / A `cancelConfirmInvite` 撤销；超时服务端校验失效、A 端轮询回流可重发。沿用 M3 `growth` 云函数，内核改完已 `npm run sync:core`。  
 **Acceptance criteria:**
-- 关系主页按钮达 S1 显示、已确认隐藏
-- 点击写 milestones + 上报 relation_confirmed，重复点击幂等
+- A 发起后 B 端（已在该页）经 4s 轮询自动弹出邀请，无需重进
+- B 同意 → 双方关系页均显示「在一起 🎉」chip（A 端轮询可见）；B 拒绝 → 邀请清空、A 可重发
+- 超时（10min）后邀请失效，不卡流程（A 回流可重发、B 弹窗消失）
+- 仅 B 同意时上报 relation_confirmed（SC4 分子）；幂等（milestones 含『在一起 🎉』判重）
 - 看板 SC4_relation_confirmed_pairs 可计数
 
 **Verification:**
-- Code: `node --check` 通过；growth 已重部署 Status=Active、CodeInfo 含 confirmRelation
+- Code: `node --check` 通过；growth 已重部署 Status=Active、CodeInfo 含 sendConfirmInvite/acceptConfirmInvite/rejectConfirmInvite/cancelConfirmInvite
 - Build: `npm run build:mp-weixin` DONE（relation.vue 编译通过）
-- Manual: 真机待用户（双设备确认后看板 SC4 读数）
+- Manual: 真机待用户（⚠️ 旧单边测试已让目标 pair 含 milestones『在一起 🎉』，重测新流程请用全新 pair）
 
   **Dependencies:** M4.2（看板已计 relation_confirmed）
-  **Files likely touched:** `cloudfunctions/growth/index.js`, `cloudfunctions/growth/growth-core.js`, `src/pages/relation/relation.vue`
+  **Files likely touched:** `cloudfunctions/growth/index.js`, `cloudfunctions/growth/growth-core.js`, `src/pages/relation/relation.vue`, 同步副本 game/chat/match/growth-core.js
   **Estimated scope:** S
 
 ### Checkpoint M4（v1 可上线验证）

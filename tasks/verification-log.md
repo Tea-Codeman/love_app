@@ -448,3 +448,43 @@ funnel:
 - 真机读数未跑（需双设备 + 真实关系），SC4 看板当前仍为 0，属「实现就绪、场景未覆盖」，不阻塞闭环。
 - 按钮门槛设在 S1（产品判断，防对陌生人误触）；若需更宽松/严格可改 `canConfirm` 的 `reached(..., 'S1')`。
 - M4.3 阈值校准仍待做（样本不足则写「沿用初值」）。
+
+## M4.4（升级）双边邀请确认 ✅ 代码完成 + 已部署（2026-08-30，待真机验证）
+
+**背景**：用户真机验证单边版发现——A 点「我们在一起了 🎉」直接落库，B 端不实时刷新（须退回主页重进才见）。按用户要求改为**双边邀请 + 超时兜底**，沿用 chat 的弱实时轮询（不用 realtime.js）。
+
+### 改动
+**后端 `cloudfunctions/growth/`（growth-core.js + index.js）**
+- `growth-core.js` 单边 `confirmRelation` 改为四个动作：
+  - `sendConfirmInvite(ctx,{openid,peerId})`：读 pair（无 pair→403 先一起玩）；已确认→幂等返回；未达 S1(≥12)→403；有有效邀请时：自己发的→幂等返回、对方发的→409 提示去确认；否则写 `pairs.confirmInvite={from,at,expiresAt}`，`expiresAt=now+CONFIRM_INVITE_TTL_MS`(10min)。
+  - `acceptConfirmInvite`：校验邀请有效且 `from!==openid`，写 `milestones` + `confirmedAt` + `confirmInvite:_.remove()`。
+  - `rejectConfirmInvite` / `cancelConfirmInvite`：清空 `confirmInvite`（reject 限被邀请方、cancel 限发起方）。
+  - BUG-1 护栏（缺 openid→401）全保留；`confirmInviteActive(pair,now)` 统一判活。
+- `index.js`：`acceptConfirmInvite` 确认成功时本进程内 `metrics.track(relation_confirmed)`（pairId=pairKeyOf，失败静默）。其余三个动作透传。
+- `npm run sync:core` 已同步到 game/chat/match 副本。
+
+**前端 `src/pages/relation/relation.vue`**
+- A 端：`onConfirm`→`sendConfirmInvite`；显示「等待对方回应·倒计时（点此撤销）」→`cancelConfirmInvite`。
+- B 端：关系页加 4s 轮询（`load(silent)`）+ 1s 倒计时 tick；`receivedInvite()` 命中即弹自定义弹窗（同意/拒绝 + 倒计时）。
+- 仅在「未确认 + 达 S1 + 无进行中邀请」时显示「我们在一起了 🎉」按钮；`isMyInvite`/`isReceivedInvite`/`isInviteActive` 派生状态。
+
+### 部署与校验
+| 项 | 方式 | 结论 |
+|---|---|---|
+| 语法 | `node --check` growth-core.js / index.js | ✅ 通过 |
+| 内核同步 | `npm run sync:core` | ✅ 三副本均含 sendConfirmInvite 等 |
+| growth 部署 | `manageFunctions(updateFunctionCode, functionRootPath="D:/Tencent/app/cloudfunctions")` | ✅ Success；轮询至 `Status: Active`、CodeInfo 含四个新 action（Namespace=love-app-server-d2fhg32320d65c12） |
+| 前端编译 | `npm run build:mp-weixin` | ✅ `DONE Build complete`（DevTools 加载 `dist/dev`，用户本地 `dev:mp-weixin` HMR） |
+
+### 真机验证步骤（待用户）
+1. ⚠️ **用全新 pair**：旧单边版点过的目标 pair 已含 milestones『在一起 🎉』，`sendConfirmInvite` 会直接返回已确认，无法测新流程。双设备 A/B 走到新关系、达 S1。
+2. A 关系页点「我们在一起了 🎉」→ toast「邀请已发送」+ 显示「等待对方回应·倒计时」。
+3. **B 无需重进**：其关系页经 4s 轮询自动弹出「在一起确认邀请」弹窗（含倒计时）。
+4. B 点「同意 🎉」→ 双方卡均出现『在一起 🎉』chip；`events` 增 1 条 `relation_confirmed`。B 点「拒绝」→ 邀请清空、A 端回流可重发。
+5. 超时：A 发起后不动，10min 内 A 端倒计时归零→按钮回流「可重新发起」；B 弹窗消失（服务端 accept 会因过期返回 409）。
+6. 查库：`pairs` 该 pair `milestones` 含『在一起 🎉』、`confirmedAt` 有值、`confirmInvite` 已清；看板 `SC4_relation_confirmed_pairs` 自增 1。
+
+### 已知限制 / 待办
+- 超时采用「客户端倒计时展示 + 服务端过期校验」双保险；服务端为权威。
+- 弹窗为前端轮询驱动（4s），非推送；若 B 恰在轮询间隙进入页面，onShow 会立即 `load` 拉到邀请。
+- M4.3 阈值校准仍待做。

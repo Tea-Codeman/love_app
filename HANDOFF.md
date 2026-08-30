@@ -2,7 +2,7 @@
 
 # 项目/任务
 
-从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M4 全部完成；**M5 全收官（2026-08-30）**：M5.1–M5.4 落地部署、线上验收 PASS（SC5 rate=100 / 双计修复实证）、阈值回灌评估 #2 维持初值、**人工终审 21:40 签字通过**。**M6 全收官（2026-08-30 22:29 真机验收通过）：M6.1–M6.4 落地部署 + 真机验 PASS（管理员处置闭环 + SC5 真机有数 + 403/幂等补验通过）；冷启动准备/技术债留 M7。**M7 规划定稿 ✅（2026-08-30：范围 A 技术债清算 = 时区/streak 修复 + invite.js 核查处置 + 老对回填决策，待签字放行动码）。**
+从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M4 全部完成；**M5 全收官（2026-08-30）**：M5.1–M5.4 落地部署、线上验收 PASS（SC5 rate=100 / 双计修复实证）、阈值回灌评估 #2 维持初值、**人工终审 21:40 签字通过**。**M6 全收官（2026-08-30 22:29 真机验收通过）：M6.1–M6.4 落地部署 + 真机验 PASS（管理员处置闭环 + SC5 真机有数 + 403/幂等补验通过）；冷启动准备/技术债留 M7。**M7 规划定稿 ✅（2026-08-30：范围 A 技术债清算 = 时区/streak 修复 + invite.js 核查处置 + 老对回填决策）+ **用户「放行 放行」签字批准动码（2026-08-30，紧接 M7 规划提交 c341247 之后），待 Agent 按 M7.1→M7.2→M7.3 落地（🔴 M7.1 关键修正见「盲区防护」第 24 条：metrics-core.dayOfCST 已 +8，勿再补）**。**
 
 > **⚠️ 2026-08-29 实测推翻旧版前提**：旧版 HANDOFF 称"4 个云函数未部署、3 个集合未建、从未真机验证"。**实测全不成立**——7 个存量云函数全部已部署且与本地逐字节一致；10+ 个集合全部已建且有数据；M2 主链路云端跑通过完整一局。瓶颈从来不是部署，而是**真机验证**与**埋点校准**。
 
@@ -72,9 +72,9 @@
 - 回滚：`git checkout v0.3.0` 整体回退；`git revert <commit>` 逐任务撤。**云函数需重新部署对应版本代码**，前端回滚后必须重建 `dist/dev`。
 - **用户重视"提交作为回滚锚点"**：改功能前先确认/补齐提交，按关注点拆原子提交（功能/开关/文档/性能/纯格式各自独立）。
 
-**Git 状态（2026-08-30 20:25 最新）**
-- **远程 `main` 与本地 HEAD 已对齐 = `c8e3e2d`**（M5 规划定稿提交）。本会话（M4.4→M5 规划）共推进 10+ 个提交，全部快进推送，零强推，工作树干净。关键锚点：`8ba58e8`/`6109adf`(M4.4 单边) → `7641267`/`907e26a`(双边邀请) → `a79d782`/`43a42f3`(M4.4b 全局投递) → `aee4416`(M4.4c 布局) → `7a4395e`(getOpenid 修复) → `6d5c040`(观察修正) → `75fcb71`(M4.3 校准) → `c8e3e2d`(M5 规划)。
-- ⚠️ **沙箱怪象**：本沙箱内 `git rev-parse origin/main` 报 unknown、`git status` 显示 `origin/main: gone`。但 `git ls-remote --heads origin` 真实返回 = 本地 HEAD（2026-08-30 20:25 实测为 `c8e3e2d`）。**判断推送是否成功一律以 `ls-remote` 为准，勿信本地 ref 的 gone 标记。**
+**Git 状态（2026-08-30 最新）**
+- **远程 `main` 与本地 HEAD 已对齐 = `c341247`**（M7 规划定稿提交，2026-08-30 `git ls-remote` 实测确认）。M4.4→M7 规划全程快进推送，零强推，工作树干净。关键锚点：`c8e3e2d`(M5 规划) → `4a6eeff`(M6 真机验收) → `c341247`(M7 规划)；M5/M6 实现提交见上方「已完成工作」22–26。
+- ⚠️ **沙箱怪象**：本沙箱内 `git rev-parse origin/main` 报 unknown、`git status` 显示 `origin/main: gone`。但 `git ls-remote --heads origin` 真实返回 = 本地 HEAD（2026-08-30 实测 `c341247`）。**判断推送是否成功一律以 `ls-remote` 为准，勿信本地 ref 的 gone 标记。**
 - 工作树**干净**。
 
 **数据模型（云数据库集合，全部已建）**
@@ -169,7 +169,8 @@
 24. **M6 规划定稿（2026-08-30 21:56）**：用户选 **范围 A 收 M5 尾** + `config.js` 提交 `community=true`。M6 = 管理员处置 UI 闭环（M6.1 `safety.isAdmin` 云函数动作 / M6.2 前端 `isCurrentUserAdmin()` + settings 页条件入口 / M6.3 `pages/admin/reports.vue` 处置页 pending 列表+处置/驳回+幂等禁用）；isAdmin 走服务端（admins 集合不外泄客户端）；冷启动准备（资质/类目/隐私/索引）与技术债（时区/streak、删 invite.js、老对回填）整线延后留 **M7**。产出 `tasks/plan-m6.md` + todo.md M6 任务卡（M6.1–M6.4 + Checkpoint M6）。**状态：已签字放行，代码落地 + 部署 Active + MCP 冒烟 PASS（2026-08-30 22:18）。**
 25. **M6 落地（2026-08-30 22:18）**：用户签字「放行」。M6.1 `safety.isAdmin` 动作（查 admins 集合→{isAdmin}，401 守卫）+ M6.3 `safety.listReports` 动作（管理员鉴权+join users 取昵称）；部署 safety → `Status=Active`（CodeInfo 含 isAdminAction/listReports）。前端 M6.2 `src/utils/admin.js`（`isCurrentUserAdmin()` 会话缓存）+ settings 条件入口；M6.3 `pages/admin/reports.vue`（pending/已处置 tab、处置/驳回、幂等禁用、isAdmin 深链守卫）+ pages.json 注册。M6.4 `config.js` community 正式提交 true。build DONE；原子提交 `878ad10`(safety)/`d4cd6b2`(admin)/`9ce5c71`(config)。MCP 冒烟 isAdmin/listReports 均 401（无登录态守卫生效；管理员 happy path 留真机）。**下一步 = M6 真机验收（管理员账号走闭环），通过即 M6 全收官，进 M7。**
 26. **M6 真机验收通过（2026-08-30 22:29，用户确认「M6验收完成」）**：管理员账号真机走闭环 PASS——设置页见「管理后台」→ 处置/驳回 pending → reports.status 变更 + handledAt 落库 + dashboard SC5 出真实 rate；非管理员无入口且深链被守卫拦截；重复处置 alreadyHandled + 服务端 403 双向印证。**闭合 M5 遗留的 403/幂等真机补验**。M6 全收官，下一步 = M7 规划（上线就绪 / 技术债）。
-27. **M7 规划定稿（2026-08-30 22:39）**：用户选范围 A 技术债清算。plan-m7.md 定稿（M7.1 时区/streak 修复 / M7.2 invite.js 核查处置 / M7.3 老对回填决策）；关键发现：growth-core 走 sync:core 分发（源头=growth/growth-core.js）、invite.js 初查为孤儿、老对 n=3/0 自然用户。冷启动准备/隐私/资质留 M8。**状态：待用户签字放行动码。**
+27. **M7 规划定稿（2026-08-30 22:39）**：用户选范围 A 技术债清算。plan-m7.md 定稿（M7.1 时区/streak 修复 / M7.2 invite.js 核查处置 / M7.3 老对回填决策）；关键发现：growth-core 走 sync:core 分发（源头=growth/growth-core.js）、invite.js 初查为孤儿、老对 n=3/0 自然用户。冷启动准备/隐私/资质留 M8。**状态：用户「放行 放行」签字批准动码（2026-08-30，紧接 c341247 之后），待 Agent 落地。**
+28. **M7 落地（2026-08-30）**：M7.1 改 `cloudfunctions/growth/growth-core.js` 的 `dayOf`/`isoWeekOf` 为 +8（`shanghaiDate(ts)=new Date(ts+8h)`+`getUTC*`），`npm run sync:core` 分发到 game/chat/match；`metrics-core.dayOfCST` 经核验已 +8 正确、仅删 growth-core 过时注释（未再补 +8，避免 double-offset）；7 函数 `updateFunctionCode` 部署至 `Status=Active`（ModTime 23:01:15），**下载云端 growth 代码包归一化 grep 确认 `shanghaiDate` 落地**（盲区防护 #23 复核）。M7.2 精确 grep 全仓确认 `src/utils/invite.js` 为孤儿（`ensureMyInviteCode` 无外部引用），`git rm` 删除，`npm run build:mp-weixin` DONE 无悬空 import（首次 build 因 `src/utils` 被环境瞬时清空报 cloud 解析失败，已 `git checkout -- src/utils/` 还原后重建通过，非 M7.2 引入）。M7.3 决策默认不回填老对（n=3/0 自然用户，成本>收益），理由入 verification-log。原子提交 + 推送；待人工终审放行进 M8。
 
 ---
 
@@ -208,7 +209,7 @@
 
 # 当前状态
 
-**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、M4 全部完成 ✅、**M5 全收官 ✅（2026-08-30：代码落地 + 线上验收 PASS + 阈值回灌评估 #2 + 人工终审 21:40 签字通过）**。**M6 规划定稿 ✅（2026-08-30：范围 A 收 M5 尾）**；**M6 全收官 ✅（2026-08-30 22:29 真机验收通过 + 人工终审）**。Checkpoint M4/M5/M6 均已终审放行。下一步 = M7 规划。
+**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、M4 全部完成 ✅、**M5 全收官 ✅（2026-08-30：代码落地 + 线上验收 PASS + 阈值回灌评估 #2 + 人工终审 21:40 签字通过）**。**M6 规划定稿 ✅（2026-08-30：范围 A 收 M5 尾）**；**M6 全收官 ✅（2026-08-30 22:29 真机验收通过 + 人工终审）**。Checkpoint M4/M5/M6 均已终审放行。**M7 已收官 ✅（2026-08-30：M7.1 时区/streak +8 修复部署 Active+云端代码核验、M7.2 invite.js 孤儿删+build 通过、M7.3 老对不回填决策已出）；待人工终审放行进 M8（冷启动准备/资质）。**
 
 **M4.1 埋点终验结果（2026-08-30，查库 47 条 / 11 类事件）**
 - `app_open`×23、`match_accept`×4、`game_join`×3、`game_done`×3、`message_sent`×7、`pair_stage_changed`×2、`mbti_completed`×1、`chat_unlocked`×1、`profile_completed`×1、`recommend_view`×2
@@ -236,12 +237,12 @@
 | ✅ 已修 | **BUG-2：`pairs.stage` 缓存漂移**。`match.recommend` 改 `stageOf(growthValue)` 读时派生；`game` 结束也结算 streak。 |
 | ✅ 已澄清 | 数据疑点 2 条（growthValue=150 手改测 S4、缺失 games 文档手删）均为用户本人操作，非 BUG。 |
 | 🟡 中·M4 决策 | **存量老对全量回填**：已成 done 且此后零互动的老对仍缺 pairs。BUG-1 修复后只要双方再互动一次即自愈，仅彻底零互动的老对缺 pairs，M4 需决策是否做一次性回填。 |
-| 🟡 低·非阻塞 | **云函数运行时时区 UTC**：复验中游戏完成于北京时间 08-30 02:33，`lastStreakDay` 记为 08-29。`dayOf()`/`isoWeekOf()` 用服务端本地时区，而中国用户在北京时间 08:00 前活跃被记前一天，连续两天凌晨活跃可能只拿 1 次 streak。**建议 M4 改为按 `Asia/Shanghai`(+8) 偏移计算**（埋点 events 的 `day` 字段已用 +8，成长值 streak 的 dayOf 尚未改）。 |
+| ✅ 已修·M7.1 落地（2026-08-30） | **云函数运行时时区 UTC**：`growth-core.dayOf`/`isoWeekOf` 用 `getDate/getDay`（云函数 UTC），北京 08:00 前活跃被记前一天。M7.1 已修复并部署 7 函数 Active：**下载云端 growth 代码包归一化 grep 确认 `shanghaiDate`(+8) 落地**。**🔴 `metrics-core.dayOfCST` 已 +8 正确，M7.1 未再补 +8**（否则 double-offset 破坏 SC2 日窗口）。** |
 | 🟡 高·上线前置 | 账号主体（个人/企业）与社交类目资质。微信对个人主体通常无法授社交类目，`msgSecCheck` 通常需企业主体。卡"上线"不卡"开发"。 |
 | 🟡 中·性能 | 复合索引：`comments` 建 `{postId:1,auditStatus:1,createdAt:1}`、`posts` 建 `{auditStatus:1,topicId:1,createdAt:1}`（只能控制台建）。 |
 | 🟡 中 | 内容安全云调用权限未开通（个人账号），当前本地兜底；企业就绪后切 `USE_WX_SECURITY=true`。 |
 | 🟡 中 | 隐私政策正式文案与备案（M0 已有隐私页门禁，正式文案待补）。 |
-| 🟢 低·死代码 | `src/utils/invite.js` 自裂变入口移除后全仓无 import，实为死代码。**删除前需用户确认**，勿擅自删。 |
+| ✅ 已决·M7.2 已删（2026-08-30） | `src/utils/invite.js` 全仓无 import（仅自身注释命中；`confirmInvite.js` 为另一模块）。**已 `git rm` 删除**，落码前精确 grep 确认孤儿；`npm run build:mp-weixin` DONE 无悬空 import（构建后 `src/utils` 完整性校验通过）。 |
 | 🟢 低 | `users` 可能残留无 `openid` 历史孤儿文档（_openid→openid 修复前产生），建议控制台手动清理。 |
 | 🟢 低·本地残留 | `_rm_oldbd/`：早期损坏 node_modules 改名副本（~29M，gitignore，safe-delete 删不掉，用户本机可手动清）。 |
 | 🟢 低 | 成长阈值 12/40/90/150：M4.3 校准结论=样本不足沿用初值（见 `threshold-calibration.md`，含游戏权重偏高观察）。 |
@@ -252,9 +253,9 @@
 
 - ~~M4.3 阈值校准~~ ✅ **已完成（2026-08-30）**：`tasks/threshold-calibration.md` 已产出——n=3 对（单日、全测试账号）→ **样本不足，沿用初值 12/40/90/150**；记录两个后续观察（**2026-08-30 19:40 代码级复核已修正归因**）：① growthValue 区分度弱系 M4.1 手工 addGrowth **测试污染**（实际权重游戏+8/局、聊天+2/轮、streak+3/天，纯游戏到 S4 约需 19 局），真实权重配比待自然用户数据判定；② `app_open` 冷启动双计对现行看板**零影响**（SC1–SC5 均不消费 app_open，SC2 为 pair 维度 D7 互动留存），仅未来裸数 DAU 需按 (userId, day) 去重——修复已列入 M5.4。
 - ~~M4.4 SC4 自评入口~~ ✅ **已完成并升级为双边邀请，真机验收通过（2026-08-30）**：A 发起邀请→B 任意页面经应用级轮询（`src/utils/confirmInvite.js` 全局 store + `uni.showModal` 原生通知）收到→同意落 milestones + 上报 relation_confirmed / 拒绝 / 撤销 / 超时 10min 失效。
-- **是否做存量老对全量回填**（见上表 🟡 中）。
-- **是否修复 UTC 时区**：把成长值 streak 的 `dayOf`/`isoWeekOf` 改为 +8（埋点 day 已改，streak 未改）。
-- **是否删除死代码 `src/utils/invite.js`**（需用户点头）。
+- ~~是否修复 UTC 时区~~ ✅ **已决（M7.1，用户放行）**：仅 `growth-core.js` 的 `dayOf`/`isoWeekOf` 改 +8；`metrics-core.dayOfCST` **已 +8 正确，勿再补**。
+- ~~是否删除 `src/utils/invite.js`~~ ✅ **已决并落地（M7.2，用户放行删除，精确 grep 确认孤儿，`git rm` + build 通过）**。
+- ~~老对回填决策（M7.3）~~ ✅ **已决（2026-08-30）：默认不回填**（n=3/0 自然用户，成本>收益）；理由见 verification-log M7.3，不跑脚本。
 - 小程序账号主体/社交类目资质现状？内容安全云调用权限是否就绪？隐私政策文案进度？
 - **push 已无待办**：远程 `main` 已与本地 HEAD 对齐（2026-08-30 20:25 实测 `c8e3e2d`），历史提交均已推送。
 
@@ -266,7 +267,9 @@
 - **Plan（已批准）**：`D:\Tencent\app\tasks\plan.md`
 - **Tasks（20 卡）**：`D:\Tencent\app\tasks\todo.md`
 - **M4 规划定稿**：`D:\Tencent\app\tasks\plan-m4.md`（含 13 事件清单 + SC1–SC5 口径）
-- **M5 规划定稿**：`D:\Tencent\app\tasks\plan-m5.md`（SC5 处置 handleReport + 管理员白名单 + SC5 口径 + M5.4 双计修复，待放行）
+- **M5 规划定稿**：`D:\Tencent\app\tasks\plan-m5.md`（SC5 处置 handleReport + 管理员白名单 + SC5 口径 + M5.4 双计修复，已落地）
+- **M6 规划定稿**：`D:\Tencent\app\tasks\plan-m6.md`（M6.1–M6.4 管理员处置闭环，已落地真机验收）
+- **M7 规划定稿**：`D:\Tencent\app\tasks\plan-m7.md`（范围 A 技术债清算，已签字放行待落地；🔴 M7.1 修正：metrics-core.dayOfCST 已 +8 勿补）
 - **M4.3 校准结论**：`D:\Tencent\app\tasks\threshold-calibration.md`（n=3 沿用初值 + 修正后的两个观察）
 - **BUG 记录**：`D:\Tencent\app\BUG.md`（getOpenid ReferenceError 案例）
 - **验收记录**：`D:\Tencent\app\tasks\verification-log.md`（M2/M3/M4.1/M4.2/M4.3/M4.4/M4.4b/M4.4c 各章）
@@ -329,14 +332,15 @@
 21. 决策写进文档 ≠ 代码已实现 ≠ 已部署云端。曾出现双向错误（文档说没做实际早做了，文档说做了实际漏了）。接手两条都核实。
 22. 旧版 HANDOFF 提到的 `PRECONTEXT.md`/`CONRRENTCONTEXT.md`/`SKILL.md` **现已全部不存在**，勿当待办。
 23. **🔴 落盘后务必复核**：曾出现过 `Edit` 返回成功但**实际未写入**（git 干净、Grep 查无内容）的情况。落盘后用 `git status`/`Grep` 复核编辑真的写入，勿默认 Edit 成功。
+24. **🔴 M7.1 时区修复易错：metrics-core.dayOfCST 已 +8 正确，勿再补 +8**。实测 `cloudfunctions/metrics/metrics-core.js:70-74` 的 `dayOfCST` 已是 `new Date(ts+8h)` + `getUTC*`，与北京日同口径；而 `cloudfunctions/growth/growth-core.js:60-74` 的 `dayOf`/`isoWeekOf` 用 `getDate/getDay`（云函数 UTC）需改。若给 dayOfCST 再叠 +8 会 double-offset，破坏 dashboard SC2 日窗口（D7 留存）。M7.1 只改 growth-core，metrics-core 仅核对口径一致即可（可顺手删第 68 行过时注释「dayOf 仍是 UTC」）。
 
 ---
 
 # 新 Agent 接手指南
 
-1. **当前最重要的问题**：M0–M6 全收官（M5 终审 21:40 / M6 真机验收 22:29 均通过）。**M7 规划定稿 ✅（2026-08-30 22:39：范围 A 技术债清算 = 时区/streak 修复 + invite.js 核查处置 + 老对回填决策）**——`growth-core.js` 的 dayOf/isoWeekOf 用本地时间（云函数 UTC=实为 UTC 日期，北京 08:00 错切 streak）；`invite.js` 初查为孤儿模块（仅自身注释命中）；老对 n=3/0 自然用户。**最重要的事 = 用户签字放行 M7 动码**（按 M7.1→M7.2→M7.3 落地；冷启动准备/隐私/资质仍留 M8）。
+1. **当前最重要的问题**：M0–M6 全收官（M5 终审 21:40 / M6 真机验收 22:29 均通过）。**M7 已签字放行（2026-08-30「放行 放行」），待 Agent 落地 M7.1→M7.2→M7.3**：① M7.1 时区/streak 修复——改 `growth-core.js` 的 `dayOf`/`isoWeekOf` 为 +8（`dayOfCST` 用 `new Date(ts+8h)`+`getUTC*`），sync:core 分发 + 部署 7 函数；② M7.2 invite.js 精确 grep 确认孤儿即删 + build 验证；③ M7.3 老对回填决策（默认不回填，记录理由）。冷启动准备/隐私/资质留 M8。
 2. **从哪一步继续**：
-   - 若用户说"放行/做 M7" → 按 plan-m7.md 顺序 M7.1(时区/streak 修复：改 growth/growth-core.js 源头 + sync:core 分发 + 部署 7 函数) → M7.2(invite.js 精确核查 import 图，孤儿则删) → M7.3(老对回填决策，默认不回填)；部署后轮询 Status=Active。
+   - 若用户说"做 M7/落地 M7" → 按 plan-m7.md 顺序 M7.1(改 `growth/growth-core.js` 源头 dayOf/isoWeekOf 为 +8 + sync:core 分发 3 副本 + 部署 growth/game/chat/match/safety/auth/metrics 7 函数) → M7.2(精确 grep `src/utils/invite.js` import 图，确认孤儿即删；`metrics-core.dayOfCST` **不必改**，已 +8) → M7.3(老对回填决策，默认不回填只记录理由)；部署后轮询 Status=Active + 前端 build 通过。
    - 若用户说"做 M5.4" → 已完成（双计修复，见已完成工作），勿重做。
    - 若用户说"做 M4.4" → 已完成（双边邀请，见已完成工作 16–19），勿重做。
    - 若用户报 bug → 先核实云端代码是否与本地一致（下载 zip 归一化 diff），再查逻辑；勿默认"没部署"。
@@ -350,8 +354,8 @@
 # 极简版
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
-- **现状**：M0/M1/M2/M3/M4 全部完成；**M5 全收官 ✅（2026-08-30 21:40 人工终审通过）**：M5.1–M5.4 落地部署、验收 PASS（SC5 rate=100%、双计修复实证、admins 已建）、回灌评估 #2 维持初值。**M6 全收官 ✅（2026-08-30 22:29 真机验收通过 + 人工终审）：M6.1–M6.4 落地部署 + 真机验收 PASS（管理员处置闭环 + SC5 真机有数 + 403/幂等补验通过）；冷启动准备/技术债留 M7**。**M7 规划定稿 ✅（2026-08-30：范围 A 技术债清算，待签字放行动码）**。下一步 = 签字放行 M7 动码。
-- **Git**：远程 `main` 已对齐本地（2026-08-30 20:25 实测 `c8e3e2d`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
+- **现状**：M0/M1/M2/M3/M4 全部完成；**M5 全收官 ✅（2026-08-30 21:40 人工终审通过）**：M5.1–M5.4 落地部署、验收 PASS（SC5 rate=100%、双计修复实证、admins 已建）、回灌评估 #2 维持初值。**M6 全收官 ✅（2026-08-30 22:29 真机验收通过 + 人工终审）：M6.1–M6.4 落地部署 + 真机验收 PASS（管理员处置闭环 + SC5 真机有数 + 403/幂等补验通过）；冷启动准备/技术债留 M7**。**M7 已收官 ✅（2026-08-30：M7.1 时区 +8 修复部署 Active+云端代码核验、M7.2 invite.js 删+build 通过、M7.3 老对不回填决策）；待人工终审进 M8**。`metrics-core.dayOfCST` 已 +8，**M7.1 只改 growth-core（未再补 +8）**。
+- **Git**：远程 `main` 已对齐本地（2026-08-30 实测 `c341247`，M7 规划定稿），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。
 - **🔴 两个最致命历史坑（已修但极易复发）**：A. 云函数 A `callFunction` 调 B 时 B 的 `OPENID=undefined` → 幽灵 pair，已抽 `growth-core.js` 共享内核，改完务必 `npm run sync:core` 再部署；B. **NoSQL delete 用 `$in` 只删 1 条，必须精确 `_id` 逐条删**（强删云端数据前必列 `_id` 给用户）。

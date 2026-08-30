@@ -437,10 +437,10 @@
 
 ## M7：技术债清算（范围 A）
 
-> 规划：`tasks/plan-m7.md`（2026-08-30 范围已拍板：A 技术债清算 = 时区/streak 修复 + invite.js 核查处置 + 老对回填决策）。**待签字放行，不写实现代码。**
+> 规划：`tasks/plan-m7.md`（2026-08-30 范围已拍板：A 技术债清算 = 时区/streak 修复 + invite.js 核查处置 + 老对回填决策）。**已签字放行，M7.1–M7.3 已落地（2026-08-30）**。**
 > 冷启动准备（资质/类目/隐私/索引）整线延后，留 M8。
 
-### Task M7.1: 时区/streak 修复 ✅ 规划待放行
+### Task M7.1: 时区/streak 修复 ✅ 已落地（部署 Active + 云端核验）
 
 **Description:** 改 `cloudfunctions/growth/growth-core.js`（sync 源头）的 `dayOf()`/`isoWeekOf()` → Asia/Shanghai(+8h)；`metrics-core.dayOfCST` 补 +8 同口径；`npm run sync:core` 分发；部署 growth/game/chat/match/safety/auth/metrics。
 **Acceptance criteria:** 北京 07:00/09:00 同 dayOf，23:30/次日 01:00 不同；sync 后 4 份 growth-core + 7 份 metrics-core 口径一致；部署 Active。
@@ -448,7 +448,7 @@
 **Files likely touched:** `cloudfunctions/growth/growth-core.js`（源）、`cloudfunctions/metrics/metrics-core.js`、sync 产物副本（7 函数）
 **Estimated scope:** M
 
-### Task M7.2: invite.js 核查处置 ✅ 规划待放行
+### Task M7.2: invite.js 核查处置 ✅ 已落地（删孤儿 + build 通过）
 
 **Description:** 精确查 `src/utils/invite.js` import 图（初查仅自身注释命中，8 文件均为 confirmInvite/setPendingInviter 等其它模块）；孤儿则删，有引用则留并记 todo。
 **Acceptance criteria:** 去留有据；若删则 build 通过、无悬空 import。
@@ -456,7 +456,7 @@
 **Files likely touched:** `src/utils/invite.js`（可能删）
 **Estimated scope:** S
 
-### Task M7.3: 老对回填决策 ✅ 规划待放行
+### Task M7.3: 老对回填决策 ✅ 已决（不回填）
 
 **Description:** 评估 n=3/0 自然用户 → 默认不回填（成本>收益），记录理由；若用户要则附一次性脚本草稿（不自动执行）。
 **Acceptance criteria:** 决策入文档（verification-log / todo）。
@@ -466,10 +466,10 @@
 
 ### Checkpoint M7（技术债清算收尾）
 
-- [ ] streak 按北京日正确去重（时区修复实证）
-- [ ] invite.js 去留已决（删 or 留有据）
-- [ ] 老对回填决策已出（默认不回填，记录理由）
-- [ ] 7 个云函数部署 Active + 前端构建通过
+- [x] streak 按北京日正确去重（M7.1 +8 修复实证 + 部署 Active + 云端代码核验）
+- [x] invite.js 孤儿已删、构建通过、src/utils 完好
+- [x] 老对回填决策已出（默认不回填，记录理由，见 verification-log M7.3）
+- [x] 7 云函数部署 Active + 前端构建通过
 - [ ] 人工终审 → 下一阶段（M8：上线就绪 / 或收官）
 
 ---

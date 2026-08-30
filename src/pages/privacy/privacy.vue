@@ -3,7 +3,7 @@
     <view class="card">
       <text class="title">隐私政策</text>
       <scroll-view scroll-y class="body">
-        <text class="para strong">生效日期：2026-08-30</text>
+        <text class="para strong">生效日期：2026-08-30　版本：{{version}}</text>
         <text class="para">欢迎使用「恋爱成长」（以下简称"本小程序"）。我们依据《中华人民共和国个人信息保护法》《网络安全法》及微信小程序平台规范制定本政策，说明我们如何收集、使用、存储与保护你的个人信息。使用本小程序前，请仔细阅读并理解本政策。</text>
 
         <text class="para h">一、我们收集的信息及用途</text>
@@ -32,7 +32,7 @@
         <text class="para">如对本政策有疑问或需行使上述权利，可联系运营方：loveapp-privacy@example.com（上线前请替换为真实运营邮箱）。</text>
 
         <text class="para h">七、政策更新</text>
-        <text class="para">我们可能适时更新本政策，重大变更将通过小程序内公告或弹窗提示。更新后继续使用即视为同意修订版。</text>
+        <text class="para">我们可能适时更新本政策，重大变更将提升版本号并通过小程序内强制重新弹窗提示（依据本地同意版本判定）。更新后继续使用即视为同意修订版。</text>
 
         <text class="para strong">继续使用即表示你理解并同意上述条款。</text>
       </scroll-view>
@@ -43,12 +43,15 @@
 </template>
 
 <script>
-import { setPrivacyAgreed } from '../../utils/storage'
+import { setPrivacyAgreed, PRIVACY_VERSION } from '../../utils/storage'
 
 export default {
+  data() {
+    return { version: PRIVACY_VERSION }
+  },
   methods: {
     onAgree() {
-      setPrivacyAgreed(true)
+      setPrivacyAgreed()
       uni.reLaunch({ url: '/pages/login/login' })
     },
     onDecline() {

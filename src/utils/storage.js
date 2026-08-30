@@ -2,6 +2,8 @@
 const OPENID_KEY = 'rg_openid'
 const USER_KEY = 'rg_user'
 const PRIVACY_KEY = 'rg_privacy_agreed'
+// O4：隐私政策版本。政策重大变更时提升此号，App.vue 入口比对版本，落后自动重弹门禁（强制重同意）
+export const PRIVACY_VERSION = '1.0.0'
 const INVITER_KEY = 'rg_pending_inviter'
 const MY_INVITE_KEY = 'rg_my_invite_code'
 
@@ -21,10 +23,14 @@ export function setUser(u) {
   try { uni.setStorageSync(USER_KEY, u) } catch (e) {}
 }
 export function getPrivacyAgreed() {
-  try { return !!uni.getStorageSync(PRIVACY_KEY) } catch (e) { return false }
+  // O4：仅当已同意且版本为当前版本才算通过（旧版/未同意 → false，触发重弹）
+  try { return uni.getStorageSync(PRIVACY_KEY) === PRIVACY_VERSION } catch (e) { return false }
 }
-export function setPrivacyAgreed(v) {
-  try { uni.setStorageSync(PRIVACY_KEY, !!v) } catch (e) {}
+export function getPrivacyAgreedVersion() {
+  try { return uni.getStorageSync(PRIVACY_KEY) || '' } catch (e) { return '' }
+}
+export function setPrivacyAgreed() {
+  try { uni.setStorageSync(PRIVACY_KEY, PRIVACY_VERSION) } catch (e) {}
 }
 export function getPendingInviter() {
   try { return uni.getStorageSync(INVITER_KEY) || '' } catch (e) { return '' }

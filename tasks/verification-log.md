@@ -629,3 +629,33 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 
 **结论**：Checkpoint M6 全项通过（todo.md 已勾选 + 任务卡标注验收通过）。M5 遗留的 403/alreadyHandled 真机补验闭环。M6 全收官。
 **下一步**：规划 M7（候选：冷启动准备 = 账号主体+社交类目资质指引 / 隐私正式文案 / 内容安全切换 / 复合索引；技术债 = UTC 时区/streak 修复 / 删 invite.js / 老对全量回填），范围待用户拍板（同 M5/M6 流程）。
+
+## M7 技术债清算 ✅ 收官（2026-08-30，Agent 执行）
+
+### M7.1 时区/streak 修复
+- **根因**：云函数运行时默认 UTC，`growth-core.dayOf()`/`isoWeekOf()` 用 `getDate()`/`getDay()` 取 UTC 日期 → 北京时间 08:00 前活跃被记前一天，streak 跨日错位（首次发现见 M3 验证 §「新发现：云函数运行时时区是 UTC」）。
+- **修复**：源 `cloudfunctions/growth/growth-core.js` 新增 `shanghaiDate(ts)=new Date((Number(ts)||Date.now())+8*3600*1000)`；`dayOf`/`isoWeekOf` 改 `shanghaiDate`+`getUTC*`；`npm run sync:core` 分发到 game/chat/match 三副本。
+- **口径一致性（HANDOFF 盲区防护 #24）**：`metrics-core.dayOfCST` 经 2026-08-29 实测已 `+8` 正确，M7.1 **未再补 +8**（避免 double-offset 破坏 dashboard SC2 D7 窗口）；仅顺手删 growth-core 过时注释「dayOf 仍是 UTC」。
+- **部署**：growth/game/chat/match/safety/auth/metrics 7 函数 `updateFunctionCode` → 轮询至 `Status=Active`（ModTime 2026-08-30 23:01:15）。
+- **云端真实验证（盲区防护 #23 落盘复核）**：下载 growth 代码包归一化 grep，`growth-core.js` 第 62 行 `shanghaiDate`、第 66 行 `dayOf`（`getUTCFullYear/Month/Date`）、`isoWeekOf`（`getUTCDay`/`getUTC*`）全部存在 → +8 修复确已落地。
+- **验收断言**：北京 07:00 与 09:00 → `dayOf` 同（同一北京日）；23:30 与次日 01:00 → 不同；grep 4 份 growth-core + 7 份 metrics-core 口径一致 ✅。
+
+### M7.2 invite.js 孤儿删除
+- **精确 grep 全仓 import 图**：`src/utils/invite.js` 仅自身注释命中；App.vue/relation.vue 引的是 `confirmInvite.js`（另一模块），`ensureMyInviteCode` 无任何外部引用 → 确为孤儿。
+- **处置**：`git rm src/utils/invite.js`（已暂存删除）。
+- **构建验证**：`npm run build:mp-weixin` → `DONE Build complete`（EXIT=0），无悬空 import / module not found；构建后 `git status` 仅 `D src/utils/invite.js`，其余 12 个 utils 文件完好。
+- **⚠️ 构建期异常记录（与 M7.2 无关）**：首次 build 报 `Could not resolve "./utils/cloud" from "src/App.vue"`——根因是 `src/utils/` 被环境瞬时清空（疑似 safe-delete shim / 沙箱异常），并非 invite.js 删除所致（error 指向 `./utils/cloud`）。已从 git 索引 `git checkout -- src/utils/` 还原后重建通过；该异常非 M7.2 引入，已固化记录。
+
+### M7.3 老对回填决策
+- **评估**：pairs n=3 全测试对、0 自然用户；时区修复只影响「未来写入的 dayOf/lastStreakDay」，历史存量无区分度。
+- **决策**：**默认不回填**（成本>收益）。理由：① 存量 3 对均为测试账号、零自然用户，回填无业务价值；② 时区修复属向前修正，不影响已落库值；③ 若未来自然用户积累后确需回填，可附一次性脚本（读 pairs → 重算 dayOf/isoWeek 字段），本任务不自动执行。
+- **阈值回灌**维持 12/40/90/150（见 M4.3 / threshold-calibration.md）。
+
+### Checkpoint M7 验收汇总
+- [x] streak 按北京日正确去重（M7.1 +8 修复实证 + 部署 Active + 云端代码核验）
+- [x] invite.js 孤儿已删、构建通过、src/utils 完好
+- [x] 老对回填决策已出（默认不回填，记录理由）
+- [x] 7 云函数部署 Active + 前端构建通过
+- [ ] 人工终审 → 下一阶段（M8：上线就绪 / 或收官）
+
+**下一步**：M7 待人工终审放行进 M8（冷启动准备：账号主体/社交类目资质、隐私正式文案、内容安全切换、复合索引；技术债已清零）。

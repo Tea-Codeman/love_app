@@ -2,7 +2,7 @@
 
 # 项目/任务
 
-从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M3 全部完成、**M4（验证：埋点 + 北极星看板 + 阈值校准）全部完成**（M4.3 结论=样本不足沿用初值；M4.4 双边邀请真机验收通过）；**M5 规划已定稿**（`tasks/plan-m5.md`，待签字放行）。Checkpoint M4 仅剩人工终审放行。
+从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M4 全部完成（M4.3 结论=样本不足沿用初值；M4.4 双边邀请真机验收通过）；**M5 已签字放行且代码全部落地（2026-08-30）**：M5.1–M5.4 完成、safety/metrics 部署 Active、dashboard 冒烟 PASS（提交 `993e1c0`/`6a7c486`/`74e0cf0`/`022cdad`）。**Checkpoint M5 待人工项：① `admins` 集合未建（需建 + 插管理员 openid，否则 handleReport 全 403）；② 真机验收（SC5 闭环 + app_open 双计复验）**。
 
 > **⚠️ 2026-08-29 实测推翻旧版前提**：旧版 HANDOFF 称"4 个云函数未部署、3 个集合未建、从未真机验证"。**实测全不成立**——7 个存量云函数全部已部署且与本地逐字节一致；10+ 个集合全部已建且有数据；M2 主链路云端跑通过完整一局。瓶颈从来不是部署，而是**真机验证**与**埋点校准**。
 
@@ -152,7 +152,15 @@
 18. **M4.4c 布局微调（2026-08-30）**：等待/撤销移出 rel-actions 按钮列（按钮尺寸不再跳动），改为信息区状态条「💌 等待 XX 回应 · 倒计时」+ 内联撤销链接。提交 `aee4416`。
 19. **getOpenid ReferenceError 修复（2026-08-30）**：M4.4b 重写 relation.vue 时漏 import `getOpenid`，Vite 不检查未定义引用故编译恒绿、运行到 onShow 才炸（`BUG.md` 有记录）。**教训：重写 vue 文件后必须对照旧 imports 清单核对**。提交 `7a4395e`。
 20. **M4.3 阈值校准 ✅ M4 收官（2026-08-30）**：查库 pairs 3 对（growthValue {150,150,21}）+ events 108 条（单日）→ **n=3 样本不足，沿用初值 12/40/90/150**，产出 `tasks/threshold-calibration.md`。两个观察经代码级复核**修正归因**（提交 `6d5c040`）：① 「游戏权重偏高」改判为 M4.1 手工 addGrowth 测试污染（实际权重游戏+8/局、聊天+2/轮、纯游戏到 S4 约需 19 局）；② 「app_open 双计致 SC2 虚高一倍」降级为零影响（看板 SC1–SC5 均不消费 app_open）。提交 `75fcb71`。
-21. **M5 规划定稿（2026-08-30 20:20）**：用户三选拍板——范围=SC5 处置能力+修 app_open 双计（冷启动线明确跳过）；处置=`safety.handleReport`+管理员 openid 白名单（推荐 `admins` 集合载体）；SC5 以 `reports` 集合为权威源（`report_handled` 事件仅观测流）；处置只标记不做自动下架/封号。产出 `tasks/plan-m5.md` + todo.md M5 任务卡（M5.1–M5.4+Checkpoint M5）。提交 `c8e3e2d`。**状态：待用户签字放行动码。**
+21. **M5 规划定稿（2026-08-30 20:20）**：用户三选拍板——范围=SC5 处置能力+修 app_open 双计（冷启动线明确跳过）；处置=`safety.handleReport`+管理员 openid 白名单（推荐 `admins` 集合载体）；SC5 以 `reports` 集合为权威源（`report_handled` 事件仅观测流）；处置只标记不做自动下架/封号。产出 `tasks/plan-m5.md` + todo.md M5 任务卡（M5.1–M5.4+Checkpoint M5）。提交 `c8e3e2d`。
+22. **M5 代码全部落地 + 部署（2026-08-30 20:40，用户签字放行后）**：
+    - M5.2：`report_handled` 入白名单（`993e1c0`，sync:core 7 副本）；
+    - M5.1：`safety.handleReport`（`6a7c486`）——admins 集合校验 403 / decision 限 handled|dismissed / 幂等 alreadyHandled / note 截 200 不入埋点；
+    - M5.3：dashboard SC5（`74e0cf0`）——reports 直读 24h 处置率 + pendingCount，替换 no_data；
+    - M5.4：App.vue 双计修复（`022cdad`）——`coldLaunching` 标记跳过冷启动配对 onShow；
+    - docs：`77622d7`（todo/plan-m5/verification-log）。
+    - **部署核验**：safety/metrics 均 `Status=Active` 且 CodeInfo 含新代码；dashboard MCP 冒烟 code=0，`SC5={status:no_data, pendingCount:1}`（reports 有 1 条历史 pending 可用于验收）。
+    - **遗留**：`admins` 集合未建（handleReport 现对所有人 403，护栏生效但无人能处置）；真机验收未做。
 
 ---
 
@@ -317,9 +325,9 @@
 
 # 新 Agent 接手指南
 
-1. **当前最重要的问题**：M4 已全部收官（含 M4.3 校准、M4.4 双边邀请真机验收通过）。**M5 规划已定稿（`tasks/plan-m5.md`），等用户签字放行动码**——范围=SC5 处置能力（M5.1 handleReport / M5.2 白名单+report_handled / M5.3 dashboard SC5 消费）+ M5.4 app_open 双计修复，全部 S 级小改动；`safety`/`metrics` 云函数已有底子（缺的只是处置闭环）。
+1. **当前最重要的问题**：M5 代码已全部落地并部署（见已完成工作 22）。**剩余人工项：① 建 `admins` 集合并插入管理员 openid（users 现有 6 个：oUsf1xRnPxcjWLiSG3XFR-6LrPFY「woailuo」/ oUsf1xaoXeRqW5dqbCkjDfsJ8Fv8「我不爱罗」/ oUsf1xZonxm8p9DekXnHSh0YRbnE「666」/ oUsf1xS6FdqC72DUf9uGkOactAho「1」/ oUsf1xVZcfgUuM4e3vJ8WXWhfyhk（无昵称）/ oUsf1xR188Rzm5l1mAxrlZiwaxcc「测试账号1」）——未建前 handleReport 全 403；② 真机验收（普通账号举报 → 管理员处置 → dashboard SC5 出 rate；非管理员 403；重复 handle alreadyHandled；冷启动无成对 app_open）**。可用报告：reports 集合 1 条 pending（_id `0fb91b1d6a9096dc010ed1b84230ff4f`）。
 2. **从哪一步继续**：
-   - 若用户说"放行/做 M5" → 按 M5.2→M5.1→M5.3→M5.4 顺序落地：先在 `safety` 加 `handleReport`（pending→handled，服务端校验管理员白名单）+ `report_handled` 埋点，再改 `metrics/dashboard` 消费 `reports` 集合算 SC5（24h 处置率+pendingCount），最后 App.vue 双计修复；部署 safety/metrics 后轮询 `getFunctionDetail` 至 `Status=Active` 才算落地；管理员白名单载体默认走 `admins` 集合（增删免重部署），需先在控制台建集合并插入管理员 openid。
+   - 若用户确认管理员 openid → 建 `admins` 集合（控制台或经 MCP 确认后创建）+ 插 `{openid, createdAt}` → 真机验收 Checkpoint M5。
    - 若用户说"做 M4.4" → 已完成（双边邀请，见已完成工作 16–19），勿重做。
    - 若用户报 bug → 先核实云端代码是否与本地一致（下载 zip 归一化 diff），再查逻辑；勿默认"没部署"。
 3. **不要重复**：不重跑需求澄清/Plan/Tasks；不用裸 npm install；不写死 env / 不提议自动建集合；不重新提议"前端传黑名单给后端过滤"；不擅自重加 `onShareAppMessage`/邀请入口；不擅自删 `src/utils/invite.js`；不擅自删云端数据（强删前必列 `_id`）。
@@ -332,7 +340,7 @@
 # 极简版
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
-- **现状**：M0/M1/M2/M3 全部完成；**M4 全部完成 ✅**（埋点闭环 / 看板上线 108 事件/3 对、SC4=1 / 阈值校准「沿用初值」/ SC4 双边邀请真机验收通过）。**M5 规划定稿 ✅**（`tasks/plan-m5.md`：SC5 处置能力 + app_open 双计修复，待放行动码）；Checkpoint M4 仅剩人工终审。
+- **现状**：M0/M1/M2/M3 全部完成；**M4 全部完成 ✅**（埋点闭环 / 看板上线 108 事件/3 对、SC4=1 / 阈值校准「沿用初值」/ SC4 双边邀请真机验收通过）。**M5 已签字放行并全部落地 ✅（2026-08-30）**：M5.1–M5.4 完成、safety/metrics 部署 Active、dashboard 冒烟 PASS（SC5 分支出 pendingCount=1）；**剩余人工项 = 建 `admins` 集合 + 插管理员 openid、真机验收 Checkpoint M5**。
 - **Git**：远程 `main` 已对齐本地（2026-08-30 20:25 实测 `c8e3e2d`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。

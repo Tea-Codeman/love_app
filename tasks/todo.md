@@ -384,7 +384,7 @@
 - [x] SC5 真实读数可出（dashboard 已替代 no_data；2026-08-30 21:20 验收 PASS：处置 1 条后 `SC5={status:ok, rate:100, handledCount:1, within24h:1, pendingCount:2}`）
 - [x] app_open 冷启动不再成对双计（events 复核 PASS：20:38 部署后新增 5 次启动全部单条；部署前存在毫秒级成对样本）
 - [x] `admins` 集合已建（2026-08-30 21:14，含 1 个管理员 openid `oUsf1xRnPxcjWLiSG3XFR-6LrPFY`）
-- [ ] 人工终审 → 下一阶段（冷启动准备 / 阈值回灌）。⚠️ 遗留：handleReport 的 403（非管理员）与 alreadyHandled（幂等）路径未走真实登录态调用（无管理员 UI，MCP 直调无 openid 只能验到 401）；待管理员 UI（建议 M6）后真机补验
+- [x] 人工终审 → **通过（2026-08-30 21:40 用户签字）**，M5 全收官 → 下一阶段 M6 规划（候选：管理员 UI + 403/幂等真机补验、冷启动准备、阈值回灌观察项）。⚠️ 遗留进 M6：handleReport 的 403（非管理员）与 alreadyHandled（幂等）路径未走真实登录态调用（无管理员 UI，MCP 直调无 openid 只能验到 401）；待管理员 UI（建议 M6）后真机补验
 
 ---
 

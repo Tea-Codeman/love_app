@@ -8,7 +8,8 @@
 // 客户端传空数组即可绕过，防骚扰能力会完全失效。前端只负责"显示"黑名单。
 // 原型期：本地关键词/规则分类器兜底（useWxSecurity=false）。
 // 企业主体 + 社交类目资质就绪后，在 CloudBase 控制台将 server_config 文档(launch)的 useWxSecurity 置 true，
-// 即切换为微信官方内容安全 API（cloud.openapi.security.msgSecCheck / mediaCheckAsync），业务代码无需改动、免重部署（O1）。
+// 即切换为微信官方内容安全 API（cloud.openapi.security.msgSecCheck 文本 / imgSecCheck 图片，均同步内联判定），
+// 业务代码无需改动、免重部署（O1）。O2 图像走同步 imgSecCheck（base64 内联，无需异步回调/HTTP函数/控制台配置）。
 // 读取带 60s TTL 内存缓存；文档缺失/读失败回落 false（原型行为不变）。
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -58,14 +59,14 @@ async function wxCheckText(content) {
   return { pass: res.errCode === 0, reason: res.errCode === 0 ? '' : '微信内容安全判定违规' }
 }
 
-async function wxCheckImage(mediaUrl) {
-  const ctx = cloud.getWXContext()
-  const res = await cloud.openapi.security.mediaCheckAsync({
-    media_url: mediaUrl,
-    media_type: 2,
-    openid: ctx.OPENID
+// O2：同步 imgSecCheck（内联返回判定，无需异步回调/HTTP函数/控制台回调URL注册，压低上架切换成本）。
+// 入参 media = { contentType: 'image/jpeg', base64: '<不含 data: 前缀的 raw base64>' }（前端上传前压缩至 ≤1MB）。
+async function wxCheckImage(media) {
+  const res = await cloud.openapi.security.imgSecCheck({
+    media: { contentType: media.contentType, value: Buffer.from(media.base64, 'base64') }
   })
-  return { pass: !res || res.errCode === 0, reason: '' }
+  // 微信 errCode 0 = 通过；87014 = 违规
+  return { pass: res.errCode === 0, reason: res.errCode === 0 ? '' : '微信内容安全判定违规' }
 }
 
 // 举报：进入待处置队列（reports 集合）
@@ -268,9 +269,11 @@ exports.main = async (event = {}) => {
       return { code: 0, data: r }
     }
     if (action === 'checkImage') {
-      // 原型期无 CV 能力，图片默认通过；切官方 API 后走 mediaCheckAsync（O2 未来补全异步回调）
+      // 原型期无 CV 能力，图片默认通过；切官方 API 后走同步 imgSecCheck（O2 已落地，内联判定，无异步回调）。
       const useWx = await getUseWxSecurity()
-      const r = useWx ? await wxCheckImage(event.mediaUrl) : { pass: true }
+      if (!useWx) return { code: 0, data: { pass: true } }
+      if (!event.media || !event.media.base64) return { code: 400, message: '缺少图像数据（media.base64）' }
+      const r = await wxCheckImage(event.media)
       return { code: 0, data: r }
     }
     if (action === 'report') return await report(event, OPENID)

@@ -64,12 +64,12 @@
 - **M0 地基 ✅ 已验收**（2026-08-27）。
 - **M1 聚人 ✅ Checkpoint 通过（step 1–6）**（2026-08-28）。step 7 裂变因个人账号禁分享延后（页面定义 `onShareAppMessage` 会触发基础库内部 `showShareMenu` 被 banned）。底层归因逻辑（`invite` 云函数 + 捕获 `?inviter=`）保留。
 - **M2 破冰 ✅ 已收尾并通过 Checkpoint（2026-08-30 双设备真机 V1–V4 全 PASS）**：撮合→建局→答题→结束闭环、MBTI 落库、拉黑/解除闭环、契合度加成。云端查库佐证见 `tasks/verification-log.md`。答题逻辑已改版为「匹配后各自独立答题、终局对比算默契度」（`game` 云函数已部署）。
-- **M3 升温·导流 ✅ 代码完成 + 部署 + 真机验证（v0.3.0）**：pairs 默契度系统、先审后发、S1 门禁、联系方式解锁、拉黑闭环。BUG-1/BUG-2 已修且真机复验 PASS。
+- **M3 升温·导流 ✅ 代码完成 + 部署 + 真机验证（v0.3.0）**：pairs 默契度系统、先审后发、S1 门禁、联系方式解锁、拉黑闭环。BUG-1/BUG-2 已修且真机复验 PASS。**2026-08-31 验收通过 + 发布 v0.3.1（性能 P0–P3 + 聊天分页修复，DevTools 计时复核达标）。**
 - **M4 验证 ✅ 全部完成（2026-08-30）**：13 事件全链路埋点真机验收；`metrics.dashboard` 聚合 SC1–SC5 上线（数据已至 108 条/3 对，SC4=1）；M4.4 关系确认为**双边邀请**（A 发邀请→B 任意页面经应用级轮询+原生通知收到，同意落 milestones + 上报 relation_confirmed，超时 10min 失效）——真机验收通过；M4.3 阈值校准结论「样本不足，沿用初值」（`tasks/threshold-calibration.md`，附游戏权重偏高/app_open 双计两个观察）。M4.5 SC5 处置留 M5。
 
 **版本与回滚锚点**
-- 当前版本 `v0.3.0`（= M3），`MINOR 号 = 里程碑号`（v0.3.0 = M3）。tag 为**带注释本地 tag，未推送**。
-- 回滚：`git checkout v0.3.0` 整体回退；`git revert <commit>` 逐任务撤。**云函数需重新部署对应版本代码**，前端回滚后必须重建 `dist/dev`。
+- 当前版本 `v0.3.1`（MINOR 号 = 里程碑号：v0.3.0 = M3，v0.3.1 = M3 验收补丁=性能 P0–P3 + 聊天分页修复）。**tag `v0.3.0` 与 `v0.3.1` 均已推送 origin**（2026-08-31）。
+- 回滚：`git checkout v0.3.1` 整体回退；`git revert <commit>` 逐任务撤。**云函数需重新部署对应版本代码**，前端回滚后必须重建 `dist/dev`。
 - **用户重视"提交作为回滚锚点"**：改功能前先确认/补齐提交，按关注点拆原子提交（功能/开关/文档/性能/纯格式各自独立）。
 
 **Git 状态（2026-08-30 最新）**
@@ -178,6 +178,12 @@
 
 31. **优化 O1/O4/O5 落地（2026-08-31）**：用户决策「现在不能上架、未来可能上架」→ 优化使未来切换成本最低。(O1) safety 上架开关外置为 `server_config` 文档(launch)，带 60s TTL 缓存，缺失回落 false；已建集合+文档(useWxSecurity:false)、重部署 safety 至 Active（CodeInfo 落地新代码）。未来上架在控制台翻一处即生效、免重部署。(O4) 隐私页加 `PRIVACY_VERSION=1.0.0`，storage 同意标记改版本号，App.vue 入口比对版本、落后强制重弹门禁。(O5) 写 `tasks/launch-playbook.md` 未来上架切换清单（资质→翻开关→补 O2 图像异步→M8.3 文本验收→恢复 O6 分享→隐私备案→审核）。O2 已落地（imgSecCheck 同步内联，免回调/HTTP函数/控制台配置）/O6 分享入口因产品决策留未来资质就绪后。前端 build DONE。
 
+32. **性能优化 P0–P3（2026-08-31）**：用户报三大慢点（社区帖子/详情、匹配大厅 recommend、聊天同步）→ 先诊断定方案（`tasks/perf-plan.md`）再改代码。P0 索引（`comments`/`posts`/`messages`/`games`/`matches`/`pairs`/`users` 7 集合复合索引，规格见 perf-plan §2）由用户在 CloudBase 控制台建，Agent 用 `readNoSqlDatabaseStructure.listIndexes` 两次复核（首轮发现 matches 仅 uA 缺 uB 硬缺口，用户补建 uA+`uB` 后全绿）。P1 聊天：`chat/index.js list` 加 `since` 增量 + `chat.vue` 改 append + `startPolling` 3000ms→1500ms。P2 recommend：`match/index.js` 去 `_.neq(OPENID)` 全扫改 `users.createdAt` 游标分页（内存补回排除自己）。P3：`game` 削 joinGame/submitAnswer 冗余回读 + `community` 评论首屏 limit 100→30 + 新增 `listComments` 懒加载。提交 `688a00d`(P1)/`0c681bb`(P2)/`281a4f9`(game P3)/`efb305b`(community P3)/`7da1463`(perf-plan)。
+33. **DevTools 计时埋点（2026-08-31）**：`src/utils/request.js` 的 `callFunction` 加运行时开关 `wx.setStorageSync('__perf_on', true)` 开启后 Console 打印 `[perf] name.action=ms`（客户端往返），默认关、不影响线上；`perf-plan.md §10` 写测量协议。**注意：小程序 DevTools Console 只有 `wx` 全局没有 `uni` 全局**，开开关须用 `wx.setStorageSync`（埋点读取 `uni`/`wx` 共享底层 storage，二者互通）。
+34. **聊天分页 bug 修复·两轮（2026-08-31）**：用户报"下拉重复拼接旧消息/越滑越多"。根因①轮询与 onSend 共享过期 `lastCreatedAt` 游标并发各拉一份 → 用 msgId `Set` 去重 + `_fetching` 防并发守卫根治（`5f50afd`）；根因②聊天页无历史翻页能力、消息数组无界累积 + 首屏 since=0 仅取最新 50 条 → 改标准分页：服务端 `chat.list` 加 `before` 历史游标（`_.lt`）+ `hasMore`，前端 `@scrolltoupper` 加载更早（prepend 去重+锚定阅读位）、`@scrolltolower` 标记贴底、轮询增量仅贴底自动沉底（`c7dafbf`）。BUG.md 已记。**⚠️ 改 `chat/index.js list` 后必须重新部署 chat 云函数**，否则旧 list 不识 `before` 导致历史翻页失效（被去重滤掉而无效果，前端不崩）。
+35. **DevTools 计时复核通过（2026-08-31）**：用户开 `__perf_on` 后在 DevTools 实测三大慢点，确认体感达标（详见 perf-plan §10 阈值）；聊天分页部署后验收通过（用户确认"已经验收通过"）。
+36. **M3 验收收尾 · 打 tag v0.3.1（2026-08-31）**：按 semver（MINOR=里程碑、PATCH=修复）把性能优化+聊天修复归为 patch 发布。`CHANGELOG.md` 新增 `[0.3.1]` 节（Improved/Fixed/验证）+ M3 标题"待验证"→"已验证"；`package.json` 0.3.0→0.3.1。提交 `d606009` → 推 `origin/main=d606009`；`git tag -a v0.3.1` 已推 origin。M3 全链路闭环。
+
 ---
 
 # 已尝试但失败/放弃的方案
@@ -217,6 +223,8 @@
 
 **进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、M4 全部完成 ✅、**M5 全收官 ✅（2026-08-30：代码落地 + 线上验收 PASS + 阈值回灌评估 #2 + 人工终审 21:40 签字通过）**。**M6 规划定稿 ✅（2026-08-30：范围 A 收 M5 尾）**；**M6 全收官 ✅（2026-08-30 22:29 真机验收通过 + 人工终审）**。Checkpoint M4/M5/M6 均已终审放行。**M7 全收官 ✅（2026-08-30 23:32 人工终审用户签字通过：M7.1 时区/streak +8 修复部署 Active+云端代码核验、M7.2 invite.js 孤儿删+build 通过、M7.3 老对不回填决策已出）。M8 已签字放行（2026-08-30 23:41）：M8.2 隐私文案 ✅ 已落地、M8.4 复合索引 ✅ 已建、M8.1 资质指引 ✅ 已出（🔻 降级·用户申请中，延后）、M8.3 🔻 降级·维持 false（强依赖 M8.1 资质，延后 flip）**；**🔻 2026-08-31 M8.1 降级：v1 走受限邀请原型验证不公开上架**。**；收官/灰度上线（受限邀请原型）规划已起草（`tasks/plan-launch.md`），LA.1–LA.2 核验通过、LA.3 收官文档 `tasks/launch-readiness.md` 已出、LA.4 交接更新中。 **2026-08-31 优化（O1/O4/O5 落地）：safety 上架开关外置 server_config（已部署 Active，未来翻开关免重部署）、隐私版本+强制重同意、上架 Playbook `tasks/launch-playbook.md`；O2 已落地（imgSecCheck 同步内联，免回调）/O6 留未来。**
 
+**M3 验收 + 性能优化收官（2026-08-31）**：M3（v0.3.0）经 DevTools 计时复核 + 聊天分页部署验收，用户确认「已经验收通过」→ 标记为已验证。性能三大慢点（社区/匹配大厅/聊天）经 P0 索引 + P1/P2/P3 优化，全部从全表扫描变索引命中；聊天改标准分页（上滑翻历史/下滑只看新/去重防并发）。发布 `v0.3.1`（tag 已推 origin，HEAD=`d606009`）。详见「已完成工作」32–36 与 `tasks/perf-plan.md`。
+
 **M4.1 埋点终验结果（2026-08-30，查库 47 条 / 11 类事件）**
 - `app_open`×23、`match_accept`×4、`game_join`×3、`game_done`×3、`message_sent`×7、`pair_stage_changed`×2、`mbti_completed`×1、`chat_unlocked`×1、`profile_completed`×1、`recommend_view`×2
 - 三断言全过：PII 零泄漏 / 白名单无越界 / day=CST(+8) / pairId 双 openid 排序拼接
@@ -245,7 +253,7 @@
 | 🟡 中·M4 决策 | **存量老对全量回填**：已成 done 且此后零互动的老对仍缺 pairs。BUG-1 修复后只要双方再互动一次即自愈，仅彻底零互动的老对缺 pairs，M4 需决策是否做一次性回填。 |
 | ✅ 已修·M7.1 落地（2026-08-30） | **云函数运行时时区 UTC**：`growth-core.dayOf`/`isoWeekOf` 用 `getDate/getDay`（云函数 UTC），北京 08:00 前活跃被记前一天。M7.1 已修复并部署 7 函数 Active：**下载云端 growth 代码包归一化 grep 确认 `shanghaiDate`(+8) 落地**。**🔴 `metrics-core.dayOfCST` 已 +8 正确，M7.1 未再补 +8**（否则 double-offset 破坏 SC2 日窗口）。** |
 | 🟡 高·上线前置（🔻 降级·延后） | 账号主体（个人/企业）与社交类目资质。微信对个人主体通常无法授社交类目，`msgSecCheck` 通常需企业主体。**2026-08-31 用户决策：资质申请中，v1 降级为「受限邀请原型验证」不公开上架；此项目延后至资质就绪**。卡"上线"不卡"开发"。 |
-| 🟡 中·性能 | 复合索引：`comments` 建 `{postId:1,auditStatus:1,createdAt:1}`、`posts` 建 `{auditStatus:1,topicId:1,createdAt:1}`（只能控制台建）。 |
+| ✅ 已建·复核全绿（2026-08-31） | **P0 复合索引**：comments/posts/messages/games/matches/pairs/users 7 集合索引已在控制台建好，`readNoSqlDatabaseStructure.listIndexes` 复核全绿（matches 首轮仅 uA 缺 uB 硬缺口，用户补建 uA+`uB` 后闭合）；posts 话题筛选（topicId 在尾部键）为非阻塞可选项，v1 话题列表量小时可忽略。 |
 | 🟡 中（🔻 降级·维持 false） | 内容安全云调用权限未开通（个人账号），当前本地兜底（`USE_WX_SECURITY=false`）；企业就绪后切 `true`。**2026-08-31 随 M8.1 降级同步维持 false，不擅自 flip**。 |
 | 🟡 中 | 隐私政策正式文案与备案（M0 已有隐私页门禁，正式文案待补）。 |
 | ✅ 已决·M7.2 已删（2026-08-30） | `src/utils/invite.js` 全仓无 import（仅自身注释命中；`confirmInvite.js` 为另一模块）。**已 `git rm` 删除**，落码前精确 grep 确认孤儿；`npm run build:mp-weixin` DONE 无悬空 import（构建后 `src/utils` 完整性校验通过）。 |
@@ -263,7 +271,7 @@
 - ~~是否删除 `src/utils/invite.js`~~ ✅ **已决并落地（M7.2，用户放行删除，精确 grep 确认孤儿，`git rm` + build 通过）**。
 - ~~老对回填决策（M7.3）~~ ✅ **已决（2026-08-30）：默认不回填**（n=3/0 自然用户，成本>收益）；理由见 verification-log M7.3，不跑脚本。
 - ~~小程序账号主体/社交类目资质现状？内容安全云调用权限是否就绪？隐私政策文案进度？~~ ✅ **已纳入 M8 规划并签字放行（2026-08-30 23:41）：资质主体=M8.1 用户侧门禁（指引已出 `tasks/m8-account-guide.md`）、隐私文案=M8.2 ✅ 已落地、内容安全切换=M8.3 🟡 待资质门禁、复合索引=M8.4 ✅ 已建**。
-- **push 已无待办**：远程 `main` 已与本地 HEAD 对齐（2026-08-30 20:25 实测 `c8e3e2d`），历史提交均已推送。
+- **push 已无待办**：远程 `main` 已与本地 HEAD 对齐（2026-08-31 实测 `d606009` = v0.3.1，含性能优化 P0–P3 + 聊天分页修复 + CHANGELOG/package.json 发布提交），tag `v0.3.0`+`v0.3.1` 均已推 origin，历史提交全部推送，工作树干净。
 
 ---
 
@@ -278,6 +286,7 @@
 - **M7 规划定稿**：`D:\Tencent\app\tasks\plan-m7.md`（范围 A 技术债清算，已收官 ✅ 人工终审 2026-08-30 23:32；🔴 M7.1 修正：metrics-core.dayOfCST 已 +8 勿补）
 - **M8 规划定稿 + 部分落地**：`D:\Tencent\app\tasks\plan-m8.md`（上线就绪 = 资质主体/隐私文案/内容安全切换/复合索引，2026-08-30 启动规划，2026-08-30 23:41 已签字放行；M8.2/M8.4 已落地、M8.1 指引已出、M8.3 待资质门禁）
 - **M4.3 校准结论**：`D:\Tencent\app\tasks\threshold-calibration.md`（n=3 沿用初值 + 修正后的两个观察）
+- **性能优化方案与索引规格**：`D:\Tencent\app\tasks\perf-plan.md`（P0 索引规格表 + P1/P2/P3 + DevTools 计时复核协议 §10；P0 7 集合索引 2026-08-31 复核全绿）
 - **BUG 记录**：`D:\Tencent\app\BUG.md`（getOpenid ReferenceError 案例）
 - **验收记录**：`D:\Tencent\app\tasks\verification-log.md`（M2/M3/M4.1/M4.2/M4.3/M4.4/M4.4b/M4.4c 各章）
 - **M4.1 补测清单**：`D:\Tencent\app\tasks\m4.1-supplement-test.md`
@@ -356,13 +365,14 @@
 4. **隐含约束（极易漏）**：云函数部署环境必须 = `love-app-server-d2fhg32320d65c12`；新集合仍需手动建在该环境；DevTools 加载 `dist/dev`；本环境纯 NoSQL，别提 PG/RLS/MySQL；改 `growth-core.js` 后必须 `npm run sync:core` 再部署。
 5. **信息不足时优先问**：① M7 是否已签字放行（plan-m7.md 范围 A 待签字）？② 老对回填是否要做（M7.3 默认不回填，n=3/0 自然用户）？③ invite.js 若发现被引用是否保留（M7.2 默认孤儿则删）？④ 账号主体与社交类目资质现状（决定冷启动线 M8 何时启动）？
 6. **动手前必读**：`spec/SPEC.md` → `tasks/plan.md` → `tasks/todo.md` → `tasks/plan-m4.md` → 本文件「盲区防护」与「已尝试但失败/放弃的方案」→ `.workbuddy/memory/` 最近几天记录。
+7. **性能/聊天相关问题（2026-08-31 已做，勿重做）**：性能 P0–P3 + 聊天标准分页修复已落地并发布 v0.3.1。若用户报相关 bug，先核实云端 `chat` 云函数是否已部署最新（`list` 现支持 `since` 增量 + `before` 历史游标 + `hasMore`），否则旧 list 不识 `before` 致历史翻页失效（前端不崩但翻不动）。DevTools 计时复核用 `wx.setStorageSync('__perf_on', true)` 开埋点（**Console 只有 `wx` 全局，没有 `uni`**）。P0 索引 7 集合已建并复核全绿，索引问题一般已闭合。
 
 ---
 
 # 极简版
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
-- **现状**：M0/M1/M2/M3/M4 全部完成；**M5 全收官 ✅（2026-08-30 21:40 人工终审通过）**：M5.1–M5.4 落地部署、验收 PASS（SC5 rate=100%、双计修复实证、admins 已建）、回灌评估 #2 维持初值。**M6 全收官 ✅（2026-08-30 22:29 真机验收通过 + 人工终审）：M6.1–M6.4 落地部署 + 真机验收 PASS（管理员处置闭环 + SC5 真机有数 + 403/幂等补验通过）；冷启动准备/技术债留 M7**。**M7 全收官 ✅（2026-08-30 23:32 人工终审用户签字通过：M7.1 时区 +8 修复部署 Active+云端代码核验、M7.2 invite.js 删+build 通过、M7.3 老对不回填决策）。M8 已签字放行（2026-08-30 23:41）：M8.2 隐私文案 ✅ 已落地、M8.4 复合索引 ✅ 已建、M8.1 资质指引 ✅ 已出、M8.3 🔻 降级·维持 false（强依赖 M8.1 资质，延后 flip）**；**🔻 2026-08-31 M8.1 降级：资质申请中，v1 走受限邀请原型验证不公开上架**。`metrics-core.dayOfCST` 已 +8，**M7.1 只改 growth-core（未再补 +8）**；收官/灰度上线（受限邀请原型）就绪：`tasks/launch-readiness.md` —— 7 函数 Active + build DONE + safety 线上 USE_WX_SECURITY=false 实证（已由 O1 改为读 server_config.launch.useWxSecurity，控制台翻开关免重部署）。 优化（O1/O4/O5 已落地）：隐私版本强制重同意、上架 Playbook `tasks/launch-playbook.md`；O2 已落地（imgSecCheck 同步内联，免回调）/O6 分享留未来。
+- **现状**：M0/M1/M2/M3/M4 全部完成；**M5 全收官 ✅（2026-08-30 21:40 人工终审通过）**：M5.1–M5.4 落地部署、验收 PASS（SC5 rate=100%、双计修复实证、admins 已建）、回灌评估 #2 维持初值。**M6 全收官 ✅（2026-08-30 22:29 真机验收通过 + 人工终审）：M6.1–M6.4 落地部署 + 真机验收 PASS（管理员处置闭环 + SC5 真机有数 + 403/幂等补验通过）；冷启动准备/技术债留 M7**。**M7 全收官 ✅（2026-08-30 23:32 人工终审用户签字通过：M7.1 时区 +8 修复部署 Active+云端代码核验、M7.2 invite.js 删+build 通过、M7.3 老对不回填决策）。M8 已签字放行（2026-08-30 23:41）：M8.2 隐私文案 ✅ 已落地、M8.4 复合索引 ✅ 已建、M8.1 资质指引 ✅ 已出、M8.3 🔻 降级·维持 false（强依赖 M8.1 资质，延后 flip）**；**🔻 2026-08-31 M8.1 降级：资质申请中，v1 走受限邀请原型验证不公开上架**。`metrics-core.dayOfCST` 已 +8，**M7.1 只改 growth-core（未再补 +8）**；收官/灰度上线（受限邀请原型）就绪：`tasks/launch-readiness.md` —— 7 函数 Active + build DONE + safety 线上 USE_WX_SECURITY=false 实证（已由 O1 改为读 server_config.launch.useWxSecurity，控制台翻开关免重部署）。 优化（O1/O4/O5 已落地）：隐私版本强制重同意、上架 Playbook `tasks/launch-playbook.md`；O2 已落地（imgSecCheck 同步内联，免回调）/O6 分享留未来。**2026-08-31 追加：性能优化 P0–P3 全落地（7 集合索引已建并复核全绿）+ 聊天分页修复（标准分页·去重防并发）；DevTools 计时埋点已加（`wx.setStorageSync('__perf_on', true)` 开启）；M3 验收通过，发布 v0.3.1（HEAD=`d606009`，tag 已推 origin）。**
 - **Git**：远程 `main` 已对齐本地（2026-08-30 实测 `c341247`，M7 规划定稿），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。

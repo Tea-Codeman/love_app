@@ -14,7 +14,7 @@ v1 已具备「受限邀请原型验证」上线就绪条件：
 | 隐私正式文案 | ✅ 已上线 | M8.2 重写 `privacy.vue`（七节合规字段），门禁链路不变 |
 | 复合索引 | ✅ ready | M8.4 建 reports `status_createdAt` + events `eventName_day`/`pairId_day` |
 | 内容安全 | 🔻 降级 false | 云端 `safety` 第 23 行 `USE_WX_SECURITY=false`（下载代码 grep 实证），走本地关键词兜底 |
-| 账号资质 | 🔻 延后 | 个人账号 · 不公开上架；走 T2 分享卡片受限邀请（M8.1 降级） |
+| 账号资质 | 🔻 延后 | 个人账号 · 不公开上架；受限邀请 = 预览二维码小圈子分发（配对走 match，不经分享；`?inviter=` 分享裂变冻结至 M8.1 达标） |
 
 ## 1. 交付说明（M0–M8 已完成项）
 
@@ -30,7 +30,7 @@ v1 已具备「受限邀请原型验证」上线就绪条件：
 - [x] **Build**：`build:mp-weixin` DONE，DevTools 加载 `dist/build/mp-weixin` 可运行。
 - [x] **Privacy**：隐私页正式文案 + 授权门禁（未同意 `reLaunch` 到 privacy 页）齐备。
 - [x] **Index**：reports/events 复合索引 ready，支撑管理员处置与看板聚合。
-- [x] **受限准入**：个人账号**不公开上架** + T2 分享卡片（`?inviter=` 绑定，见 `App.vue:39-40` 存 pendingInviter、`auth.js:11-19` 注册时上报并清除）= 受限邀请驱动。无需新增代码。
+- [x] **受限准入**：个人账号**不公开上架** + 预览二维码小圈子分发（配对走 `match.recommend`/`accept`，不经微信分享）；`?inviter=` 分享裂变因个人账号禁转发 + 前端 `invite.js` 已删而冻结，待 M8.1 资质就绪恢复（`App.vue:39-40` + `auth.js:11-19` 归因代码仍在，仅入口缺）。
 - [x] **Content safety**：降级 `false` 本地兜底（已知限制，非阻塞原型）。
 
 ## 3. 已知限制（延后项）
@@ -57,7 +57,7 @@ v1 已具备「受限邀请原型验证」上线就绪条件：
 ## 6. 收官核验记录（LA.1 / LA.2）
 
 - **LA.1 终态部署核验**：`build:mp-weixin` EXIT=0；下载云端 `safety` 代码包归一化 grep `USE_WX_SECURITY` → 第 23 行 `const USE_WX_SECURITY = false`（249/254 行走本地兜底分支），实证降级态为线上真实态；7 云函数 = M7.1 部署态（M8 未改云函数源码，仅前端隐私文案 + DB 索引）。
-- **LA.2 主链路 + 受限邀请 gate**：主链路 社区→游戏破冰→关系升温→加微信导流 接线完整（M0–M7 真机验收 PASS）；受限邀请 = 不公开上架 + T2 分享卡片（`?inviter=` 绑定，`App.vue:39-40` + `auth.js:11-19`），为唯一受限准入路径，无需新增代码。
+- **LA.2 主链路 + 受限邀请 gate**：主链路 社区→游戏破冰→关系升温→加微信导流 接线完整（M0–M7 真机验收 PASS）；受限准入 = 不公开上架 + 预览二维码小圈子分发（配对走 `match.recommend`/`accept`，不经分享）；`?inviter=` 分享裂变因个人账号禁转发 + 前端 `invite.js` 已删而冻结，待 M8.1 达标恢复（归因代码 `App.vue:39-40` + `auth.js:11-19` 仍在）。
 
 ---
 

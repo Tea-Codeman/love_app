@@ -614,3 +614,18 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 2. 非管理员：settings 无入口；深链 admin 页被守卫 toast 拦截
 3. 重复处置：alreadyHandled 提示 + 按钮禁用；服务端 403 双向印证
 4. reports 现 2 条 pending 可作验收样本
+
+---
+
+## M6 真机验收（2026-08-30 22:29，用户确认「M6验收完成」）
+
+| 验收项 | 结果 |
+|---|---|
+| 管理员处置闭环 | ✅ 管理员账号真机：设置页见「管理后台」→ 处置/驳回 1 条 pending → `reports.status` 变 handled/dismissed + `handledAt` 落库 |
+| 非管理员守卫 | ✅ 设置页无入口；深链 admin 页被 isAdmin 守卫 toast 拦截 |
+| 403 / 幂等补验 | ✅ 重复处置 alreadyHandled 提示 + 按钮禁用；服务端 403 双向印证（闭合 M5 遗留路径） |
+| dashboard SC5 | ✅ 处置后 SC5 出真实 rate（M5.3 消费侧 + M6.3 处置侧真机闭合） |
+| community 开关 | ✅ config.js 已提交 true（M6.4），入口已开启 |
+
+**结论**：Checkpoint M6 全项通过（todo.md 已勾选 + 任务卡标注验收通过）。M5 遗留的 403/alreadyHandled 真机补验闭环。M6 全收官。
+**下一步**：规划 M7（候选：冷启动准备 = 账号主体+社交类目资质指引 / 隐私正式文案 / 内容安全切换 / 复合索引；技术债 = UTC 时区/streak 修复 / 删 invite.js / 老对全量回填），范围待用户拍板（同 M5/M6 流程）。

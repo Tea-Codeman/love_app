@@ -393,7 +393,7 @@
 > 规划：`tasks/plan-m6.md`（2026-08-30 范围已拍板：A 收 M5 尾 / isAdmin 走云函数动作 / community 提交 true）。**待签字放行，不写实现代码。**
 > 冷启动准备（资质/类目/隐私/索引）与技术债（时区/streak、死代码、老对回填）整线延后，留 M7。
 
-### Task M6.1: safety.isAdmin 动作 ✅ 已落地（待真机验收）
+### Task M6.1: safety.isAdmin 动作 ✅ 已落地（真机验收通过）
 
 **Description:** `safety` 加 `isAdmin` action：查 `admins` 集合 by `OPENID` → `{isAdmin: boolean}`；非登录 401；纯读不改。
 **Acceptance criteria:** 管理员 openid 返 true；非管理员返 false；无 openid 返 401。
@@ -401,7 +401,7 @@
 **Files likely touched:** `cloudfunctions/safety/index.js`
 **Estimated scope:** S
 
-### Task M6.2: 前端管理员判定 + 路由守卫 ✅ 已落地（待真机验收）
+### Task M6.2: 前端管理员判定 + 路由守卫 ✅ 已落地（真机验收通过）
 
 **Description:** 新增 `src/utils/admin.js` 封装 `isCurrentUserAdmin()`（调 isAdmin，会话内缓存）；`pages/settings/settings.vue` 加「管理后台」入口，仅 isAdmin 可见。
 **Acceptance criteria:** 管理员 settings 页见入口；非管理员不见；深链 admin 页被守卫拦截。
@@ -409,7 +409,7 @@
 **Files likely touched:** `src/utils/admin.js`, `src/pages/settings/settings.vue`
 **Estimated scope:** S
 
-### Task M6.3: 管理员处置页 ✅ 已落地（待真机验收）
+### Task M6.3: 管理员处置页 ✅ 已落地（真机验收通过）
 
 **Description:** 新增 `pages/admin/reports.vue` + 注册 `pages.json`：pending 列表（targetType/举报人/时间）+ 处置/驳回按钮 → 调 `handleReport`；已处置 tab；重复处置禁用 + alreadyHandled 提示；进入即 isAdmin 守卫。
 **Acceptance criteria:** 管理员可见 pending 并处置 → reports.status 变更 + handledAt；SC5 出 rate；非管理员不可进；幂等可验。
@@ -427,11 +427,11 @@
 
 ### Checkpoint M6（管理员闭环 + SC5 真机有数）
 
-- [ ] 管理员页可见 pending 并能处置（handled/dismissed），reports.status + handledAt 落库
-- [ ] 非管理员进不去处置界面（前端守卫 + 服务端 403）
-- [ ] dashboard SC5 出真实 rate（闭合 M5 遗留 403/幂等真机补验）
+- [x] 管理员页可见 pending 并能处置（handled/dismissed），reports.status + handledAt 落库（真机验收通过）
+- [x] 非管理员进不去处置界面（前端守卫 + 服务端 403）（真机验收通过）
+- [x] dashboard SC5 出真实 rate（闭合 M5 遗留 403/幂等真机补验）（真机验收通过）
 - [x] config.js 提交 community=true + HANDOFF 同步（M6.4 已落地）
-- [ ] 人工终审 → 下一阶段（M7：上线就绪 / 技术债）
+- [x] 人工终审通过（2026-08-30 22:29 用户确认）→ 下一阶段 M7 规划
 
 ---
 

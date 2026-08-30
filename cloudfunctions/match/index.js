@@ -204,11 +204,16 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   const matched = await getMatchedOpenids(OPENID)
 
   // 冷启期：拉取候选用户（排除自己/已拉黑/已匹配），客户端排序取前 N
+  // P2（方案 X）：去掉 _.neq(OPENID) 全表扫描，改用 createdAt 游标走 users.createdAt 索引。
+  // 首页 cursor 默认当前时间，取 createdAt 最新的 100 个候选；命中 P0 的 users {createdAt:-1} 索引，
+  // v1 用户量小，单页 100 即够，不做客户端翻页。自己/已拉黑/已匹配在下方内存过滤补回。
   let candidates = []
   try {
+    const cursor = Number(event.cursor) || Date.now()
     const r = await db.collection(USERS_COL)
-      .where({ openid: _.neq(OPENID) })
+      .where({ createdAt: _.lt(new Date(cursor)) })
       .field({ openid: true, nickname: true, avatarUrl: true, gender: true, age: true, city: true, interestTags: true, mbti: true })
+      .orderBy('createdAt', 'desc')
       .limit(100)
       .get()
     candidates = r.data || []
@@ -221,7 +226,7 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   }
 
   let list = candidates
-    .filter(u => u.openid && !blocked.includes(u.openid) && !matched.has(u.openid))
+    .filter(u => u.openid && u.openid !== OPENID && !blocked.includes(u.openid) && !matched.has(u.openid))
     .map(u => {
       const s = scoreCandidate(me, u)
       return {

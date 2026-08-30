@@ -589,3 +589,28 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 | 403 / alreadyHandled | ⚠️ 未走真实登录态端到端（无管理员 UI；MCP 直调无 openid，只能验到 401）。逻辑经代码审查覆盖，待管理员 UI 上线后真机补验 |
 
 **结论**：Checkpoint M5 技术项全部有据可查，SC1–SC5 全有数。剩人工终审；建议 M6 规划管理员 UI（pending 列表 + 处置按钮），顺带补验 403/幂等路径。
+
+---
+
+## M6 落地记录（2026-08-30 22:18，Agent 执行，用户签字放行）
+
+| 项 | 结果 |
+|---|---|
+| 语法校验 | `node --check cloudfunctions/safety/index.js` PASS |
+| 生产构建 | `npm run build:mp-weixin` DONE（首编因 settings.vue 脚本块重复 `methods:` 报错，已修） |
+| safety 部署 | updateFunctionCode 受理 → getFunctionDetail `Status=Active`（ModTime 22:18:44），CodeInfo 含 `isAdminAction`/`listReports` |
+| isAdmin 冒烟 | MCP invoke `action=isAdmin` → `401 未登录`（无登录态守卫生效，动作已接线非 unknown） |
+| listReports 冒烟 | MCP invoke `action=listReports` → `401 未登录`（同上） |
+| 提交 | `878ad10`(safety isAdmin+listReports) → `d4cd6b2`(admin 前端) → `9ce5c71`(config community=true)，原子分提 |
+
+### 交付内容
+- M6.1 `safety.isAdmin`：查 admins 集合 by OPENID → {isAdmin}，未登录 401；纯读
+- M6.2 `src/utils/admin.js` `isCurrentUserAdmin()`（会话缓存，未登录/网络错误不缓存）+ settings.vue「管理后台」条件入口
+- M6.3 `safety.listReports`（管理员鉴权 + join users 取举报人昵称）+ `pages/admin/reports.vue`（pending/已处置 tab、处置/驳回、幂等禁用、isAdmin 深链守卫）+ pages.json 注册
+- M6.4 `config.js` community 正式提交 true（注释同步「已开启」）
+
+### 待真机验收（Checkpoint M6，MCP 无登录态无法走 happy path）
+1. 管理员账号：设置页见「管理后台」→ 处置 1 条 pending → reports.status 变 handled/handledAt 落库 → dashboard SC5 出 rate
+2. 非管理员：settings 无入口；深链 admin 页被守卫 toast 拦截
+3. 重复处置：alreadyHandled 提示 + 按钮禁用；服务端 403 双向印证
+4. reports 现 2 条 pending 可作验收样本

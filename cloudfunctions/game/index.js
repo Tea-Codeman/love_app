@@ -108,7 +108,15 @@ async function joinGame({ gameId } = {}, OPENID) {
       questions
     }
   })
-  const updated = await db.collection(GAMES_COL).doc(gameId).get()
+  // P3：update 后不再回读同 doc，直接用内存已构造的 updated 返回（省 1 次读）。
+  // updated = g.data + 本次 update 的字段，与落库后结果一致。
+  const updated = Object.assign({}, g.data, {
+    players: [g.data.createdBy, OPENID],
+    state: 'playing',
+    round: 1,
+    totalRounds: questions.length,
+    questions
+  })
 
   // M4.1：`game_join`（漏斗：邀请 → 加入的流失点）。埋点失败静默，不影响加入。
   metrics.track(metricsCtx, {
@@ -117,7 +125,7 @@ async function joinGame({ gameId } = {}, OPENID) {
     pairId: core.pairKeyOf(g.data.createdBy, OPENID)
   }).catch(() => {})
 
-  return { code: 0, data: { game: updated.data } }
+  return { code: 0, data: { game: updated } }
 }
 
 async function getGame({ gameId } = {}, OPENID) {
@@ -154,8 +162,8 @@ async function submitAnswer({ gameId, optionIndex, round } = {}, OPENID) {
   if (prev !== undefined) {
     // 幂等：重复提交（如网络重试）直接放行；作答不同才报错
     if (prev === optionIndex) {
-      const same = await db.collection(GAMES_COL).doc(gameId).get()
-      return { code: 0, data: { game: same.data } }
+      // P3：重复提交（答案未变），game 即当前已读文档，无需回读直接返回
+      return { code: 0, data: { game } }
     }
     return { code: 400, message: '本题已作答' }
   }
@@ -238,8 +246,10 @@ async function submitAnswer({ gameId, optionIndex, round } = {}, OPENID) {
     }
   }
 
-  const updated = await db.collection(GAMES_COL).doc(gameId).get()
-  return { code: 0, data: { game: updated.data } }
+  // P3：update 后不再回读同 doc，直接用内存已构造的 updated 返回（省 1 次读/答案）。
+  // updated = game（提交前文档）+ 本次 update 的 answers/state/tacitCount/roundResults，与落库后一致。
+  const updated = Object.assign({}, game, { answers, state, tacitCount, roundResults })
+  return { code: 0, data: { game: updated } }
 }
 
 async function cancelGame({ gameId } = {}, OPENID) {

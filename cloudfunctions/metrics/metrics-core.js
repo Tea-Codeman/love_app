@@ -65,8 +65,8 @@ const RATE_MAX_PER_WINDOW = 30
 const _rate = new Map()
 
 // 日期（Asia/Shanghai，UTC+8）冗余字段，按天聚合免计算。
-// ⚠️ growth-core.js 的 dayOf() 目前仍是 UTC（云函数默认时区），会在 M4 内一并改齐；
-//    在此之前本文件的 day 与 pairs.lastStreakDay 可能相差一天，M4.2 看板只按本字段聚合，不受影响。
+// 与 growth-core.js 的 dayOf()/isoWeekOf() 同为北京日口径（M7.1 已统一为 ts+8h + getUTC*），
+// events.day 与 pairs.lastStreakDay 现在一致，SC2 日窗口不再错位。
 function dayOfCST(ts) {
   const d = new Date((Number(ts) || Date.now()) + 8 * 3600 * 1000)
   const p = (n) => String(n).padStart(2, '0')

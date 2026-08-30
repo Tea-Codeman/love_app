@@ -57,20 +57,26 @@ function stageOf(growthValue) {
   return 'S0'
 }
 
-function dayOf(ts) {
-  const d = new Date(Number(ts) || Date.now())
-  const p = n => String(n).padStart(2, '0')
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+// 北京日（UTC+8）。云函数运行时默认 UTC，getDate()/getDay() 取的是 UTC 日期 ——
+// 北京时间 08:00 前的活跃会被记到前一天，导致 streak 跨日错位。统一 ts+8h 后取 UTC 字段。
+function shanghaiDate(ts) {
+  return new Date((Number(ts) || Date.now()) + 8 * 3600 * 1000)
 }
 
-// ISO 周标识（周一为一周之始），用于周上限清零
+function dayOf(ts) {
+  const d = shanghaiDate(ts)
+  const p = n => String(n).padStart(2, '0')
+  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate())
+}
+
+// ISO 周标识（周一为一周之始），用于周上限清零。同样按北京日计算。
 function isoWeekOf(ts) {
-  const d = new Date(Number(ts) || Date.now())
-  const day = d.getDay() || 7          // 周日=7
-  d.setDate(d.getDate() + 4 - day)     // 移到本周周四
-  const yearStart = new Date(d.getFullYear(), 0, 1)
+  const d = shanghaiDate(ts)
+  const day = d.getUTCDay() || 7          // 周日=7
+  d.setUTCDate(d.getUTCDate() + 4 - day)  // 移到本周周四
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
   const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
-  return d.getFullYear() + '-W' + week
+  return d.getUTCFullYear() + '-W' + week
 }
 
 // 阶段一律读时派生：覆盖掉可能已漂移的 pairs.stage 缓存（BUG-2）

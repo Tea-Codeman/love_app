@@ -207,14 +207,18 @@ async function send({ peerId, content, type = 'text' } = {}, OPENID) {
   }
 }
 
-async function list({ peerId, limit = 50 } = {}, OPENID) {
+async function list({ peerId, limit = 50, since = 0 } = {}, OPENID) {
   if (!OPENID) return { code: 401, message: '未登录' }
   if (!peerId) return { code: 400, message: '缺少 peerId' }
   const n = Math.min(200, Math.max(1, Number(limit) || 50))
   const pairKey = pairKeyOf(OPENID, peerId)
   try {
+    // 增量拉取：since > 0 时仅返回 createdAt 严格大于 since 的消息（轮询去重靠 _.gt，不会重复末条）。
+    // 命中 {pairKey, createdAt} 复合索引（P0）；无 since 时退回全量，兼容首屏。
+    const where = { pairKey }
+    if (since) where.createdAt = _.gt(Number(since))
     const r = await db.collection(MESSAGES_COL)
-      .where({ pairKey })
+      .where(where)
       .orderBy('createdAt', 'desc')
       .limit(n)
       .get()

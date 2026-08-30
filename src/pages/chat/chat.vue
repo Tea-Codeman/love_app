@@ -63,7 +63,8 @@ export default {
       draft: '',
       sending: false,
       timer: null,
-      anchor: ''
+      anchor: '',
+      lastCreatedAt: 0
     }
   },
   computed: {
@@ -98,6 +99,8 @@ export default {
   onUnload() { this.stopPolling() },
   methods: {
     async refresh() {
+      // 重新进入页面（onShow）时整页刷新：游标归零，loadMessages 走服务端全量
+      this.lastCreatedAt = 0
       await Promise.all([this.loadPair(), this.loadMessages()])
     },
     // 关系状态：阶段由 growthValue 派生，门禁以前端计算为准、服务端再兜一次
@@ -106,13 +109,25 @@ export default {
       if (r.ok && r.data && r.data.pair) this.growthValue = Number(r.data.pair.growthValue) || 0
     },
     async loadMessages() {
-      const r = await callFunction('chat', { action: 'list', peerId: this.peerId, limit: 50 })
+      const since = this.lastCreatedAt
+      const r = await callFunction('chat', { action: 'list', peerId: this.peerId, limit: 50, since })
       if (!r.ok) {
         if (r.code === 500) uni.showToast({ title: r.message, icon: 'none' })
         return
       }
-      this.messages = (r.data && r.data.messages) || []
-      this.scrollToBottom()
+      const incoming = (r.data && r.data.messages) || []
+      if (since <= 0) {
+        // 首屏 / 重新进入：全量替换（服务端 since<=0 时返回全部）
+        this.messages = incoming
+      } else if (incoming.length) {
+        // 轮询增量：仅追加新消息（服务端用 _.gt(lastCreatedAt) 去重，不重复末条）
+        this.messages = this.messages.concat(incoming)
+      }
+      // 推进游标：取当前已知最新一条的 createdAt（incoming 已按 createdAt 升序）
+      const latest = incoming.length ? incoming[incoming.length - 1] : this.messages[this.messages.length - 1]
+      if (latest) this.lastCreatedAt = latest.createdAt
+      // 仅首屏或本次确有新消息时才自动滚到底（避免轮询空拉时抢走滚动位置）
+      if (since <= 0 || incoming.length) this.scrollToBottom()
     },
     scrollToBottom() {
       const last = this.messages[this.messages.length - 1]
@@ -125,7 +140,7 @@ export default {
       this.timer = setInterval(() => {
         if (!this.openid || !this.unlocked) return
         this.loadMessages()
-      }, 3000)
+      }, 1500)
     },
     stopPolling() {
       if (this.timer) {

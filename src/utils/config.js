@@ -5,10 +5,10 @@
 // （路由保留，深链接/扫码仍可直达，便于内部测试与将来一键恢复）。
 //
 // 当前状态：
-// - community：已搁置（个人主体 + 社交类目资质未就绪；分享能力被封禁）。
-//   关联说明见 HANDOFF.md「社区搁置决策」：隐藏后全应用将无拉黑入口，
-//   而 match.recommend 仍依赖 blocks 过滤（已有黑名单生效，但无法新增）。
+// - community：已开启（true）。M6.4 正式提交（2026-08-30，原为用户真机测试所改）。
+//   说明：个人主体 + 社交类目资质尚未就绪，仅 DevTools 可跑；正式上架前需先过资质（M7）。
+//   关联：开启后社区入口可见、拉黑入口可用；match.recommend 仍依赖 blocks 过滤（已有黑名单生效）。
 
 export const FEATURES = {
-  community: false
+  community: true
 }

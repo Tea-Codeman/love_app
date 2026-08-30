@@ -22,15 +22,19 @@ function handleNewInvite(inv) {
   })
 }
 
+// M5.4（plan-m5.md 决策 4）：app_open 冷启动双计修复。
+// 小程序冷启动会依次触发 onLaunch + onShow，此前各报一次 app_open（毫秒级成对）。
+// 方案：onLaunch 报后置标记，紧随的首次 onShow 跳过一次上报；之后每次切前台正常报。
+let coldLaunching = false
+
 export default {
   onLaunch: function (options) {
     console.log('[app] onLaunch')
     initCloud()
     // M4.1：`app_open` —— 未来 DAU/启动分析的数据源。
     // 注意：现行 dashboard 的 SC1–SC5 均不消费 app_open（SC2 为 pair 维度 D7 互动留存，见 metrics/index.js）。
-    // 已知特性：冷启动时 onLaunch 与 onShow 各报一次（毫秒级成对）。
-    // 做 DAU 分析务必按 (userId, day) 去重即可消除；仅「启动/会话次数」类指标会双计。
     track('app_open')
+    coldLaunching = true   // 冷启动标记：下一次 onShow 是 launch 配对事件，跳过上报
     // 邀请裂变（T2）：从分享链接进入时记录邀请人，登录时归因
     if (options && options.query && options.query.inviter) {
       setPendingInviter(options.query.inviter)
@@ -47,8 +51,11 @@ export default {
   },
   onShow: function () {
     console.log('[app] onShow')
-    // 切前台也上报（与 onLaunch 合计为启动口径；DAU 分析按 (userId, day) 去重）
-    track('app_open')
+    if (coldLaunching) {
+      coldLaunching = false   // 冷启动配对的 onShow，跳过本次上报（M5.4）
+    } else {
+      track('app_open')       // 切前台正常上报（与 onLaunch 合计为启动口径）
+    }
     // M4.4 全局邀请投递：登录态下启动应用级轮询，B 在任意页面都能收到 A 的确认邀请
     startInviteWatch(handleNewInvite)
   },

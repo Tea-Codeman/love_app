@@ -58,6 +58,7 @@
 
 <script>
 import { callFunction } from '../../utils/request'
+import { getOpenid } from '../../utils/storage'
 import growthBar from '../../components/growth-bar.vue'
 import { stageOf, stageInfo, reached } from '../../utils/growth'
 import {

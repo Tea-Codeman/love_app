@@ -26,6 +26,7 @@
         <text class="btn play" @click="onPlay(p)">一起玩</text>
         <text class="btn chat" v-if="reached(stageOf(p.growthValue), 'S1')" @click="onChat(p)">聊聊</text>
         <text class="btn contact" v-if="reached(stageOf(p.growthValue), 'S4')" @click="onContact(p)">联系方式</text>
+        <text class="btn confirm" v-if="canConfirm(p)" @click="onConfirm(p)">我们在一起了 🎉</text>
       </view>
     </view>
   </view>
@@ -93,6 +94,26 @@ export default {
       uni.navigateTo({
         url: '/pages/contact/contact?peerId=' + p.peerId + '&nickname=' + encodeURIComponent(p.peer.nickname || 'TA')
       })
+    },
+    // M4.4 SC4 自评入口：关系达 S1 且未确认时显示按钮
+    canConfirm(p) {
+      if (!p) return false
+      if ((p.milestones || []).some(m => String(m).indexOf('在一起') !== -1)) return false
+      return reached(stageOf(p.growthValue), 'S1')
+    },
+    async onConfirm(p) {
+      if (this.busy) return
+      this.busy = true
+      const r = await callFunction('growth', { action: 'confirmRelation', peerId: p.peerId })
+      this.busy = false
+      if (!r.ok) {
+        uni.showToast({ title: r.message || '操作失败', icon: 'none' })
+        return
+      }
+      uni.showToast({ title: '已记录 🎉', icon: 'none' })
+      // 本地即时反映里程碑 chip，免去一次刷新（云端已落库，下次 onShow 会拉全量）
+      const pair = (this.pairs || []).find(x => x._id === p._id)
+      if (pair) pair.milestones = (pair.milestones || []).concat('在一起 🎉')
     }
   }
 }
@@ -139,5 +160,6 @@ export default {
 }
 .btn.chat { background: #FFB199; }
 .btn.contact { background: #7c5cff; }
+.btn.confirm { background: #FFD166; color: #7a5b00; }
 .empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
 </style>

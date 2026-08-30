@@ -103,6 +103,20 @@ async function addGrowth({ peerId, delta, reason, skipStreak } = {}, OPENID) {
   return res
 }
 
+// M4.4 SC4 自评入口：关系主页「我们在一起了 🎉」→ 写 pair.milestones + 上报 relation_confirmed。
+// 幂等由 core.confirmRelation 保证（同 pair 只写一次），本函数仅在本写入成功时上报一次。
+async function confirmRelation({ peerId } = {}, OPENID) {
+  const res = await core.confirmRelation(ctx, { openid: OPENID, peerId })
+  if (res.code === 0 && res.data && res.data.confirmed) {
+    metrics.track(metricsCtx, {
+      openid: OPENID,
+      eventName: 'relation_confirmed',
+      pairId: pairKeyOf(OPENID, peerId)
+    }).catch(() => {})
+  }
+  return res
+}
+
 exports.main = async (event = {}) => {
   const action = event.action
   const OPENID = cloud.getWXContext().OPENID
@@ -110,6 +124,7 @@ exports.main = async (event = {}) => {
     if (action === 'getPair') return await getPair(event, OPENID)
     if (action === 'listPairs') return await listPairs(event, OPENID)
     if (action === 'addGrowth') return await addGrowth(event, OPENID)
+    if (action === 'confirmRelation') return await confirmRelation(event, OPENID)
     return { code: 404, message: 'unknown action: ' + action }
   } catch (e) {
     const msg = (e && e.message) || 'growth error'

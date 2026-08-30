@@ -38,6 +38,9 @@ const CHAT_GROWTH = 2   // 一轮有效互聊
 // 单次增量硬上限（防刷）
 const MAX_SINGLE_DELTA = 100
 
+// M4.4 SC4 自评里程碑标记（写入 pair.milestones，用于幂等判重）
+const RELATION_CONFIRMED_MILESTONE = '在一起 🎉'
+
 function pairKeyOf(a, b) {
   return [String(a), String(b)].sort().join('|')
 }
@@ -197,6 +200,42 @@ async function addGrowth(ctx, opts = {}) {
   }
 }
 
+// ───────────────────────── M4.4 SC4 关系确认自评 ─────────────────────────
+// 关系主页「我们在一起了 🎉」入口：记录一对用户确认在一起。
+// 幂等：以 pair.milestones 是否含 RELATION_CONFIRMED_MILESTONE 判重，
+//       重复点击不重复写 milestones、不重复上报（上报由调用方在 confirmed=true 时触发一次）。
+async function confirmRelation(ctx, opts = {}) {
+  const { db, _ } = ctx
+  const openid = opts.openid
+  const peerId = opts.peerId
+
+  // BUG-1 护栏：必须有端用户身份，否则宁可响亮失败也不写幽灵 pair
+  if (!openid) return { code: 401, message: '缺少 openid：confirmRelation 必须在持有端用户身份的进程内执行（禁用跨函数调用）' }
+  if (!peerId) return { code: 400, message: '缺少 peerId' }
+  if (String(peerId) === 'undefined') return { code: 400, message: 'peerId 非法' }
+
+  const pair = await ensurePair(ctx, openid, peerId)
+  const milestones = Array.isArray(pair.milestones) ? pair.milestones : []
+  if (milestones.indexOf(RELATION_CONFIRMED_MILESTONE) !== -1) {
+    // 已确认过：幂等返回，不写、不上报
+    return { code: 0, data: { alreadyConfirmed: true, confirmed: false, pair: withStage(pair) } }
+  }
+
+  const now = Date.now()
+  await db.collection(PAIRS_COL).doc(pair._id).update({
+    data: {
+      milestones: _.push(RELATION_CONFIRMED_MILESTONE),
+      confirmedAt: now,
+      updatedAt: now
+    }
+  })
+  const updated = await db.collection(PAIRS_COL).doc(pair._id).get()
+  return {
+    code: 0,
+    data: { alreadyConfirmed: false, confirmed: true, pair: withStage(updated.data) }
+  }
+}
+
 module.exports = {
   PAIRS_COL,
   STAGE_THRESHOLDS,
@@ -214,5 +253,7 @@ module.exports = {
   streakDeltaFor,
   readPair,
   ensurePair,
-  addGrowth
+  addGrowth,
+  confirmRelation,
+  RELATION_CONFIRMED_MILESTONE
 }

@@ -658,4 +658,36 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 - [x] 7 云函数部署 Active + 前端构建通过
 - [ ] 人工终审 → 下一阶段（M8：上线就绪 / 或收官）
 
+## M8 上线就绪 ✅ 部分落地（2026-08-30 23:41，用户签字放行）
+
+### M8.1 资质主体 + 社交类目（用户侧门禁 · Agent 指引已出）
+- **Agent 出指引**：`tasks/m8-account-guide.md` 已写微信公众平台操作清单（主体升级企业/个体工商户 + 微信认证、社交→婚恋交友类目资质、内容安全 `msgSecCheck` 接口权限），含达标判定回填框 + Agent 侧核验 msgSecCheck 非 48001 步骤。
+- **降级方案**：若暂无法升级主体，维持 `USE_WX_SECURITY=false`（本地关键词兜底），v1 受限邀请运行不公开上架；不阻塞 M8.2/M8.4，仅阻塞 M8.3。
+- **状态**：用户侧三项待办（未达标），M8.3 门禁未解除。
+
+### M8.2 隐私政策正式文案 ✅ 已落地
+- **改写**：`src/pages/privacy/privacy.vue` 占位一句话 → 正式合规文案（生效日期 2026-08-30；七节：收集信息及用途 / 存储与地理位置 / 信息共享 / 用户权利 / 未成年人保护 / 联系方式 / 政策更新）。
+- **覆盖字段**（对齐 SPEC §9 + M8.2 清单）：openid（登录标识）、昵称/头像/性别/年龄/兴趣标签（资料展示）、微信号与二维码（仅 S4 且主动确认导出）、互动行为、消息正文（先审后发）、埋点事件（仅 ID/枚举/数值，无 PII）；存储于 CloudBase 境内节点；第三方仅微信云开发基础设施 + 微信内容安全审核；用户权利含查阅更正/撤回同意（清 `rg_privacy_agreed`）/注销；运营方邮箱占位 `loveapp-privacy@example.com`（上线前替换真实邮箱）。
+- **门禁链路不动**：`App.vue` 未同意 `reLaunch` 到 privacy + `storage.setPrivacyAgreed` 路由/存储逻辑未改，仅换正文。
+- **构建验证**：`npm run build:mp-weixin` → `DONE Build complete`（EXIT=0）；复查 `src/utils/` 完好（无 safe-delete 误清）。
+
+### M8.3 内容安全切换 🟡 待 M8.1 资质门禁
+- **强依赖**：个人/未认证主体调 `cloud.openapi.security.msgSecCheck` 报 `48001`，须 M8.1 主体+内容安全权限就绪后执行。
+- **待做**：flip `cloudfunctions/safety/index.js:23` `USE_WX_SECURITY=false`→`true`；部署 safety→Active；构造违规/正常文本经 `community`/`chat` 触发 `checkText` → 断言拒发/放行；`getFunctionDetail` 核验 CodeInfo 含 `USE_WX_SECURITY=true`。
+- **🟡 图像审核缺口（记录不实现）**：`safety.checkImage`/`wxCheckImage`（mediaCheckAsync）全仓无调用点（community/chat 仅调 `checkText`），M8.3 不接异步回调；待图像上传功能启用再补回调云函数。
+
+### M8.4 reports/events 复合索引 ✅ 已建
+- **路径**：CloudBase MCP `writeNoSqlDatabaseStructure`（`action=updateCollection` + `updateOptions.CreateIndexes`）。
+- **reports**：新增 `status_createdAt`（status 1 + createdAt -1）——支撑 `handleReport`/`listReports` 的 `where({status}).orderBy('createdAt','desc')` 管理员列表过滤+时间排序。
+- **events**：新增 `eventName_day`（eventName 1 + day 1）、`pairId_day`（pairId 1 + day 1）——支撑 dashboard 按 eventName/pairId 分组聚合 + 按天聚合。
+- **字段核对**：读样本确认 events 含 `day`/`eventName`/`pairId`、reports 含 `status`/`createdAt`（均存在）。
+- **复核**：`listIndexes` 两集合均显示新索引（Size 4096，无错误），状态 ready。
+
+### Checkpoint M8 验收汇总
+- [ ] 账号主体升级 + 社交类目资质达标（M8.1：Agent 指引已出，用户侧三项待办 + Agent 核验 msgSecCheck 非 48001）
+- [x] 隐私政策正式文案上线（M8.2，build 通过）
+- [ ] 内容安全切真审（M8.3，🔴 强依赖 M8.1 资质，不擅自 flip）
+- [x] reports/events 复合索引 ready（M8.4，MCP 已建 + listIndexes 复核）
+- [ ] 人工终审 → 下一阶段（收官 / 灰度上线）
+
 **下一步**：M7 待人工终审放行进 M8（冷启动准备：账号主体/社交类目资质、隐私正式文案、内容安全切换、复合索引；技术债已清零）。

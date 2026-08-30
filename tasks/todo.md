@@ -476,31 +476,31 @@
 
 ## M8：上线就绪（冷启动准备）
 
-> 规划：`tasks/plan-m8.md`（2026-08-30 范围已拍板：上线就绪 = 资质主体 / 隐私正式文案 / 内容安全切换 / 复合索引）。**已签字放行，待按 M8.1→M8.4 落地（M8.1 为资质门禁，用户侧先行）**。
+> 规划：`tasks/plan-m8.md`（2026-08-30 范围已拍板：上线就绪 = 资质主体 / 隐私正式文案 / 内容安全切换 / 复合索引）。**已签字放行（2026-08-30 23:41）**：M8.2 隐私文案 ✅ 已落地、M8.4 复合索引 ✅ 已建、M8.1 资质指引 ✅ 已出（用户侧待办·门禁）、M8.3 🟡 待 M8.1 资质（强依赖，不擅自 flip）。
 > 门禁依赖：M8.3 强依赖 M8.1（个人/未认证主体调 `msgSecCheck` 报 48001）；M8.2 / M8.4 可与 M8.1 并行。
 
-### Task M8.1: 账号主体升级 + 社交类目资质 ✅ 规划待放行（用户侧 gating）
+### Task M8.1: 账号主体升级 + 社交类目资质 ✅ 指引已出（用户侧待办 · M8.3 门禁）
 **Description:** Agent 出微信公众平台指引清单（主体升级企业/个体 + 社交类目 + 内容安全权限）；用户达标后 Agent 核验 `msgSecCheck` 非 48001。为 M8.3 前置门禁。
 **Acceptance criteria:** 三项达标 + Agent 侧试跑无 48001。
 **Dependencies:** 无（用户侧先行）
 **Files likely touched:** 文档（指引清单入 verification-log / HANDOFF）
 **Estimated scope:** S
 
-### Task M8.2: 隐私政策正式文案 ✅ 规划待放行（Agent 起草）
+### Task M8.2: 隐私政策正式文案 ✅ 已落地（build 通过）
 **Description:** 重写 `src/pages/privacy/privacy.vue` 占位为正式合规文案（收集项/目的/第三方/用户权利/更新机制）；门禁链路不动。
 **Acceptance criteria:** 字段齐 + 用户确认 + build 通过。
 **Dependencies:** 无
 **Files likely touched:** `src/pages/privacy/privacy.vue`
 **Estimated scope:** S
 
-### Task M8.3: 内容安全切换 USE_WX_SECURITY=true ✅ 规划待放行（M）
+### Task M8.3: 内容安全切换 USE_WX_SECURITY=true 🟡 待 M8.1 资质门禁（强依赖）
 **Description:** `cloudfunctions/safety/index.js:23` 置 true；验收 `msgSecCheck` 违规拒/正常放行。🟡 图像 `mediaCheckAsync` 异步回调无调用点，记为缺口不实现。
 **Acceptance criteria:** 部署 Active + CodeInfo 含 `USE_WX_SECURITY=true` + 文本真审验收。
 **Dependencies:** M8.1
 **Files likely touched:** `cloudfunctions/safety/index.js`
 **Estimated scope:** M
 
-### Task M8.4: reports/events 复合索引 ✅ 规划待放行（S）
+### Task M8.4: reports/events 复合索引 ✅ 已落地（ready）
 **Description:** CloudBase 建 reports(status/createdAt) + events(eventName,day)/(pairId,day) 索引。
 **Acceptance criteria:** 索引 ready + 查询命中。
 **Dependencies:** 无
@@ -508,10 +508,10 @@
 **Estimated scope:** S
 
 ### Checkpoint M8（上线就绪收尾）
-- [ ] 账号主体升级 + 社交类目资质达标（M8.1）
-- [ ] 隐私政策正式文案上线（M8.2）
-- [ ] 内容安全切真审（M8.3，USE_WX_SECURITY=true + 无 48001）
-- [ ] reports/events 复合索引 ready（M8.4）
+- [ ] 账号主体升级 + 社交类目资质达标（M8.1：Agent 指引已出 `tasks/m8-account-guide.md`，用户侧微信后台三项待办 + Agent 核验 msgSecCheck 非 48001）
+- [x] 隐私政策正式文案上线（M8.2，build 通过）
+- [ ] 内容安全切真审（M8.3，🔴 强依赖 M8.1 资质，不擅自 flip USE_WX_SECURITY）
+- [x] reports/events 复合索引 ready（M8.4，CloudBase MCP 已建 + listIndexes 复核）
 - [ ] 人工终审 → 下一阶段（收官 / 灰度上线）
 
 ---

@@ -575,3 +575,17 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 2. 真机：普通账号举报 → 管理员处置 → reports.status 变更 + handledAt → dashboard SC5 出 rate
 3. 非管理员调 handleReport 返回 403；重复 handle 返回 alreadyHandled
 4. 冷启动小程序 → events 无毫秒级成对 app_open；切后台回前台各报一条
+
+---
+
+## M5 线上验收（2026-08-30 21:20，Agent 执行）
+
+| 验收项 | 结果 |
+|---|---|
+| admins 集合初始化 | ✅ 用户已建（21:14），含 1 个管理员 openid `oUsf1xRnPxcjWLiSG3XFR-6LrPFY` |
+| 未登录守卫 | ✅ MCP invoke `handleReport`（无登录态）→ `401 未登录`（服务端鉴权真实生效） |
+| 举报→处置→SC5 闭环 | ✅ reports 3 条 pending（真机新增 2 条）→ 按等价字段处置 1 条（`0fb91b1d6a942cea0165aab0753f4c59`，handledBy=管理员，note 注明验收模拟）→ dashboard：`SC5={status:ok, rate:100, handledCount:1, within24h:1, pendingCount:2}`，SC1=50% / SC4=1 与 M4 一致 |
+| app_open 双计修复 | ✅ events 复核：20:38 部署后 5 次启动（20:59/21:00/21:07×2/21:12/21:15）全为单条；部署前存在毫秒级成对样本（如 19:46 同用户 3ms 成对） |
+| 403 / alreadyHandled | ⚠️ 未走真实登录态端到端（无管理员 UI；MCP 直调无 openid，只能验到 401）。逻辑经代码审查覆盖，待管理员 UI 上线后真机补验 |
+
+**结论**：Checkpoint M5 技术项全部有据可查，SC1–SC5 全有数。剩人工终审；建议 M6 规划管理员 UI（pending 列表 + 处置按钮），顺带补验 403/幂等路径。

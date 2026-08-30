@@ -93,9 +93,10 @@
   - `getPostDetail` 评论 `limit(100)→limit(30)`，返回 `commentHasMore`
   - 新增 `listComments` action（page 懒加载，命中 comments 复合索引）
   - detail.vue 首屏 30 条 + 「加载更多评论」按钮；标题用 `post.commentCount` 真实总数
-- [ ] **P0 索引（复核结论 2026-08-31）** → 已用 `readNoSqlDatabaseStructure.listIndexes` 复核用户控制台所建索引：
+- [x] **P0 索引（复核结论 2026-08-31，二次复核通过）** → 第一次复核发现 matches 缺 userB 索引；用户补建后二次 `listIndexes` 复核全绿：
   - ✅ 完全命中：comments（`postId:1,auditStatus:1,createdAt:1`）、messages（`pairKey:1,createdAt:1`）、games（`invitedUserId:1,state:1,createdAt:1`）、pairs（`pairKey:1`）、users（`createdAt:1`）。方向 1/-1 不影响排序（可逆扫）。
-  - ⚠️ posts：建了 3 字段复合 `auditStatus:1,createdAt:1,topicId:1` —— 主查询 `where auditStatus=pass orderBy createdAt desc` 命中；但话题筛选场景 `where({auditStatus,topicId})` 因 topicId 在尾部键、排序字段在中间，无法在排序前用 topicId 等值 → 退化为审计分区内内存过滤（非阻塞，v1 话题列表量小）。
-  - 🔴 **matches 缺口（唯一硬伤）**：只建了 `{userA:1,status:1,userB:1}` 单一复合，覆盖 userA 分支；但 `match/index.js` 有 3 处 `_.or([{userA..},{userB..}])` 查询（:80、:101、:289），userB 分支无前导索引 → 退化全扫。**需补建 `{userB:1, status:1}`**（建议再补 `{userB:1}` 覆盖 :289 无 status 分支）。
-  - 结论：建议补 matches 的 `{userB:1,status:1}` 后，P0 即全量释放。
+  - ✅ matches 已修：现 `uA`(userA:1,status:1) + `uB`(userB:1,status:1) 两个独立索引（旧 `optimization` 三字段复合已删）。`match/index.js` 全部 3 处 `_.or` 查询（:80、:101、:289）的 userA/userB 两分支分别命中 uA/uB，无全扫。
+  - ⚠️ posts 非阻塞：建的 `auditStatus:1,createdAt:1,topicId:1` 主信息流命中；话题筛选 `where({auditStatus,topicId})` 因 topicId 在尾部键、createdAt 在中间，无法在排序前用 topicId 等值 → 退化为审计分区内内存过滤。v1 话题列表量小，非阻塞；可选补 `{topicId:1,createdAt:-1}`。
+  - 💡 可选补强（非本次范围）：`users.openid` 无独立索引，`community/match` 中 `where({openid})` 作者查询走全 users 扫；v1 量小可忽略，未来可在 users 建 `openid` 唯一索引。
+  - **结论：P0 全量释放。** ① 社区详情/信息流、② 大厅 recommend、③ 聊天 list 均由全表扫描变索引命中；P1/P2/P3 代码侧收益现全部生效。
 - 远端 HEAD：`origin/main = efb305b`

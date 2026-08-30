@@ -26,8 +26,10 @@ export default {
   onLaunch: function (options) {
     console.log('[app] onLaunch')
     initCloud()
-    // M4.1：`app_open` —— DAU 的唯一数据源（SC2 留存分母）。
-    // 冷启动（onLaunch）与切前台（onShow）各计一次，口径与微信「启动/切前台」一致。
+    // M4.1：`app_open` —— 未来 DAU/启动分析的数据源。
+    // 注意：现行 dashboard 的 SC1–SC5 均不消费 app_open（SC2 为 pair 维度 D7 互动留存，见 metrics/index.js）。
+    // 已知特性：冷启动时 onLaunch 与 onShow 各报一次（毫秒级成对）。
+    // 做 DAU 分析务必按 (userId, day) 去重即可消除；仅「启动/会话次数」类指标会双计。
     track('app_open')
     // 邀请裂变（T2）：从分享链接进入时记录邀请人，登录时归因
     if (options && options.query && options.query.inviter) {
@@ -45,7 +47,7 @@ export default {
   },
   onShow: function () {
     console.log('[app] onShow')
-    // 切前台也算一次启动（与 onLaunch 合计为 DAU 口径）
+    // 切前台也上报（与 onLaunch 合计为启动口径；DAU 分析按 (userId, day) 去重）
     track('app_open')
     // M4.4 全局邀请投递：登录态下启动应用级轮询，B 在任意页面都能收到 A 的确认邀请
     startInviteWatch(handleNewInvite)

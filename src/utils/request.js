@@ -9,12 +9,20 @@ function ensureCloud() {
 
 /**
  * 计时开关：DevTools 复核用。默认关（不影响线上）。
- * 在 DevTools Console 执行一次 uni.setStorageSync('__perf_on', true) 即开启，
+ * 在 DevTools Console 执行一次 wx.setStorageSync('__perf_on', true) 即开启，
  * 之后每次 callFunction 会在 console 打印 `[perf] <name>.<action> = <ms>ms`（客户端往返耗时，即用户体感延迟）。
- * 关闭：uni.setStorageSync('__perf_on', false)
+ * 关闭：wx.setStorageSync('__perf_on', false)
+ * 注：小程序 Console 的全局是 wx（uni 仅在业务代码作用域可用），故开关用 wx 读写；
+ *     应用运行时优先读 uni、兜底读 wx，二者共享同一底层 storage。
  */
 function perfEnabled() {
-  try { return !!uni.getStorageSync('__perf_on') } catch (e) { return false }
+  try {
+    if (typeof uni !== 'undefined' && uni.getStorageSync) return !!uni.getStorageSync('__perf_on')
+  } catch (e) {}
+  try {
+    if (typeof wx !== 'undefined' && wx.getStorageSync) return !!wx.getStorageSync('__perf_on')
+  } catch (e) {}
+  return false
 }
 
 /**

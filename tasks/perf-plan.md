@@ -106,8 +106,9 @@
 
 ### 10.1 开启埋点（一次性）
 `src/utils/request.js` 的 `callFunction` 已加计时埋点，运行时开关、默认关、不影响线上。
-- 开启：DevTools Console 执行 `uni.setStorageSync('__perf_on', true)`，然后**重进页面/重新触发**动作。
-- 关闭：`uni.setStorageSync('__perf_on', false)`。
+- 开启：DevTools Console 执行 `wx.setStorageSync('__perf_on', true)`，然后**重进页面/重新触发**动作。
+  （小程序 Console 全局是 `wx`，`uni` 仅在业务代码作用域可见；若误用 `uni` 会报 `uni is not defined`。埋点在应用运行时优先读 `uni`、兜底读 `wx`，二者共享同一 storage，故用 `wx` 设置即可生效。）
+- 关闭：`wx.setStorageSync('__perf_on', false)`。
 - 开启后每次云函数调用在 Console 打印：`[perf] <name>.<action> = <ms>ms`（客户端往返耗时 = 用户体感延迟）。
 
 ### 10.2 三个慢点各测什么

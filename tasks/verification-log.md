@@ -409,3 +409,42 @@ funnel:
 - 漏斗各阶段去重计数与 47 条分布逐一吻合 ✅
 
 > **结论：M4.2 ✅ 看板可出数，口径可复算。** Checkpoint M4 第一项「能观测 SC1–SC4（看板有数、口径可复算）」达成；SC5 仍为数据缺口，Checkpoint M4 该项需人工终审放行。下一步：M4.3 阈值校准（12/40/90/150 → 校准值或「样本不足沿用初值」）、M4.4 SC4 自评入口。
+
+---
+
+## M4.4 SC4 关系确认自评入口 ✅ 代码完成 + 已部署（2026-08-30，待真机验证）
+
+**需求（plan-m4.md §5 M4.4 决策 3）**：关系主页「我们在一起了 🎉」自评入口 → 写 `pair.milestones` + 上报 `relation_confirmed`；沿用 M3 `growth` 云函数新增 `confirmRelation` action，幂等（同 pair 只记一次）。
+
+### 改动
+
+**后端 `cloudfunctions/growth/`**
+1. `growth-core.js` 新增：
+   - 常量 `RELATION_CONFIRMED_MILESTONE = '在一起 🎉'`
+   - `confirmRelation(ctx, { openid, peerId })`：BUGBUG-1 护栏（缺 openid → 401）；`ensurePair` 建/取 pair；若 `milestones` 已含标记 → `alreadyConfirmed` 幂等返回（不写、不上报）；否则 `_.push` 里程碑 + `confirmedAt` 并写库。
+2. `index.js`：`confirmRelation` action 路由；`core.confirmRelation` 返回 `confirmed=true` 时本进程内 `metrics.track` 上报 `relation_confirmed`（pairId=pairKeyOf，失败静默）。**绝不做跨函数调用**（BUG-1）。
+
+**前端 `src/pages/relation/relation.vue`**
+- `rel-actions` 加「我们在一起了 🎉」按钮：`canConfirm(p)` = 达 S1 且 milestones 未含『在一起』；点击 `onConfirm` 调 `callFunction('growth', { action:'confirmRelation', peerId })`，成功后本地补 milestones chip + toast。
+- 已 `npm run sync:core` 同步 growth-core 到 game/chat/match 副本（维护约定）。
+
+### 部署与校验
+
+| 项 | 方式 | 结论 |
+|---|---|---|
+| 语法 | `node --check` 两文件 | ✅ 通过（修了一处 `confirmRelation` 重复声明导致编译失败，已改） |
+| 内核同步 | `npm run sync:core` | ✅ game/chat/match 三副本均含 confirmRelation |
+| growth 部署 | `manageFunctions(updateFunctionCode)` | ✅ Success；`getFunctionDetail` 轮询至 `Status: Active`、CodeInfo 含 confirmRelation（Namespace=love-app-server-d2fhg32320d65c12） |
+| 前端编译 | `npm run build:mp-weixin` | ✅ `DONE Build complete`（DevTools 实际加载 `dist/dev`，用户本地 `dev:mp-weixin` 即可 HMR） |
+
+### 真机验证步骤（待用户）
+1. 双设备 A/B 走到关系页，至少达 S1（growthValue≥12）。
+2. 该关系卡出现「我们在一起了 🎉」→ 点击 → toast「已记录 🎉」、卡上出现『在一起 🎉』chip。
+3. 再点按钮：应已隐藏（milestones 含标记），不重复写、不重复上报。
+4. 查库：`pairs` 该 pair `milestones` 含『在一起 🎉』、`confirmedAt` 有值；`events` 出现 1 条 `relation_confirmed`（pairId=双 openid 排序拼 `|`）。
+5. 看板 `metrics.dashboard` 的 `SC4_relation_confirmed_pairs` 自增 1。
+
+### 已知限制 / 待办
+- 真机读数未跑（需双设备 + 真实关系），SC4 看板当前仍为 0，属「实现就绪、场景未覆盖」，不阻塞闭环。
+- 按钮门槛设在 S1（产品判断，防对陌生人误触）；若需更宽松/严格可改 `canConfirm` 的 `reached(..., 'S1')`。
+- M4.3 阈值校准仍待做（样本不足则写「沿用初值」）。

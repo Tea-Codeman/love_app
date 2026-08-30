@@ -2,7 +2,7 @@
 
 # 项目/任务
 
-从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M3 全部完成、M4（验证：埋点 + 北极星看板）已做到 M4.1 全闭环 + M4.2 看板上线。
+从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M3 全部完成、M4（验证：埋点 + 北极星看板）已做到 M4.1 全闭环 + M4.2 看板上线 + M4.4 SC4 自评入口（M4.3 阈值校准待做）。
 
 > **⚠️ 2026-08-29 实测推翻旧版前提**：旧版 HANDOFF 称"4 个云函数未部署、3 个集合未建、从未真机验证"。**实测全不成立**——7 个存量云函数全部已部署且与本地逐字节一致；10+ 个集合全部已建且有数据；M2 主链路云端跑通过完整一局。瓶颈从来不是部署，而是**真机验证**与**埋点校准**。
 
@@ -65,7 +65,7 @@
 - **M1 聚人 ✅ Checkpoint 通过（step 1–6）**（2026-08-28）。step 7 裂变因个人账号禁分享延后（页面定义 `onShareAppMessage` 会触发基础库内部 `showShareMenu` 被 banned）。底层归因逻辑（`invite` 云函数 + 捕获 `?inviter=`）保留。
 - **M2 破冰 ✅ 已收尾并通过 Checkpoint（2026-08-30 双设备真机 V1–V4 全 PASS）**：撮合→建局→答题→结束闭环、MBTI 落库、拉黑/解除闭环、契合度加成。云端查库佐证见 `tasks/verification-log.md`。答题逻辑已改版为「匹配后各自独立答题、终局对比算默契度」（`game` 云函数已部署）。
 - **M3 升温·导流 ✅ 代码完成 + 部署 + 真机验证（v0.3.0）**：pairs 默契度系统、先审后发、S1 门禁、联系方式解锁、拉黑闭环。BUG-1/BUG-2 已修且真机复验 PASS。
-- **M4 验证 ✅ M4.1 全闭环 + M4.2 看板上线（2026-08-30）**：13 事件全链路埋点真机验收（查库 47 条）；`metrics.dashboard` 聚合 SC1–SC5 上线，47 条数据口径复算一致（SC1=50% / SC2=0% / SC3=0% / SC4=0 / SC5=数据缺口）。**M4.3 阈值校准、M4.4 SC4 自评入口待做**（M4.5 SC5 处置留 M5）。
+- **M4 验证 ✅ M4.1 全闭环 + M4.2 看板上线 + M4.4 SC4 自评入口（2026-08-30）**：13 事件全链路埋点真机验收（查库 47 条）；`metrics.dashboard` 聚合 SC1–SC5 上线，47 条数据口径复算一致（SC1=50% / SC2=0% / SC3=0% / SC4=0 / SC5=数据缺口）；M4.4 关系主页「我们在一起了🎉」已落地（growth.confirmRelation + relation_confirmed 上报，幂等）。**M4.3 阈值校准待做**（M4.5 SC5 处置留 M5）。
 
 **版本与回滚锚点**
 - 当前版本 `v0.3.0`（= M3），`MINOR 号 = 里程碑号`（v0.3.0 = M3）。tag 为**带注释本地 tag，未推送**。
@@ -73,8 +73,8 @@
 - **用户重视"提交作为回滚锚点"**：改功能前先确认/补齐提交，按关注点拆原子提交（功能/开关/文档/性能/纯格式各自独立）。
 
 **Git 状态（2026-08-30 05:14 最新）**
-- **远程 `main` 与本地 HEAD 已对齐于 `53ce5b0`**（M4.1 68 个提交 + M4.2 2 个提交全部快进推送，零强推、零历史改写）。
-- ⚠️ **沙箱怪象**：本沙箱内 `git rev-parse origin/main` 报 unknown、`git status` 显示 `origin/main: gone`。但 `git ls-remote --heads origin` 真实返回 `53ce5b0` = 本地 HEAD。**判断推送是否成功一律以 `ls-remote` 为准，勿信本地 ref 的 gone 标记。**
+- **远程 `main` 与本地 HEAD 已对齐**（HANDOFF 重写前为 `53ce5b0`，重写提交自身为 `3d05c07`；本会话 M4.4 提交后 HEAD 继续前进）。
+- ⚠️ **沙箱怪象**：本沙箱内 `git rev-parse origin/main` 报 unknown、`git status` 显示 `origin/main: gone`。但 `git ls-remote --heads origin` 真实返回 = 本地 HEAD（2026-08-30 实测为 `3d05c07`）。**判断推送是否成功一律以 `ls-remote` 为准，勿信本地 ref 的 gone 标记。**
 - 工作树**干净**。
 
 **数据模型（云数据库集合，全部已建）**
@@ -92,7 +92,7 @@
 | `invite` | generate/consume | 已部署，UI 入口已移除，逻辑保留 |
 | `match` | recommend/accept/myPending/decline | 已部署（含 MBTI 打分 N+1 优化，读 `pairs` O(1)） |
 | `game` | joinGame/getGame/submitAnswer/cancelGame | 已部署，云端跑通过完整局 |
-| `growth` | getPair/listPairs/addGrowth | M3 新建，pairs 权威源；只增不减 + streak |
+| `growth` | getPair/listPairs/addGrowth/**confirmRelation**(M4.4) | M3 新建，pairs 权威源；只增不减 + streak；M4.4 写 milestones + 上报 relation_confirmed |
 | `chat` | send/list/contact | M3 新建，先审后发 + S1 门禁 + 有效互聊 +2 + S4 联系方式解锁 |
 | `metrics` | track（前端上报入口）/ **dashboard**（M4.2 聚合 SC1–SC5） | M4.1 新建，补 `package.json` 修复 wx-server-sdk 后 CodeSize 6KB→11MB |
 
@@ -147,6 +147,7 @@
 13. **M4.2 北极星看板**：`metrics.dashboard` 只读聚合 SC1–SC5 + 漏斗，按 plan-m4.md §5 口径。提交 `2b4c06e`（feat）+ `53ce5b0`（docs）。
 14. **推送**：M4.1 68 提交 + M4.2 2 提交全部快进推送至 `origin/main`（=`53ce5b0`），零强推。
 15. **清理**：3 条预修复重复 `contact_unlocked` 已按精确 `_id` 逐条删除（contact_unlocked 现归零）。
+16. **M4.4 SC4 自评入口（2026-08-30）**：`growth` 新增 `confirmRelation` action（写 `pair.milestones` + 上报 `relation_confirmed`，幂等：milestones 含『在一起 🎉』判重，重复点击不重复写/报）；`relation.vue` 加「我们在一起了 🎉」按钮（达 S1 显示）；`growth-core.js` 改完 `npm run sync:core` 同步到 game/chat/match；growth 已重部署并校验 `Status=Active`（Namespace=love-app-server-d2fhg32320d65c12）。真机验证待用户。
 
 ---
 
@@ -185,7 +186,7 @@
 
 # 当前状态
 
-**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、**M4.1 ✅ 全闭环 + M4.2 ✅ 看板上线**。M4 剩余 M4.3（阈值校准）与 M4.4（SC4 自评入口）。
+**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、**M4.1 ✅ 全闭环 + M4.2 ✅ 看板上线 + M4.4 ✅ SC4 自评入口（已部署+待真机验证）**。M4 剩余 M4.3（阈值校准）。
 
 **M4.1 埋点终验结果（2026-08-30，查库 47 条 / 11 类事件）**
 - `app_open`×23、`match_accept`×4、`game_join`×3、`game_done`×3、`message_sent`×7、`pair_stage_changed`×2、`mbti_completed`×1、`chat_unlocked`×1、`profile_completed`×1、`recommend_view`×2
@@ -198,7 +199,7 @@
 | SC1 阶段 S2 率 | **50%** | ≥30% | 达 S2 的 pair(1) ÷ 有 game_done 的 pair(2) |
 | SC2 D7 留存 | **0%** | ≥25% | 全部事件同一天，D7=09-06 无数据 → 单日测不出，口径正确非 bug |
 | SC3 加微信转化 | **0%** | ≥15% | contact_unlocked 已清理且无新解锁 |
-| SC4 关系确认 | **0** | — | 待 M4.4 |
+| SC4 关系确认 | **0** | — | M4.4 已落地（relation_confirmed 可上报，待真机验证后读数） |
 | SC5 违规处置 | **no_data** | ≥95% | 处置能力留 M5 |
 
 **Checkpoint M4 第一项「能观测 SC1–SC4（看板有数、口径可复算）」已达成**；SC5 仍需人工终审放行。
@@ -228,12 +229,12 @@
 # 待确认事项
 
 - **M4.3 阈值校准**：用 47 条（及后续）真机数据回灌 12/40/90/150，产出 `tasks/threshold-calibration.md`（样本不足则写"沿用初值"）。
-- **M4.4 SC4 自评入口**：关系主页加「我们在一起了 🎉」→ 写 `pair.milestones` + 上报 `relation_confirmed`。实现走 `growth` 云函数新增 `confirmRelation` action（不新建函数），幂等（同 pair 只记一次）。
+- ~~M4.4 SC4 自评入口~~ ✅ **已完成（2026-08-30）**：关系主页「我们在一起了 🎉」→ `growth.confirmRelation` action（写 `pair.milestones` + 上报 `relation_confirmed`，幂等：milestones 含『在一起 🎉』判重，重复点击不重复写/报）。已部署 growth 并校验 Status=Active，待用户真机验证读数。
 - **是否做存量老对全量回填**（见上表 🟡 中）。
 - **是否修复 UTC 时区**：把成长值 streak 的 `dayOf`/`isoWeekOf` 改为 +8（埋点 day 已改，streak 未改）。
 - **是否删除死代码 `src/utils/invite.js`**（需用户点头）。
 - 小程序账号主体/社交类目资质现状？内容安全云调用权限是否就绪？隐私政策文案进度？
-- **push 已无待办**：远程 `main` 已与本地 HEAD(53ce5b0) 对齐，所有提交已推送。
+- **push 已无待办**：远程 `main` 已与本地 HEAD 对齐（2026-08-30 实测 `3d05c07`），历史提交均已推送；本会话 M4.4 提交后将再次对齐。
 
 ---
 
@@ -249,7 +250,7 @@
 - **原型参考站（MBTI 机制）**：`https://214e49b7ee1545cc8fa07b3d3da5c21a.app.workbuddy.link/`
 - **appid**：`wx900385d98d023d6f`
 - **CloudBase envId**：`love-app-server-d2fhg32320d65c12`（个人版，ap-shanghai，纯 nosql，到期 2027-02-26）
-- **远程仓库**：`git@github.com:Tea-Codeman/love_app.git`（SSH，分支 `main`，已对齐 `53ce5b0`）
+- **远程仓库**：`git@github.com:Tea-Codeman/love_app.git`（SSH，分支 `main`，已对齐 `3d05c07`）
 - **管理版 Node**：`C:\Users\panda\.workbuddy\binaries\node\versions\22.22.2\node.exe`
 - **`project.config.json`**：`miniprogramRoot = "dist/dev/mp-weixin/"`；`cloudfunctionRoot = "cloudfunctions/"`
 - **CloudBase MCP 工具（Agent 可自助，无需 GUI）**：`queryEnv`/`queryFunctions`(getFunctionDetail/listFunctions/getFunctionDownloadUrl/updateFunctionCode/managePermissions)/`readNoSqlDatabaseStructure`/`readNoSqlDatabaseContent`/`writeNoSqlDatabaseContent`/`queryLogs`。**注意 `queryFunctions(action=listFunctionLogs)` 已废弃**，查日志用 `queryLogs(action=searchLogs)`。
@@ -308,7 +309,7 @@
 
 # 新 Agent 接手指南
 
-1. **当前最重要的问题**：M4 已基本完成（M4.1 闭环 + M4.2 看板上线），下一步是 **M4.3 阈值校准** 与 **M4.4 SC4 自评入口**。两者都依赖真实用户数据积累——目前 `events` 仅 47 条（单日测试），SC2/SC3/SC4 还测不出。
+1. **当前最重要的问题**：M4 已基本完成（M4.1 闭环 + M4.2 看板上线），下一步是 **M4.3 阈值校准**（M4.4 SC4 自评入口已完成、待真机验证）。两者都依赖真实用户数据积累——目前 `events` 仅 47 条（单日测试），SC2/SC3/SC4 还测不出。
 2. **从哪一步继续**：
    - 若用户说"做 M4.3" → 读 `tasks/plan-m4.md` §5 口径 + 现有 `metrics.dashboard` 数据，产出 `tasks/threshold-calibration.md`。
    - 若用户说"做 M4.4" → 在 `growth` 云函数加 `confirmRelation` action（写 `pair.milestones` + 上报 `relation_confirmed`），关系主页 `src/pages/relation/relation.vue` 加「我们在一起了 🎉」入口，部署后真机验证。
@@ -323,11 +324,11 @@
 # 极简版
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
-- **现状**：M0/M1/M2/M3 全部完成；**M4.1 全链路埋点 ✅ 闭环（查库 47 条/11 类事件，PII 零泄漏）**；**M4.2 `metrics.dashboard` 看板 ✅ 上线**（SC1=50%/SC2=0%/SC3=0%/SC4=0/SC5=数据缺口）。剩余 M4.3 阈值校准、M4.4 SC4 自评入口（M4.5 留 M5）。
-- **Git**：远程 `main` 已对齐本地 `53ce5b0`，全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
+- **现状**：M0/M1/M2/M3 全部完成；**M4.1 全链路埋点 ✅ 闭环（查库 47 条/11 类事件，PII 零泄漏）**；**M4.2 `metrics.dashboard` 看板 ✅ 上线**（SC1=50%/SC2=0%/SC3=0%/SC4=0/SC5=数据缺口）；**M4.4 SC4 自评入口 ✅ 已部署**（待真机验证）。剩余 M4.3 阈值校准（M4.5 留 M5）。
+- **Git**：远程 `main` 已对齐本地（2026-08-30 实测 `3d05c07`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。
 - **🔴 两个最致命历史坑（已修但极易复发）**：A. 云函数 A `callFunction` 调 B 时 B 的 `OPENID=undefined` → 幽灵 pair，已抽 `growth-core.js` 共享内核，改完务必 `npm run sync:core` 再部署；B. **NoSQL delete 用 `$in` 只删 1 条，必须精确 `_id` 逐条删**（强删云端数据前必列 `_id` 给用户）。
 - **🔴 落盘习惯**：`Edit` 可能返回成功但实际未写入，落盘后用 `git status`/`Grep` 复核。
 - **不要主动提议**：写死 env、自动建集合（已否决）；前端传黑名单给后端（已否决）；重加 `onShareAppMessage`/邀请入口；擅自删 `src/utils/invite.js`（死代码，待用户确认）。
-- **下一步方向**：M4.3 阈值校准 / M4.4 SC4 自评入口（关系主页「我们在一起了🎉」→ `growth.confirmRelation` + `relation_confirmed` 事件）/ 积累真实用户数据跑出 SC2–SC4。
+- **下一步方向**：M4.3 阈值校准 / 积累真实用户数据跑出 SC2–SC4（M4.4 SC4 自评入口已完成，待真机验证）。

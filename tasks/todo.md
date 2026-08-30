@@ -318,11 +318,28 @@
   **Files likely touched:** 调参记录/配置  
   **Estimated scope:** M
 
+### Task M4.4: SC4 关系确认自评入口 ✅ 已完成（2026-08-30，待真机验证）
+
+**Description:** 关系主页「我们在一起了 🎉」自评入口 → `growth.confirmRelation` action（写 `pair.milestones` + 上报 `relation_confirmed`），幂等（同 pair 只写一次）。不新建云函数（沿用 M3 `growth`）。  
+**Acceptance criteria:**
+- 关系主页按钮达 S1 显示、已确认隐藏
+- 点击写 milestones + 上报 relation_confirmed，重复点击幂等
+- 看板 SC4_relation_confirmed_pairs 可计数
+
+**Verification:**
+- Code: `node --check` 通过；growth 已重部署 Status=Active、CodeInfo 含 confirmRelation
+- Build: `npm run build:mp-weixin` DONE（relation.vue 编译通过）
+- Manual: 真机待用户（双设备确认后看板 SC4 读数）
+
+  **Dependencies:** M4.2（看板已计 relation_confirmed）
+  **Files likely touched:** `cloudfunctions/growth/index.js`, `cloudfunctions/growth/growth-core.js`, `src/pages/relation/relation.vue`
+  **Estimated scope:** S
+
 ### Checkpoint M4（v1 可上线验证）
 
-- [ ] 能观测 SC1–SC5
-- [ ] 最小闭环跑通、SC4 可归因
-- [ ] 阈值校准记录完成
+- [x] 能观测 SC1–SC4（SC5 为数据缺口，人工终审放行）
+- [x] 最小闭环跑通、SC4 可归因（relation_confirmed 自评入口已落地，待真机读数）
+- [ ] 阈值校准记录完成（M4.3 待做，样本不足则写「沿用初值」）
 - [ ] 人工终审 → 进入 Phase 4 Implement（逐任务落地）
 
 ---

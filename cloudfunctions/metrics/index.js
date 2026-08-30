@@ -54,7 +54,7 @@ async function trackBatch(event = {}, OPENID) {
 //   SC2：配对日 +7 天当天有任意互动事件(game_done/message_sent)的 pair 数 ÷ 期间 match_accept 的 pair 数，目标 ≥25%
 //   SC3：contact_unlocked 去重 pair 数 ÷ 期间 match_accept pair 数，目标 ≥15%
 //   SC4：relation_confirmed 的 pair 数 + 人工回访记录（定性证据）
-//   SC5：report_handled 中 handledAt-createdAt ≤24h 的比例，目标 ≥95%（M4 数据缺口，不做处置能力）
+//   SC5：reports 集合直读（M5.3）：24h 内处置（handled/dismissed 且 handledAt-createdAt≤24h）比例，目标 ≥95%
 //   漏斗：recommend_view → match_accept → game_join → game_done → chat_unlocked → contact_unlocked
 
 const pct = (x) => (x === null || x === undefined || !isFinite(x)) ? null : Math.round(x * 1000) / 10
@@ -83,7 +83,48 @@ async function fetchAllEvents() {
   return out
 }
 
-function computeDashboard(events, windowStartDay) {
+// SC5（M5.3，plan-m5.md 决策 2）：处置率权威源 = `reports` 集合，非 events 流。
+//   24h 处置率 = handledAt-createdAt ≤24h 的 handled 数 ÷ 全部 handled 数（目标 ≥95%）
+//   另附 pendingCount（当前待处置数）。不做时间窗口过滤——pendingCount 天然是"现值"，
+//   存量 handled 全量纳入才能稳定评估处置时效。
+//   与 SC1–SC4（events 流聚合）的口径差异在 _note 中写明。
+//   幂等保护在 safety.handleReport 侧（非 pending 直接 alreadyHandled），reports 不会重复计数。
+function computeSC5(reports) {
+  const handled = reports.filter(r => r.status === 'handled' || r.status === 'dismissed')
+  let within24h = 0
+  for (const r of handled) {
+    if (typeof r.handledAt === 'number' && typeof r.createdAt === 'number' && r.handledAt - r.createdAt <= 24 * 3600 * 1000) {
+      within24h++
+    }
+  }
+  return {
+    SC5_report_24h: {
+      status: handled.length ? 'ok' : 'no_data',
+      rate: handled.length ? pct(within24h / handled.length) : null,
+      handledCount: handled.length,
+      within24h,
+      pendingCount: reports.filter(r => r.status === 'pending').length,
+      source: 'reports'
+    }
+  }
+}
+
+// 拉全量 reports（分页 + 上限保护，与 fetchAllEvents 同惯例）
+async function fetchAllReports() {
+  const out = []
+  const CAP = 5000
+  let skip = 0
+  while (out.length < CAP) {
+    const res = await db.collection('reports').limit(1000).skip(skip).get()
+    const list = (res && res.data) || []
+    for (const x of list) out.push(x)
+    if (list.length < 1000) break
+    skip += 1000
+  }
+  return out
+}
+
+function computeDashboard(events, windowStartDay, reports) {
   const inWindow = (ev) => !windowStartDay || (ev.day || '') >= windowStartDay
 
   const pairsWithGameDone = new Set()   // 期间有 game_done 的 pair
@@ -160,7 +201,7 @@ function computeDashboard(events, windowStartDay) {
       SC2_d7_retention: pct(sc2),
       SC3_contact_conv: pct(sc3),
       SC4_relation_confirmed_pairs: pairsConfirmed.size,
-      SC5_report_24h: { status: 'no_data', reason: 'report_handled 未入白名单（M4 不做处置能力，留 M5）' }
+      ...computeSC5(reports || [])
     },
     sc_detail: {
       SC1_pairs_reached_S2: pairsReachedS2.size,
@@ -178,7 +219,8 @@ function computeDashboard(events, windowStartDay) {
       chat_unlocked_pairs: f.chat_unlocked.size,
       contact_unlocked_pairs: f.contact_unlocked.size
     },
-    _note: '口径见 plan-m4.md §5；目标 SC1≥30% / SC2≥25% / SC3≥15%。SC5 为 M4 数据缺口。'
+    _note: '口径见 plan-m4.md §5 / plan-m5.md；目标 SC1≥30% / SC2≥25% / SC3≥15% / SC5≥95%。'
+      + 'SC1–SC4 从 events 流聚合；SC5 从 reports 集合直读（status/handledAt 为权威事实，避免 events 重复处置坑），不受 days 窗口过滤。'
   }
 }
 
@@ -192,7 +234,8 @@ async function dashboard(event = {}) {
 
   try {
     const events = await fetchAllEvents()
-    const result = computeDashboard(events, windowStartDay)
+    const reports = await fetchAllReports()
+    const result = computeDashboard(events, windowStartDay, reports)
     return { code: 0, data: result }
   } catch (e) {
     console.error('[metrics.dashboard] 聚合失败：', (e && e.message) || e)

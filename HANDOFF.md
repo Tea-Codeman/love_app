@@ -312,7 +312,7 @@
 1. **当前最重要的问题**：M4 已基本完成（M4.1 闭环 + M4.2 看板上线），下一步是 **M4.3 阈值校准**（M4.4 SC4 双边邀请确认已完成、待真机验证）。两者都依赖真实用户数据积累——目前 `events` 仅 47 条（单日测试），SC2/SC3/SC4 还测不出。
 2. **从哪一步继续**：
    - 若用户说"做 M4.3" → 读 `tasks/plan-m4.md` §5 口径 + 现有 `metrics.dashboard` 数据，产出 `tasks/threshold-calibration.md`。
-   - 若用户说"做 M4.4" → 已实现为**双边邀请确认**：`growth` 云函数 `sendConfirmInvite/acceptConfirmInvite/rejectConfirmInvite/cancelConfirmInvite`，邀请存 `pairs.confirmInvite`（TTL 10min）；`relation.vue` 弹窗+轮询；部署后真机验证（用全新 pair，旧单边测试已落 milestones 的 pair 会直接返回已确认）。
+   - 若用户说"做 M4.4" → 已实现为**双边邀请确认**：`growth` 云函数 `sendConfirmInvite/acceptConfirmInvite/rejectConfirmInvite/cancelConfirmInvite`，邀请存 `pairs.confirmInvite`（TTL 10min）；邀请投递为**应用级**——`src/utils/confirmInvite.js` 全局 store（App.vue onShow 启动 4s 轮询+1s tick，B 在任意页面经 `uni.showModal` 收通知，去重按 pairKey+expiresAt）+ `relation.vue` 消费 store 的页内富弹窗（`receivedInvite` 必须是 computed，写成 method 会恒真值）；部署后真机验证（用全新 pair，旧单边测试已落 milestones 的 pair 会直接返回已确认）。
    - 若用户报 bug → 先核实云端代码是否与本地一致（下载 zip 归一化 diff），再查逻辑；勿默认"没部署"。
 3. **不要重复**：不重跑需求澄清/Plan/Tasks；不用裸 npm install；不写死 env / 不提议自动建集合；不重新提议"前端传黑名单给后端过滤"；不擅自重加 `onShareAppMessage`/邀请入口；不擅自删 `src/utils/invite.js`；不擅自删云端数据（强删前必列 `_id`）。
 4. **隐含约束（极易漏）**：云函数部署环境必须 = `love-app-server-d2fhg32320d65c12`；新集合仍需手动建在该环境；DevTools 加载 `dist/dev`；本环境纯 NoSQL，别提 PG/RLS/MySQL；改 `growth-core.js` 后必须 `npm run sync:core` 再部署。

@@ -488,3 +488,39 @@ funnel:
 - 超时采用「客户端倒计时展示 + 服务端过期校验」双保险；服务端为权威。
 - 弹窗为前端轮询驱动（4s），非推送；若 B 恰在轮询间隙进入页面，onShow 会立即 `load` 拉到邀请。
 - M4.3 阈值校准仍待做。
+
+## M4.4b 邀请投递全局化修复 ✅ 代码完成 + 已编译（2026-08-30，待真机验证）
+
+### 问题（用户反馈）
+A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
+
+### 根因（Code Review 定位）
+上一版把邀请轮询挂在 `relation.vue` 的 onShow/onHide——**页面级**轮询。B 不在关系页时轮询已停，A 发的邀请在 B 端无人拉取。即「弱实时」只做到了「关系页内实时」，不是「应用级投递」。
+
+另发现隐藏 bug：`receivedInvite` 原为 method，模板 `v-if="receivedInvite"` 拿到的是函数引用（恒真值），且 `onReject(receivedInvite)` 传的是函数本身——弹窗常显、动作传参错误。
+
+### 修复（纯前端，服务端无改动）
+1. **新增 `src/utils/confirmInvite.js`**：全局邀请 store（vue reactive 单例，项目无 Pinia/Vuex）。
+   - `inviteState = { openid, pairs, nowTs, notifiedKey }`；4s 轮询拉 `listPairs` + 1s tick 倒计时。
+   - `startInviteWatch(onNewInvite)` / `stopInviteWatch()`；`refreshInvites()` 页面级立即拉取。
+   - 派生：`currentReceived()` / `isMyInvite(p)` / `isInviteActive(p)` / `inviteRemain(p)`。
+   - 动作封装：`send/accept/reject/cancelConfirmInvite` 四个 action 的调用封装。
+   - 命名避让：`src/utils/invite.js` 已被 T2 邀请裂变占用，故用 `confirmInvite.js`。
+2. **`App.vue`**：onShow 启动 `startInviteWatch(handleNewInvite)`、onHide 停止。
+   - B 收到新邀请且**当前不在关系页**时，用 `uni.showModal` 原生弹窗通知（任意页面盖顶）；「去处理」跳关系页。
+   - 同一邀请只原生通知一次（`notifiedKey` 按 pairKey+expiresAt 去重）；已在关系页时不叠原生弹窗（页内富弹窗自己显示）。
+3. **`relation.vue`**：数据源改为消费共享 store（computed `pairs` / `receivedInvite`），删除页面级 `startPolling/stopPolling/timer/tick/nowTs`；`receivedInvite` 改为 computed（修复恒真值 bug）；四个动作改调 store 封装后 `load(true)` 刷新。
+
+### 校验
+| 项 | 方式 | 结论 |
+|---|---|---|
+| 前端编译 | `npm run build:mp-weixin` | ✅ `DONE Build complete` |
+| 服务端 | 无改动（上次部署的四个 action 原样有效） | ✅ 无需重部署 |
+
+### 真机验证步骤（待用户，增量）
+1. 本地跑 `npm run dev:mp-weixin` 重建 `dist/dev` 并上传。
+2. **B 停在任意非关系页**（如主页/聊天页）→ A 在关系页发邀请。
+3. 预期：B 在 4s 内收到原生弹窗「💌 在一起确认邀请」；点「去处理」进关系页看到富弹窗（同意/拒绝+倒计时）。
+4. B 停在关系页时：不弹原生窗，直接页内富弹窗。
+5. 其余（同意落里程碑/拒绝/超时/查库/看板 SC4）同上一节步骤 4–6。
+

@@ -438,7 +438,7 @@
 ## M7：技术债清算（范围 A）
 
 > 规划：`tasks/plan-m7.md`（2026-08-30 范围已拍板：A 技术债清算 = 时区/streak 修复 + invite.js 核查处置 + 老对回填决策）。**已签字放行，M7.1–M7.3 已落地（2026-08-30）**。**
-> 冷启动准备（资质/类目/隐私/索引）整线延后，留 M8。
+> **M7 全收官 ✅（人工终审 2026-08-30 23:32 用户签字通过）**；冷启动准备（资质/类目/隐私/索引）→ **M8 规划已启动（上线就绪 = 资质主体/隐私文案/内容安全切换/复合索引）**。
 
 ### Task M7.1: 时区/streak 修复 ✅ 已落地（部署 Active + 云端核验）
 
@@ -470,7 +470,49 @@
 - [x] invite.js 孤儿已删、构建通过、src/utils 完好
 - [x] 老对回填决策已出（默认不回填，记录理由，见 verification-log M7.3）
 - [x] 7 云函数部署 Active + 前端构建通过
-- [ ] 人工终审 → 下一阶段（M8：上线就绪 / 或收官）
+- [x] 人工终审通过（2026-08-30 23:32 用户签字）→ 下一阶段 M8 规划
+
+---
+
+## M8：上线就绪（冷启动准备）
+
+> 规划：`tasks/plan-m8.md`（2026-08-30 范围已拍板：上线就绪 = 资质主体 / 隐私正式文案 / 内容安全切换 / 复合索引）。**已签字放行，待按 M8.1→M8.4 落地（M8.1 为资质门禁，用户侧先行）**。
+> 门禁依赖：M8.3 强依赖 M8.1（个人/未认证主体调 `msgSecCheck` 报 48001）；M8.2 / M8.4 可与 M8.1 并行。
+
+### Task M8.1: 账号主体升级 + 社交类目资质 ✅ 规划待放行（用户侧 gating）
+**Description:** Agent 出微信公众平台指引清单（主体升级企业/个体 + 社交类目 + 内容安全权限）；用户达标后 Agent 核验 `msgSecCheck` 非 48001。为 M8.3 前置门禁。
+**Acceptance criteria:** 三项达标 + Agent 侧试跑无 48001。
+**Dependencies:** 无（用户侧先行）
+**Files likely touched:** 文档（指引清单入 verification-log / HANDOFF）
+**Estimated scope:** S
+
+### Task M8.2: 隐私政策正式文案 ✅ 规划待放行（Agent 起草）
+**Description:** 重写 `src/pages/privacy/privacy.vue` 占位为正式合规文案（收集项/目的/第三方/用户权利/更新机制）；门禁链路不动。
+**Acceptance criteria:** 字段齐 + 用户确认 + build 通过。
+**Dependencies:** 无
+**Files likely touched:** `src/pages/privacy/privacy.vue`
+**Estimated scope:** S
+
+### Task M8.3: 内容安全切换 USE_WX_SECURITY=true ✅ 规划待放行（M）
+**Description:** `cloudfunctions/safety/index.js:23` 置 true；验收 `msgSecCheck` 违规拒/正常放行。🟡 图像 `mediaCheckAsync` 异步回调无调用点，记为缺口不实现。
+**Acceptance criteria:** 部署 Active + CodeInfo 含 `USE_WX_SECURITY=true` + 文本真审验收。
+**Dependencies:** M8.1
+**Files likely touched:** `cloudfunctions/safety/index.js`
+**Estimated scope:** M
+
+### Task M8.4: reports/events 复合索引 ✅ 规划待放行（S）
+**Description:** CloudBase 建 reports(status/createdAt) + events(eventName,day)/(pairId,day) 索引。
+**Acceptance criteria:** 索引 ready + 查询命中。
+**Dependencies:** 无
+**Files likely touched:** 文档（控制台/CLI）
+**Estimated scope:** S
+
+### Checkpoint M8（上线就绪收尾）
+- [ ] 账号主体升级 + 社交类目资质达标（M8.1）
+- [ ] 隐私政策正式文案上线（M8.2）
+- [ ] 内容安全切真审（M8.3，USE_WX_SECURITY=true + 无 48001）
+- [ ] reports/events 复合索引 ready（M8.4）
+- [ ] 人工终审 → 下一阶段（收官 / 灰度上线）
 
 ---
 

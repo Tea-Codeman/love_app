@@ -26,7 +26,30 @@
         <text class="btn play" @click="onPlay(p)">一起玩</text>
         <text class="btn chat" v-if="reached(stageOf(p.growthValue), 'S1')" @click="onChat(p)">聊聊</text>
         <text class="btn contact" v-if="reached(stageOf(p.growthValue), 'S4')" @click="onContact(p)">联系方式</text>
-        <text class="btn confirm" v-if="canConfirm(p)" @click="onConfirm(p)">我们在一起了 🎉</text>
+
+        <!-- 我发起的邀请：等待对方回应（点一下可撤销） -->
+        <text class="btn pending" v-if="isMyInvite(p)" @click="onCancel(p)">
+          等待 {{ p.peer.nickname || 'TA' }} 回应 · {{ inviteRemain(p) }}（点此撤销）
+        </text>
+        <!-- 未确认、达 S1、且无进行中邀请：可发起 -->
+        <text class="btn confirm" v-if="canConfirm(p) && !isInviteActive(p)" @click="onConfirm(p)">我们在一起了 🎉</text>
+      </view>
+    </view>
+
+    <!-- B 收到的「在一起确认邀请」弹窗 -->
+    <view class="modal-mask" v-if="receivedInvite">
+      <view class="modal">
+        <view class="modal-emoji">💌</view>
+        <view class="modal-title">在一起确认邀请</view>
+        <view class="modal-body">
+          <text class="modal-peer">{{ (receivedInvite.peer && receivedInvite.peer.nickname) || 'TA' }}</text>
+          想和你确认在一起
+        </view>
+        <view class="modal-tip">邀请有效期 {{ inviteRemain(receivedInvite) }}，超时将自动失效</view>
+        <view class="modal-actions">
+          <text class="m-btn reject" @click="onReject(receivedInvite)">拒绝</text>
+          <text class="m-btn accept" @click="onAccept(receivedInvite)">同意 🎉</text>
+        </view>
       </view>
     </view>
   </view>
@@ -45,7 +68,10 @@ export default {
       openid: '',
       pairs: [],
       loading: false,
-      busy: false
+      busy: false,
+      timer: null,    // 4s 轮询：刷新关系列表（含邀请状态）
+      tick: null,     // 1s 计时：仅驱动倒计时显示
+      nowTs: Date.now()
     }
   },
   onShow() {
@@ -54,8 +80,11 @@ export default {
       uni.reLaunch({ url: '/pages/login/login' })
       return
     }
-    this.load()
+    this.load(false)
+    this.startPolling()
   },
+  onHide() { this.stopPolling() },
+  onUnload() { this.stopPolling() },
   methods: {
     // 模板里直接调用（方法比 computed-per-item 更简单，且 growthValue 已是服务端权威值）
     stageOf,
@@ -63,16 +92,27 @@ export default {
     stageLabel(v) {
       return stageInfo(stageOf(v)).label
     },
-    async load() {
-      this.loading = true
+    async load(silent) {
+      if (!silent) this.loading = true
       const r = await callFunction('growth', { action: 'listPairs' })
-      this.loading = false
+      if (!silent) this.loading = false
       if (!r.ok) {
-        uni.showToast({ title: r.message || '加载失败', icon: 'none' })
+        if (!silent) uni.showToast({ title: r.message || '加载失败', icon: 'none' })
         return
       }
-      // 服务端已按 updatedAt 降序 + 补齐 peer 资料，前端直接渲染
+      // 服务端已按 updatedAt 降序 + 补齐 peer 资料（含 confirmInvite），前端直接渲染
       this.pairs = (r.data && r.data.pairs) || []
+    },
+    // 弱实时轮询：照搬 chat 的 3s 模式，这里用 4s。邀请状态靠轮询在双方页面间同步，
+    // 无需 realtime.js；倒计时另起 1s tick 仅做显示，状态切换仍由轮询驱动。
+    startPolling() {
+      this.stopPolling()
+      this.timer = setInterval(() => { this.load(true) }, 4000)
+      this.tick = setInterval(() => { this.nowTs = Date.now() }, 1000)
+    },
+    stopPolling() {
+      if (this.timer) { clearInterval(this.timer); this.timer = null }
+      if (this.tick) { clearInterval(this.tick); this.tick = null }
     },
     async onPlay(p) {
       if (this.busy) return
@@ -95,25 +135,102 @@ export default {
         url: '/pages/contact/contact?peerId=' + p.peerId + '&nickname=' + encodeURIComponent(p.peer.nickname || 'TA')
       })
     },
-    // M4.4 SC4 自评入口：关系达 S1 且未确认时显示按钮
+
+    // ───── 邀请状态派生（基于 pairs[i].confirmInvite） ─────
+    // 邀请是否有效（未过期）
+    isInviteActive(p) {
+      const i = p && p.confirmInvite
+      return !!(i && i.from && i.expiresAt && Number(i.expiresAt) > this.nowTs)
+    },
+    // 我发起的、仍有效的邀请
+    isMyInvite(p) {
+      return this.isInviteActive(p) && p.confirmInvite.from === this.openid
+    },
+    // 我收到的（对方发起、仍有效）—— 用于弹窗
+    receivedInvite() {
+      return (this.pairs || []).find(p => {
+        const i = p.confirmInvite
+        return i && i.from && i.from !== this.openid && Number(i.expiresAt) > this.nowTs
+      }) || null
+    },
+    inviteRemain(p) {
+      const i = p && p.confirmInvite
+      if (!i) return ''
+      const s = Math.max(0, Math.ceil((Number(i.expiresAt) - this.nowTs) / 1000))
+      const m = Math.floor(s / 60)
+      const ss = s % 60
+      return m > 0 ? (m + '分' + (ss < 10 ? '0' : '') + ss + '秒') : (ss + '秒')
+    },
+    // M4.4 SC4：关系达 S1 且未确认且无进行中邀请 → 显示「我们在一起了 🎉」
     canConfirm(p) {
       if (!p) return false
       if ((p.milestones || []).some(m => String(m).indexOf('在一起') !== -1)) return false
       return reached(stageOf(p.growthValue), 'S1')
     },
+
+    // ───── 交互动作 ─────
+    // A 发起邀请
     async onConfirm(p) {
       if (this.busy) return
       this.busy = true
-      const r = await callFunction('growth', { action: 'confirmRelation', peerId: p.peerId })
+      const r = await callFunction('growth', { action: 'sendConfirmInvite', peerId: p.peerId })
+      this.busy = false
+      if (r.code === 409) {
+        // 对方已向我发起邀请：引导去确认（弹窗会由轮询自动出现）
+        uni.showToast({ title: '对方已向你发起邀请，去确认吧', icon: 'none' })
+        this.load(true)
+        return
+      }
+      if (!r.ok) {
+        uni.showToast({ title: r.message || '操作失败', icon: 'none' })
+        return
+      }
+      uni.showToast({ title: '邀请已发送，等待对方回应', icon: 'none' })
+      this.load(true)
+    },
+    // A 撤销自己发起的邀请
+    async onCancel(p) {
+      if (this.busy) return
+      this.busy = true
+      const r = await callFunction('growth', { action: 'cancelConfirmInvite', peerId: p.peerId })
       this.busy = false
       if (!r.ok) {
         uni.showToast({ title: r.message || '操作失败', icon: 'none' })
         return
       }
-      uni.showToast({ title: '已记录 🎉', icon: 'none' })
-      // 本地即时反映里程碑 chip，免去一次刷新（云端已落库，下次 onShow 会拉全量）
-      const pair = (this.pairs || []).find(x => x._id === p._id)
-      if (pair) pair.milestones = (pair.milestones || []).concat('在一起 🎉')
+      uni.showToast({ title: '已撤销邀请', icon: 'none' })
+      this.load(true)
+    },
+    // B 同意 → 真正落里程碑 + 上报 relation_confirmed（服务端已校验未过期、且非本人邀请）
+    async onAccept(p) {
+      if (this.busy) return
+      this.busy = true
+      const r = await callFunction('growth', { action: 'acceptConfirmInvite', peerId: p.peerId })
+      this.busy = false
+      if (r.code === 409) {
+        uni.showToast({ title: '邀请已过期，请重新发起', icon: 'none' })
+        this.load(true)
+        return
+      }
+      if (!r.ok) {
+        uni.showToast({ title: r.message || '操作失败', icon: 'none' })
+        return
+      }
+      uni.showToast({ title: '已确认在一起 🎉', icon: 'none' })
+      this.load(true)
+    },
+    // B 拒绝 → 清空邀请，A 端轮询到点自动回到「可重新发起」
+    async onReject(p) {
+      if (this.busy) return
+      this.busy = true
+      const r = await callFunction('growth', { action: 'rejectConfirmInvite', peerId: p.peerId })
+      this.busy = false
+      if (!r.ok) {
+        uni.showToast({ title: r.message || '操作失败', icon: 'none' })
+        return
+      }
+      uni.showToast({ title: '已拒绝', icon: 'none' })
+      this.load(true)
     }
   }
 }
@@ -161,5 +278,40 @@ export default {
 .btn.chat { background: #FFB199; }
 .btn.contact { background: #7c5cff; }
 .btn.confirm { background: #FFD166; color: #7a5b00; }
+.btn.pending { background: #cfcfcf; color: #555; }
 .empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
+
+/* 在一起确认邀请弹窗 */
+.modal-mask {
+  position: fixed;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal {
+  width: 560rpx;
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 44rpx 36rpx 32rpx;
+  text-align: center;
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.18);
+}
+.modal-emoji { font-size: 64rpx; }
+.modal-title { font-size: 32rpx; font-weight: 700; color: #FF6B81; margin-top: 8rpx; }
+.modal-body { font-size: 28rpx; color: #333; margin-top: 20rpx; line-height: 1.5; }
+.modal-peer { color: #FF6B81; font-weight: 600; }
+.modal-tip { font-size: 22rpx; color: #999; margin-top: 12rpx; }
+.modal-actions { display: flex; margin-top: 32rpx; }
+.m-btn {
+  flex: 1;
+  font-size: 28rpx;
+  padding: 18rpx 0;
+  border-radius: 30rpx;
+  margin: 0 10rpx;
+}
+.m-btn.reject { background: #f2f2f2; color: #888; }
+.m-btn.accept { background: #FF6B81; color: #fff; }
 </style>

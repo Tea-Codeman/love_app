@@ -41,6 +41,10 @@ const MAX_SINGLE_DELTA = 100
 // M4.4 SC4 自评里程碑标记（写入 pair.milestones，用于幂等判重）
 const RELATION_CONFIRMED_MILESTONE = '在一起 🎉'
 
+// M4.4 SC4 关系确认改为**双边邀请**：A 发起 → B 收到（弱实时轮询）→ B 同意/拒绝。
+// 邀请有效期：超过则服务端在 accept/reject 直接判失效，A 端轮询到点自动回到「可重新发起」，不卡流程。
+const CONFIRM_INVITE_TTL_MS = 10 * 60 * 1000  // 10 分钟
+
 function pairKeyOf(a, b) {
   return [String(a), String(b)].sort().join('|')
 }
@@ -200,40 +204,134 @@ async function addGrowth(ctx, opts = {}) {
   }
 }
 
-// ───────────────────────── M4.4 SC4 关系确认自评 ─────────────────────────
-// 关系主页「我们在一起了 🎉」入口：记录一对用户确认在一起。
-// 幂等：以 pair.milestones 是否含 RELATION_CONFIRMED_MILESTONE 判重，
-//       重复点击不重复写 milestones、不重复上报（上报由调用方在 confirmed=true 时触发一次）。
-async function confirmRelation(ctx, opts = {}) {
+// ───────────────────────── M4.4 SC4 双边邀请确认（替代单边自评） ─────────────────────────
+// 关系主页「我们在一起了 🎉」→ A 发起邀请 → B 收到（弱实时轮询）→ B 同意/拒绝；超时自动失效。
+// 全部在本进程内写 pairs（BUG-1 护栏：必须带 openid，禁用跨函数调用）。
+// 幂等：以 pair.milestones 是否含 RELATION_CONFIRMED_MILESTONE 判重；邀请以 confirmInvite.expiresAt 判活。
+
+// 取当前仍有效的邀请（过期返回 null）。now 由调用方传入，避免多次 Date.now() 漂移。
+function confirmInviteActive(pair, now) {
+  const inv = pair && pair.confirmInvite
+  if (!inv || !inv.from || !inv.expiresAt) return null
+  return Number(inv.expiresAt) > now ? inv : null
+}
+
+// A 发起邀请
+async function sendConfirmInvite(ctx, opts = {}) {
   const { db, _ } = ctx
   const openid = opts.openid
   const peerId = opts.peerId
 
   // BUG-1 护栏：必须有端用户身份，否则宁可响亮失败也不写幽灵 pair
-  if (!openid) return { code: 401, message: '缺少 openid：confirmRelation 必须在持有端用户身份的进程内执行（禁用跨函数调用）' }
+  if (!openid) return { code: 401, message: '缺少 openid：sendConfirmInvite 必须在持有端用户身份的进程内执行（禁用跨函数调用）' }
   if (!peerId) return { code: 400, message: '缺少 peerId' }
   if (String(peerId) === 'undefined') return { code: 400, message: 'peerId 非法' }
 
-  const pair = await ensurePair(ctx, openid, peerId)
+  // 没有 pair 说明还没一起玩过，先建立关系再确认
+  const pair = await readPair(ctx, openid, peerId)
+  if (!pair) return { code: 403, message: '先一起玩一局建立关系吧' }
+
   const milestones = Array.isArray(pair.milestones) ? pair.milestones : []
   if (milestones.indexOf(RELATION_CONFIRMED_MILESTONE) !== -1) {
-    // 已确认过：幂等返回，不写、不上报
-    return { code: 0, data: { alreadyConfirmed: true, confirmed: false, pair: withStage(pair) } }
+    return { code: 0, data: { alreadyConfirmed: true, invited: false, pair: withStage(pair) } }
   }
+  // S1 门禁：关系未到 S1（成长值 < 12）不允许发起邀请
+  const gv = Number(pair.growthValue) || 0
+  if (gv < 12) return { code: 403, message: '关系还不够熟，先一起玩几局吧', data: { needGrowth: 12 - gv } }
 
   const now = Date.now()
+  const active = confirmInviteActive(pair, now)
+  if (active) {
+    if (active.from === openid) {
+      // 我已发起且仍有效：幂等返回当前邀请，前端继续展示「等待回应」
+      return { code: 0, data: { alreadySent: true, invited: true, invite: active, pair: withStage(pair) } }
+    }
+    // 对方已向我发起：我不能重复发起，提示前端去确认对方的邀请（弹窗会由轮询自动出现）
+    return { code: 409, message: '对方已向你发起确认邀请，去回应吧', data: { invert: true, invite: active, pair: withStage(pair) } }
+  }
+
+  // 无有效邀请（或已过期）→ 新建/覆盖邀请
+  const invite = { from: openid, at: now, expiresAt: now + CONFIRM_INVITE_TTL_MS }
+  await db.collection(PAIRS_COL).doc(pair._id).update({
+    data: { confirmInvite: invite, updatedAt: now }
+  })
+  const updated = await db.collection(PAIRS_COL).doc(pair._id).get()
+  return { code: 0, data: { alreadySent: false, invited: true, invite, pair: withStage(updated.data) } }
+}
+
+// B 同意邀请 —— 真正落里程碑 + 上报 relation_confirmed 的唯一时刻
+async function acceptConfirmInvite(ctx, opts = {}) {
+  const { db, _ } = ctx
+  const openid = opts.openid
+  const peerId = opts.peerId
+
+  if (!openid) return { code: 401, message: '缺少 openid：acceptConfirmInvite 必须在持有端用户身份的进程内执行（禁用跨函数调用）' }
+  if (!peerId) return { code: 400, message: '缺少 peerId' }
+  if (String(peerId) === 'undefined') return { code: 400, message: 'peerId 非法' }
+
+  const pair = await readPair(ctx, openid, peerId)
+  const milestones = pair && Array.isArray(pair.milestones) ? pair.milestones : []
+  if (milestones.indexOf(RELATION_CONFIRMED_MILESTONE) !== -1) {
+    return { code: 0, data: { alreadyConfirmed: true, accepted: false, pair: withStage(pair) } }
+  }
+  const now = Date.now()
+  const inv = confirmInviteActive(pair, now)
+  if (!inv) return { code: 409, message: '没有待确认的邀请（可能已过期，请重新发起）' }
+  if (inv.from === openid) return { code: 400, message: '不能确认自己的邀请' }
+
   await db.collection(PAIRS_COL).doc(pair._id).update({
     data: {
       milestones: _.push(RELATION_CONFIRMED_MILESTONE),
       confirmedAt: now,
+      confirmInvite: _.remove(), // 清空邀请，避免脏字段残留
       updatedAt: now
     }
   })
   const updated = await db.collection(PAIRS_COL).doc(pair._id).get()
-  return {
-    code: 0,
-    data: { alreadyConfirmed: false, confirmed: true, pair: withStage(updated.data) }
-  }
+  return { code: 0, data: { accepted: true, pair: withStage(updated.data) } }
+}
+
+// B 拒绝邀请
+async function rejectConfirmInvite(ctx, opts = {}) {
+  const { db, _ } = ctx
+  const openid = opts.openid
+  const peerId = opts.peerId
+
+  if (!openid) return { code: 401, message: '缺少 openid：rejectConfirmInvite 必须在持有端用户身份的进程内执行（禁用跨函数调用）' }
+  if (!peerId) return { code: 400, message: '缺少 peerId' }
+  if (String(peerId) === 'undefined') return { code: 400, message: 'peerId 非法' }
+
+  const pair = await readPair(ctx, openid, peerId)
+  const now = Date.now()
+  const inv = confirmInviteActive(pair, now)
+  if (!inv) return { code: 0, data: { nothingToReject: true } }
+  if (inv.from === openid) return { code: 400, message: '不能拒绝自己的邀请' }
+
+  await db.collection(PAIRS_COL).doc(pair._id).update({
+    data: { confirmInvite: _.remove(), updatedAt: now }
+  })
+  return { code: 0, data: { rejected: true } }
+}
+
+// A 撤销自己发起的邀请（过期也允许撤销，清理脏字段）
+async function cancelConfirmInvite(ctx, opts = {}) {
+  const { db, _ } = ctx
+  const openid = opts.openid
+  const peerId = opts.peerId
+
+  if (!openid) return { code: 401, message: '缺少 openid：cancelConfirmInvite 必须在持有端用户身份的进程内执行（禁用跨函数调用）' }
+  if (!peerId) return { code: 400, message: '缺少 peerId' }
+  if (String(peerId) === 'undefined') return { code: 400, message: 'peerId 非法' }
+
+  const pair = await readPair(ctx, openid, peerId)
+  const inv = pair && pair.confirmInvite
+  if (!inv || inv.from !== openid) return { code: 0, data: { nothingToCancel: true } }
+
+  const now = Date.now()
+  await db.collection(PAIRS_COL).doc(pair._id).update({
+    data: { confirmInvite: _.remove(), updatedAt: now }
+  })
+  return { code: 0, data: { canceled: true } }
 }
 
 module.exports = {
@@ -254,6 +352,10 @@ module.exports = {
   readPair,
   ensurePair,
   addGrowth,
-  confirmRelation,
-  RELATION_CONFIRMED_MILESTONE
+  sendConfirmInvite,
+  acceptConfirmInvite,
+  rejectConfirmInvite,
+  cancelConfirmInvite,
+  RELATION_CONFIRMED_MILESTONE,
+  CONFIRM_INVITE_TTL_MS
 }

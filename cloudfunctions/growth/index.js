@@ -103,11 +103,16 @@ async function addGrowth({ peerId, delta, reason, skipStreak } = {}, OPENID) {
   return res
 }
 
-// M4.4 SC4 自评入口：关系主页「我们在一起了 🎉」→ 写 pair.milestones + 上报 relation_confirmed。
-// 幂等由 core.confirmRelation 保证（同 pair 只写一次），本函数仅在本写入成功时上报一次。
-async function confirmRelation({ peerId } = {}, OPENID) {
-  const res = await core.confirmRelation(ctx, { openid: OPENID, peerId })
-  if (res.code === 0 && res.data && res.data.confirmed) {
+// M4.4 SC4 双边邀请确认：A 发起邀请 → B 收到 → B 同意/拒绝，超时自动失效。
+// 上报 relation_confirmed 只在「B 同意」这一刻触发（详见 acceptConfirmInvite）。
+async function sendConfirmInvite({ peerId } = {}, OPENID) {
+  return await core.sendConfirmInvite(ctx, { openid: OPENID, peerId })
+}
+
+async function acceptConfirmInvite({ peerId } = {}, OPENID) {
+  const res = await core.acceptConfirmInvite(ctx, { openid: OPENID, peerId })
+  // 同意成功才上报 relation_confirmed（SC4 分子，pair 维度，pairId 与方向无关）。失败静默。
+  if (res.code === 0 && res.data && res.data.accepted) {
     metrics.track(metricsCtx, {
       openid: OPENID,
       eventName: 'relation_confirmed',
@@ -117,6 +122,14 @@ async function confirmRelation({ peerId } = {}, OPENID) {
   return res
 }
 
+async function rejectConfirmInvite({ peerId } = {}, OPENID) {
+  return await core.rejectConfirmInvite(ctx, { openid: OPENID, peerId })
+}
+
+async function cancelConfirmInvite({ peerId } = {}, OPENID) {
+  return await core.cancelConfirmInvite(ctx, { openid: OPENID, peerId })
+}
+
 exports.main = async (event = {}) => {
   const action = event.action
   const OPENID = cloud.getWXContext().OPENID
@@ -124,7 +137,10 @@ exports.main = async (event = {}) => {
     if (action === 'getPair') return await getPair(event, OPENID)
     if (action === 'listPairs') return await listPairs(event, OPENID)
     if (action === 'addGrowth') return await addGrowth(event, OPENID)
-    if (action === 'confirmRelation') return await confirmRelation(event, OPENID)
+    if (action === 'sendConfirmInvite') return await sendConfirmInvite(event, OPENID)
+    if (action === 'acceptConfirmInvite') return await acceptConfirmInvite(event, OPENID)
+    if (action === 'rejectConfirmInvite') return await rejectConfirmInvite(event, OPENID)
+    if (action === 'cancelConfirmInvite') return await cancelConfirmInvite(event, OPENID)
     return { code: 404, message: 'unknown action: ' + action }
   } catch (e) {
     const msg = (e && e.message) || 'growth error'

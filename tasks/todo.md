@@ -346,6 +346,47 @@
 
 ---
 
+## M5：SC5 处置能力（F8 闭环）+ app_open 双计修复
+
+> 规划：`tasks/plan-m5.md`（2026-08-30 范围已拍板：handleReport+管理员白名单 / SC5 以 reports 集合为权威源 / 处置只标记不留自动动作 / 冷启动线本轮跳过）。动码前待签字放行。
+
+### Task M5.1: safety.handleReport（管理员白名单 + 幂等）
+
+**Description:** `safety` 加 handleReport action：校验 admins 集合 → reports.status pending→handled/dismissed + handledAt/handledBy → 上报 report_handled（props 仅 targetType/decision）。
+**Acceptance criteria:** 非管理员 403；重复处置返回 alreadyHandled；note 不入埋点。
+**Dependencies:** M5.2（白名单先行）
+**Files likely touched:** `cloudfunctions/safety/index.js`
+**Estimated scope:** S
+
+### Task M5.2: report_handled 入埋点白名单
+
+**Description:** metrics-core 白名单加 report_handled，`npm run sync:core` 同步副本。
+**Dependencies:** 无
+**Files likely touched:** `cloudfunctions/*/metrics-core.js`（经 sync）
+**Estimated scope:** S
+
+### Task M5.3: metrics.dashboard SC5 消费 reports 集合
+
+**Description:** 替换 no_data 分支：24h 处置率（handledAt-createdAt≤24h ÷ 全部 handled）+ pendingCount；_note 写明与 SC1–SC4 的口径差异（reports 权威源 vs events 流）。
+**Dependencies:** M5.1（数据形态）
+**Files likely touched:** `cloudfunctions/metrics/index.js`
+**Estimated scope:** S
+
+### Task M5.4: app_open 冷启动双计修复
+
+**Description:** App.vue onLaunch 打冷启动标记，紧随的 onShow 跳过一次上报；之后每次切前台正常报。~6 行纯前端。
+**Dependencies:** 无
+**Files likely touched:** `src/App.vue`
+**Estimated scope:** S
+
+### Checkpoint M5（SC1–SC5 全有数）
+
+- [ ] SC5 真实读数可出（dashboard 替代 no_data；Checkpoint M4 的 SC5 人工放行项转「有数」）
+- [ ] app_open 冷启动不再成对双计
+- [ ] 人工终审 → 下一阶段（冷启动准备 / 阈值回灌）
+
+---
+
 ## 贯穿约束（来自 SPEC §9）
 
 - Always: UGC/私聊先审后发；服务端校验一切输入；成长值只增不减；改前先更 Spec。

@@ -305,7 +305,7 @@
   **Files likely touched:** `cloudfunctions/metrics/index.js`, 看板页面/聚合脚本  
   **Estimated scope:** M
 
-### Task M4.3: 全链路联调 + 阈值校准
+### Task M4.3: 全链路联调 + 阈值校准 ✅ 已完成（2026-08-30，结论=沿用初值）
 
 **Description:** 跑通最小闭环；用 F9 数据回灌 Plan §5 阈值（12/40/90/150）初值校准，记录校准结果。  
 **Acceptance criteria:**
@@ -313,7 +313,7 @@
 - SC4（真交到伴侣）可归因
 - 阈值校准结论已记录  
   **Verification:**
-- Manual: 端到端走通并产出指标  
+- Manual: 端到端走通（真机验收通过，含 SC4 双边邀请全流程）+ 校准结论已记录于 `tasks/threshold-calibration.md`（n=3 单日样本 → **样本不足，沿用初值**；记录游戏权重偏高、app_open 双计两个后续观察）  
   **Dependencies:** M3.5, M4.2  
   **Files likely touched:** 调参记录/配置  
   **Estimated scope:** M
@@ -340,8 +340,8 @@
 ### Checkpoint M4（v1 可上线验证）
 
 - [x] 能观测 SC1–SC4（SC5 为数据缺口，人工终审放行）
-- [x] 最小闭环跑通、SC4 可归因（relation_confirmed 自评入口已落地，待真机读数）
-- [ ] 阈值校准记录完成（M4.3 待做，样本不足则写「沿用初值」）
+- [x] 最小闭环跑通、SC4 可归因（双边邀请真机验收通过，`relation_confirmed` 已入库）
+- [x] 阈值校准记录完成（`tasks/threshold-calibration.md`：n=3 单日 → 样本不足，沿用初值 12/40/90/150）
 - [ ] 人工终审 → 进入 Phase 4 Implement（逐任务落地）
 
 ---

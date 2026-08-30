@@ -2,7 +2,7 @@
 
 # 项目/任务
 
-从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M3 全部完成、M4（验证：埋点 + 北极星看板）已做到 M4.1 全闭环 + M4.2 看板上线 + M4.4 SC4 双边邀请确认（M4.3 阈值校准待做）。
+从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M3 全部完成、**M4（验证：埋点 + 北极星看板 + 阈值校准）全部完成**（M4.3 结论=样本不足沿用初值；M4.4 双边邀请真机验收通过），Checkpoint M4 仅剩人工终审放行。
 
 > **⚠️ 2026-08-29 实测推翻旧版前提**：旧版 HANDOFF 称"4 个云函数未部署、3 个集合未建、从未真机验证"。**实测全不成立**——7 个存量云函数全部已部署且与本地逐字节一致；10+ 个集合全部已建且有数据；M2 主链路云端跑通过完整一局。瓶颈从来不是部署，而是**真机验证**与**埋点校准**。
 
@@ -65,7 +65,7 @@
 - **M1 聚人 ✅ Checkpoint 通过（step 1–6）**（2026-08-28）。step 7 裂变因个人账号禁分享延后（页面定义 `onShareAppMessage` 会触发基础库内部 `showShareMenu` 被 banned）。底层归因逻辑（`invite` 云函数 + 捕获 `?inviter=`）保留。
 - **M2 破冰 ✅ 已收尾并通过 Checkpoint（2026-08-30 双设备真机 V1–V4 全 PASS）**：撮合→建局→答题→结束闭环、MBTI 落库、拉黑/解除闭环、契合度加成。云端查库佐证见 `tasks/verification-log.md`。答题逻辑已改版为「匹配后各自独立答题、终局对比算默契度」（`game` 云函数已部署）。
 - **M3 升温·导流 ✅ 代码完成 + 部署 + 真机验证（v0.3.0）**：pairs 默契度系统、先审后发、S1 门禁、联系方式解锁、拉黑闭环。BUG-1/BUG-2 已修且真机复验 PASS。
-- **M4 验证 ✅ M4.1 全闭环 + M4.2 看板上线 + M4.4 SC4 双边邀请确认（2026-08-30）**：13 事件全链路埋点真机验收（查库 47 条）；`metrics.dashboard` 聚合 SC1–SC5 上线，47 条数据口径复算一致（SC1=50% / SC2=0% / SC3=0% / SC4=0 / SC5=数据缺口）；M4.4 关系确认由单边自评升级为**双边邀请**（A 发邀请→B 弹窗同意/拒绝，超时 10min 自动失效；仅 B 同意时落 milestones + 上报 relation_confirmed）。**M4.3 阈值校准待做**（M4.5 SC5 处置留 M5）。
+- **M4 验证 ✅ 全部完成（2026-08-30）**：13 事件全链路埋点真机验收；`metrics.dashboard` 聚合 SC1–SC5 上线（数据已至 108 条/3 对，SC4=1）；M4.4 关系确认为**双边邀请**（A 发邀请→B 任意页面经应用级轮询+原生通知收到，同意落 milestones + 上报 relation_confirmed，超时 10min 失效）——真机验收通过；M4.3 阈值校准结论「样本不足，沿用初值」（`tasks/threshold-calibration.md`，附游戏权重偏高/app_open 双计两个观察）。M4.5 SC5 处置留 M5。
 
 **版本与回滚锚点**
 - 当前版本 `v0.3.0`（= M3），`MINOR 号 = 里程碑号`（v0.3.0 = M3）。tag 为**带注释本地 tag，未推送**。
@@ -186,7 +186,7 @@
 
 # 当前状态
 
-**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、**M4.1 ✅ 全闭环 + M4.2 ✅ 看板上线 + M4.4 ✅ SC4 双边邀请确认（已部署+待真机验证）**。M4 剩余 M4.3（阈值校准）。
+**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、**M4 全部完成 ✅**（M4.1 全闭环 + M4.2 看板上线 + M4.3 阈值校准「沿用初值」+ M4.4 SC4 双边邀请确认真机验收通过）。Checkpoint M4 仅剩人工终审放行。
 
 **M4.1 埋点终验结果（2026-08-30，查库 47 条 / 11 类事件）**
 - `app_open`×23、`match_accept`×4、`game_join`×3、`game_done`×3、`message_sent`×7、`pair_stage_changed`×2、`mbti_completed`×1、`chat_unlocked`×1、`profile_completed`×1、`recommend_view`×2
@@ -199,7 +199,7 @@
 | SC1 阶段 S2 率 | **50%** | ≥30% | 达 S2 的 pair(1) ÷ 有 game_done 的 pair(2) |
 | SC2 D7 留存 | **0%** | ≥25% | 全部事件同一天，D7=09-06 无数据 → 单日测不出，口径正确非 bug |
 | SC3 加微信转化 | **0%** | ≥15% | contact_unlocked 已清理且无新解锁 |
-| SC4 关系确认 | **0** | — | M4.4 已落地（双边邀请：accept 上报 relation_confirmed，待真机验证后读数） |
+| SC4 关系确认 | **1**（3 条事件，唯一 pair=1） | — | M4.4 双边邀请真机验收通过；同一 pair 多次确认周期各报一次，看板按唯一 pair 计数 |
 | SC5 违规处置 | **no_data** | ≥95% | 处置能力留 M5 |
 
 **Checkpoint M4 第一项「能观测 SC1–SC4（看板有数、口径可复算）」已达成**；SC5 仍需人工终审放行。
@@ -222,14 +222,14 @@
 | 🟢 低·死代码 | `src/utils/invite.js` 自裂变入口移除后全仓无 import，实为死代码。**删除前需用户确认**，勿擅自删。 |
 | 🟢 低 | `users` 可能残留无 `openid` 历史孤儿文档（_openid→openid 修复前产生），建议控制台手动清理。 |
 | 🟢 低·本地残留 | `_rm_oldbd/`：早期损坏 node_modules 改名副本（~29M，gitignore，safe-delete 删不掉，用户本机可手动清）。 |
-| 🟢 低 | 成长阈值 12/40/90/150 为初值，M4.3 校准。 |
+| 🟢 低 | 成长阈值 12/40/90/150：M4.3 校准结论=样本不足沿用初值（见 `threshold-calibration.md`，含游戏权重偏高观察）。 |
 
 ---
 
 # 待确认事项
 
-- **M4.3 阈值校准**：用 47 条（及后续）真机数据回灌 12/40/90/150，产出 `tasks/threshold-calibration.md`（样本不足则写"沿用初值"）。
-- ~~M4.4 SC4 自评入口~~ ✅ **已完成并升级为双边邀请（2026-08-30）**：原为单边 `confirmRelation`（A 点即落库，故 B 端不实时刷新、需重进才见）。现改为 A 发起邀请→B 弹窗同意/拒绝、超时 10min 自动失效——`sendConfirmInvite`/`acceptConfirmInvite`（落 milestones + 上报 relation_confirmed）/`rejectConfirmInvite`/`cancelConfirmInvite`。已部署 growth 并校验 Status=Active，待用户真机验证读数。**注意：旧单边测试已让目标 pair 含 milestones『在一起 🎉』，重测新流程请用全新 pair。**
+- ~~M4.3 阈值校准~~ ✅ **已完成（2026-08-30）**：`tasks/threshold-calibration.md` 已产出——n=3 对（单日、全测试账号）→ **样本不足，沿用初值 12/40/90/150**；记录两个后续观察：① 游戏成长权重偏高（2 局即到 150 封顶、0 聊天也能 S4）；② `app_open` 冷启动双计（onLaunch+onShow 各报一次，SC2 分母约虚高一倍，建议后续修复）。
+- ~~M4.4 SC4 自评入口~~ ✅ **已完成并升级为双边邀请，真机验收通过（2026-08-30）**：A 发起邀请→B 任意页面经应用级轮询（`src/utils/confirmInvite.js` 全局 store + `uni.showModal` 原生通知）收到→同意落 milestones + 上报 relation_confirmed / 拒绝 / 撤销 / 超时 10min 失效。
 - **是否做存量老对全量回填**（见上表 🟡 中）。
 - **是否修复 UTC 时区**：把成长值 streak 的 `dayOf`/`isoWeekOf` 改为 +8（埋点 day 已改，streak 未改）。
 - **是否删除死代码 `src/utils/invite.js`**（需用户点头）。
@@ -316,7 +316,7 @@
    - 若用户报 bug → 先核实云端代码是否与本地一致（下载 zip 归一化 diff），再查逻辑；勿默认"没部署"。
 3. **不要重复**：不重跑需求澄清/Plan/Tasks；不用裸 npm install；不写死 env / 不提议自动建集合；不重新提议"前端传黑名单给后端过滤"；不擅自重加 `onShareAppMessage`/邀请入口；不擅自删 `src/utils/invite.js`；不擅自删云端数据（强删前必列 `_id`）。
 4. **隐含约束（极易漏）**：云函数部署环境必须 = `love-app-server-d2fhg32320d65c12`；新集合仍需手动建在该环境；DevTools 加载 `dist/dev`；本环境纯 NoSQL，别提 PG/RLS/MySQL；改 `growth-core.js` 后必须 `npm run sync:core` 再部署。
-5. **信息不足时优先问**：① 下一步做 M4.3 / M4.4 / 还是先积累数据？② 是否做存量老对全量回填？③ 是否修 UTC 时区（streak 的 dayOf）？④ 是否删 `src/utils/invite.js`？⑤ 账号主体与社交类目资质现状？
+5. **信息不足时优先问**：① M4 已收官，下一步是 M5 规划 / 修 app_open 双计 / 还是先积累真实用户数据？② 是否做存量老对全量回填？③ 是否修 UTC 时区（streak 的 dayOf）？④ 是否删 `src/utils/invite.js`？⑤ 账号主体与社交类目资质现状？
 6. **动手前必读**：`spec/SPEC.md` → `tasks/plan.md` → `tasks/todo.md` → `tasks/plan-m4.md` → 本文件「盲区防护」与「已尝试但失败/放弃的方案」→ `.workbuddy/memory/` 最近几天记录。
 
 ---
@@ -324,11 +324,11 @@
 # 极简版
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
-- **现状**：M0/M1/M2/M3 全部完成；**M4.1 全链路埋点 ✅ 闭环（查库 47 条/11 类事件，PII 零泄漏）**；**M4.2 `metrics.dashboard` 看板 ✅ 上线**（SC1=50%/SC2=0%/SC3=0%/SC4=0/SC5=数据缺口）；**M4.4 SC4 双边邀请确认 ✅ 已部署**（待真机验证）。剩余 M4.3 阈值校准（M4.5 留 M5）。
+- **现状**：M0/M1/M2/M3 全部完成；**M4.1 全链路埋点 ✅ 闭环（PII 零泄漏）**；**M4.2 `metrics.dashboard` 看板 ✅ 上线**（数据已增长到 108 条事件/3 对关系，SC4=1）；**M4.3 阈值校准 ✅ 「样本不足，沿用初值」**（`tasks/threshold-calibration.md`）；**M4.4 SC4 双边邀请确认 ✅ 真机验收通过**。M4.5（SC5 处置）留 M5；Checkpoint M4 仅剩人工终审。
 - **Git**：远程 `main` 已对齐本地（2026-08-30 实测 `3d05c07`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。
 - **🔴 两个最致命历史坑（已修但极易复发）**：A. 云函数 A `callFunction` 调 B 时 B 的 `OPENID=undefined` → 幽灵 pair，已抽 `growth-core.js` 共享内核，改完务必 `npm run sync:core` 再部署；B. **NoSQL delete 用 `$in` 只删 1 条，必须精确 `_id` 逐条删**（强删云端数据前必列 `_id` 给用户）。
 - **🔴 落盘习惯**：`Edit` 可能返回成功但实际未写入，落盘后用 `git status`/`Grep` 复核。
 - **不要主动提议**：写死 env、自动建集合（已否决）；前端传黑名单给后端（已否决）；重加 `onShareAppMessage`/邀请入口；擅自删 `src/utils/invite.js`（死代码，待用户确认）。
-- **下一步方向**：M4.3 阈值校准 / 积累真实用户数据跑出 SC2–SC4（M4.4 SC4 双边邀请确认已完成，待真机验证）。
+- **下一步方向**：Checkpoint M4 人工终审放行 → 进入 M5 规划（SC5 处置能力 + 真实用户冷启动）；积累真实用户数据后再按 `threshold-calibration.md` 备忘方法回灌阈值（重点：游戏权重偏高、app_open 双计两个观察）。

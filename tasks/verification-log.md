@@ -528,3 +528,23 @@ A 发送邀请后，**B 收不到**（除非 B 恰好停在关系页）。
 - 问题：A 发邀请后 `rel-actions` 里插入 `btn pending` 长文案按钮，导致「一起玩/聊聊/联系方式」列尺寸跳动。
 - 修复：撤销功能独立为信息区（rel-meta）的一行状态条「💌 等待 XX 回应 · 倒计时 · 撤销」（`.invite-status` + 内联 `.cancel-link`），`rel-actions` 恢复恒定三按钮；删除 `.btn.pending` 样式。编译 `build:mp-weixin` DONE。
 
+
+## M4.3 阈值校准 ✅ 结论=样本不足沿用初值（2026-08-30 19:16）
+
+### 数据快照
+- `pairs` 3 对（同日创建、全测试账号）：growthValue {150, 150, 21}；其中 1 对含 milestones『在一起 🎉』（双边邀请真机确认）。
+- `events` 108 条（单日）：app_open 占多数；match_accept×5、game_done×3、message_sent×7、chat_unlocked×1、pair_stage_changed×2、relation_confirmed×3（唯一 pair=1）。
+
+### 分桶表
+| 桶 | pair 数 | 代理指标 |
+|---|---|---|
+| S1（12–39） | 1（growth 21） | 解锁聊天+发消息×2；未解锁联系方式 |
+| S2/S3 | 0（仅途经事件） | — |
+| S4（150） | 2 | ① 3局/默契14/互聊5条/已确认 ② 2局/默契8/0聊天/未确认 |
+
+### 结论
+**n=3、单日、零自然用户、D7 不可算 → 样本不足，沿用初值 12/40/90/150**（规划决策 4：避免小样本过拟合）。详见 `tasks/threshold-calibration.md`。
+
+### 数据质量观察（后续待办，本次不改码）
+1. 游戏成长权重偏高：2 局即到 150 封顶、0 聊天 pair 也能 S4 → growthValue 区分度弱。
+2. `app_open` 冷启动双计：onLaunch+onShow 各报一次（时间戳成对毫秒级），SC2 分母约虚高一倍；修复建议=onLaunch 打标记跳过紧随的 onShow。

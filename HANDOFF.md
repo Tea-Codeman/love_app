@@ -72,9 +72,9 @@
 - 回滚：`git checkout v0.3.0` 整体回退；`git revert <commit>` 逐任务撤。**云函数需重新部署对应版本代码**，前端回滚后必须重建 `dist/dev`。
 - **用户重视"提交作为回滚锚点"**：改功能前先确认/补齐提交，按关注点拆原子提交（功能/开关/文档/性能/纯格式各自独立）。
 
-**Git 状态（2026-08-30 05:14 最新）**
-- **远程 `main` 与本地 HEAD 已对齐**（HANDOFF 重写前为 `53ce5b0`，重写提交自身为 `3d05c07`；本会话 M4.4 提交后 HEAD 继续前进）。
-- ⚠️ **沙箱怪象**：本沙箱内 `git rev-parse origin/main` 报 unknown、`git status` 显示 `origin/main: gone`。但 `git ls-remote --heads origin` 真实返回 = 本地 HEAD（2026-08-30 实测为 `3d05c07`）。**判断推送是否成功一律以 `ls-remote` 为准，勿信本地 ref 的 gone 标记。**
+**Git 状态（2026-08-30 20:25 最新）**
+- **远程 `main` 与本地 HEAD 已对齐 = `c8e3e2d`**（M5 规划定稿提交）。本会话（M4.4→M5 规划）共推进 10+ 个提交，全部快进推送，零强推，工作树干净。关键锚点：`8ba58e8`/`6109adf`(M4.4 单边) → `7641267`/`907e26a`(双边邀请) → `a79d782`/`43a42f3`(M4.4b 全局投递) → `aee4416`(M4.4c 布局) → `7a4395e`(getOpenid 修复) → `6d5c040`(观察修正) → `75fcb71`(M4.3 校准) → `c8e3e2d`(M5 规划)。
+- ⚠️ **沙箱怪象**：本沙箱内 `git rev-parse origin/main` 报 unknown、`git status` 显示 `origin/main: gone`。但 `git ls-remote --heads origin` 真实返回 = 本地 HEAD（2026-08-30 20:25 实测为 `c8e3e2d`）。**判断推送是否成功一律以 `ls-remote` 为准，勿信本地 ref 的 gone 标记。**
 - 工作树**干净**。
 
 **数据模型（云数据库集合，全部已建）**
@@ -147,7 +147,12 @@
 13. **M4.2 北极星看板**：`metrics.dashboard` 只读聚合 SC1–SC5 + 漏斗，按 plan-m4.md §5 口径。提交 `2b4c06e`（feat）+ `53ce5b0`（docs）。
 14. **推送**：M4.1 68 提交 + M4.2 2 提交全部快进推送至 `origin/main`（=`53ce5b0`），零强推。
 15. **清理**：3 条预修复重复 `contact_unlocked` 已按精确 `_id` 逐条删除（contact_unlocked 现归零）。
-16. **M4.4 SC4 双边邀请确认（2026-08-30）**：单边 `confirmRelation`（A 点即落库）升级为**双边邀请**。`growth-core.js` 新增 `sendConfirmInvite/acceptConfirmInvite/rejectConfirmInvite/cancelConfirmInvite`（邀请存 `pairs.confirmInvite={from,at,expiresAt}`，TTL=10min，服务端 accept/reject 校验过期）；`relation.vue` 改为 A 发起→B 弹窗（同意/拒绝+倒计时），4s 轮询（照搬 chat）+1s 倒计时 tick；`npm run sync:core` 同步到 game/chat/match；growth 已重部署并校验 `Status=Active`（Namespace=love-app-server-d2fhg32320d65c12）。**旧单边按钮点过的 pair 已含 milestones『在一起 🎉』，重测新流程需用全新 pair。**
+16. **M4.4 SC4 双边邀请确认（2026-08-30）**：单边 `confirmRelation`（A 点即落库）升级为**双边邀请**。`growth-core.js` 新增 `sendConfirmInvite/acceptConfirmInvite/rejectConfirmInvite/cancelConfirmInvite`（邀请存 `pairs.confirmInvite={from,at,expiresAt}`，TTL=10min，服务端 accept/reject 校验过期）；growth 已重部署并校验 `Status=Active`。
+17. **M4.4b 邀请投递应用级修复（2026-08-30）**：真机发现"B 不在关系页收不到弹窗"——根因是轮询挂在 relation.vue 页面级（onHide 即停）。修复：新增 `src/utils/confirmInvite.js` 全局 store（4s 轮询+1s tick，命名避让 T2 已占用的 `invite.js`），App.vue onShow/onHide 启停，B 在任意页面经 `uni.showModal` 原生通知（按 pairKey+expiresAt 去重）；`relation.vue` 改消费共享 store，`receivedInvite` 必须 computed（原 method 写法模板中恒真值）。提交 `a79d782`。
+18. **M4.4c 布局微调（2026-08-30）**：等待/撤销移出 rel-actions 按钮列（按钮尺寸不再跳动），改为信息区状态条「💌 等待 XX 回应 · 倒计时」+ 内联撤销链接。提交 `aee4416`。
+19. **getOpenid ReferenceError 修复（2026-08-30）**：M4.4b 重写 relation.vue 时漏 import `getOpenid`，Vite 不检查未定义引用故编译恒绿、运行到 onShow 才炸（`BUG.md` 有记录）。**教训：重写 vue 文件后必须对照旧 imports 清单核对**。提交 `7a4395e`。
+20. **M4.3 阈值校准 ✅ M4 收官（2026-08-30）**：查库 pairs 3 对（growthValue {150,150,21}）+ events 108 条（单日）→ **n=3 样本不足，沿用初值 12/40/90/150**，产出 `tasks/threshold-calibration.md`。两个观察经代码级复核**修正归因**（提交 `6d5c040`）：① 「游戏权重偏高」改判为 M4.1 手工 addGrowth 测试污染（实际权重游戏+8/局、聊天+2/轮、纯游戏到 S4 约需 19 局）；② 「app_open 双计致 SC2 虚高一倍」降级为零影响（看板 SC1–SC5 均不消费 app_open）。提交 `75fcb71`。
+21. **M5 规划定稿（2026-08-30 20:20）**：用户三选拍板——范围=SC5 处置能力+修 app_open 双计（冷启动线明确跳过）；处置=`safety.handleReport`+管理员 openid 白名单（推荐 `admins` 集合载体）；SC5 以 `reports` 集合为权威源（`report_handled` 事件仅观测流）；处置只标记不做自动下架/封号。产出 `tasks/plan-m5.md` + todo.md M5 任务卡（M5.1–M5.4+Checkpoint M5）。提交 `c8e3e2d`。**状态：待用户签字放行动码。**
 
 ---
 
@@ -234,7 +239,7 @@
 - **是否修复 UTC 时区**：把成长值 streak 的 `dayOf`/`isoWeekOf` 改为 +8（埋点 day 已改，streak 未改）。
 - **是否删除死代码 `src/utils/invite.js`**（需用户点头）。
 - 小程序账号主体/社交类目资质现状？内容安全云调用权限是否就绪？隐私政策文案进度？
-- **push 已无待办**：远程 `main` 已与本地 HEAD 对齐（2026-08-30 实测 `3d05c07`），历史提交均已推送；本会话 M4.4 提交后将再次对齐。
+- **push 已无待办**：远程 `main` 已与本地 HEAD 对齐（2026-08-30 20:25 实测 `c8e3e2d`），历史提交均已推送。
 
 ---
 
@@ -244,13 +249,16 @@
 - **Plan（已批准）**：`D:\Tencent\app\tasks\plan.md`
 - **Tasks（20 卡）**：`D:\Tencent\app\tasks\todo.md`
 - **M4 规划定稿**：`D:\Tencent\app\tasks\plan-m4.md`（含 13 事件清单 + SC1–SC5 口径）
-- **验收记录**：`D:\Tencent\app\tasks\verification-log.md`（M2/M3/M4.1/M4.2 各章；M4.1「补测终验」、M4.2「看板验收」）
+- **M5 规划定稿**：`D:\Tencent\app\tasks\plan-m5.md`（SC5 处置 handleReport + 管理员白名单 + SC5 口径 + M5.4 双计修复，待放行）
+- **M4.3 校准结论**：`D:\Tencent\app\tasks\threshold-calibration.md`（n=3 沿用初值 + 修正后的两个观察）
+- **BUG 记录**：`D:\Tencent\app\BUG.md`（getOpenid ReferenceError 案例）
+- **验收记录**：`D:\Tencent\app\tasks\verification-log.md`（M2/M3/M4.1/M4.2/M4.3/M4.4/M4.4b/M4.4c 各章）
 - **M4.1 补测清单**：`D:\Tencent\app\tasks\m4.1-supplement-test.md`
 - **项目记忆**：`D:\Tencent\app\.workbuddy\memory\2026-08-26/27/28/29/30.md`
 - **原型参考站（MBTI 机制）**：`https://214e49b7ee1545cc8fa07b3d3da5c21a.app.workbuddy.link/`
 - **appid**：`wx900385d98d023d6f`
 - **CloudBase envId**：`love-app-server-d2fhg32320d65c12`（个人版，ap-shanghai，纯 nosql，到期 2027-02-26）
-- **远程仓库**：`git@github.com:Tea-Codeman/love_app.git`（SSH，分支 `main`，已对齐 `3d05c07`）
+- **远程仓库**：`git@github.com:Tea-Codeman/love_app.git`（SSH，分支 `main`，已对齐 `c8e3e2d`）
 - **管理版 Node**：`C:\Users\panda\.workbuddy\binaries\node\versions\22.22.2\node.exe`
 - **`project.config.json`**：`miniprogramRoot = "dist/dev/mp-weixin/"`；`cloudfunctionRoot = "cloudfunctions/"`
 - **CloudBase MCP 工具（Agent 可自助，无需 GUI）**：`queryEnv`/`queryFunctions`(getFunctionDetail/listFunctions/getFunctionDownloadUrl/updateFunctionCode/managePermissions)/`readNoSqlDatabaseStructure`/`readNoSqlDatabaseContent`/`writeNoSqlDatabaseContent`/`queryLogs`。**注意 `queryFunctions(action=listFunctionLogs)` 已废弃**，查日志用 `queryLogs(action=searchLogs)`。
@@ -309,10 +317,10 @@
 
 # 新 Agent 接手指南
 
-1. **当前最重要的问题**：M4 已基本完成（M4.1 闭环 + M4.2 看板上线），下一步是 **M4.3 阈值校准**（M4.4 SC4 双边邀请确认已完成、待真机验证）。两者都依赖真实用户数据积累——目前 `events` 仅 47 条（单日测试），SC2/SC3/SC4 还测不出。
+1. **当前最重要的问题**：M4 已全部收官（含 M4.3 校准、M4.4 双边邀请真机验收通过）。**M5 规划已定稿（`tasks/plan-m5.md`），等用户签字放行动码**——范围=SC5 处置能力（M5.1 handleReport / M5.2 白名单+report_handled / M5.3 dashboard SC5 消费）+ M5.4 app_open 双计修复，全部 S 级小改动；`safety`/`metrics` 云函数已有底子（缺的只是处置闭环）。
 2. **从哪一步继续**：
-   - 若用户说"做 M4.3" → 读 `tasks/plan-m4.md` §5 口径 + 现有 `metrics.dashboard` 数据，产出 `tasks/threshold-calibration.md`。
-   - 若用户说"做 M4.4" → 已实现为**双边邀请确认**：`growth` 云函数 `sendConfirmInvite/acceptConfirmInvite/rejectConfirmInvite/cancelConfirmInvite`，邀请存 `pairs.confirmInvite`（TTL 10min）；邀请投递为**应用级**——`src/utils/confirmInvite.js` 全局 store（App.vue onShow 启动 4s 轮询+1s tick，B 在任意页面经 `uni.showModal` 收通知，去重按 pairKey+expiresAt）+ `relation.vue` 消费 store 的页内富弹窗（`receivedInvite` 必须是 computed，写成 method 会恒真值）；部署后真机验证（用全新 pair，旧单边测试已落 milestones 的 pair 会直接返回已确认）。
+   - 若用户说"放行/做 M5" → 按 M5.2→M5.1→M5.3→M5.4 顺序落地：先在 `safety` 加 `handleReport`（pending→handled，服务端校验管理员白名单）+ `report_handled` 埋点，再改 `metrics/dashboard` 消费 `reports` 集合算 SC5（24h 处置率+pendingCount），最后 App.vue 双计修复；部署 safety/metrics 后轮询 `getFunctionDetail` 至 `Status=Active` 才算落地；管理员白名单载体默认走 `admins` 集合（增删免重部署），需先在控制台建集合并插入管理员 openid。
+   - 若用户说"做 M4.4" → 已完成（双边邀请，见已完成工作 16–19），勿重做。
    - 若用户报 bug → 先核实云端代码是否与本地一致（下载 zip 归一化 diff），再查逻辑；勿默认"没部署"。
 3. **不要重复**：不重跑需求澄清/Plan/Tasks；不用裸 npm install；不写死 env / 不提议自动建集合；不重新提议"前端传黑名单给后端过滤"；不擅自重加 `onShareAppMessage`/邀请入口；不擅自删 `src/utils/invite.js`；不擅自删云端数据（强删前必列 `_id`）。
 4. **隐含约束（极易漏）**：云函数部署环境必须 = `love-app-server-d2fhg32320d65c12`；新集合仍需手动建在该环境；DevTools 加载 `dist/dev`；本环境纯 NoSQL，别提 PG/RLS/MySQL；改 `growth-core.js` 后必须 `npm run sync:core` 再部署。
@@ -325,7 +333,7 @@
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
 - **现状**：M0/M1/M2/M3 全部完成；**M4 全部完成 ✅**（埋点闭环 / 看板上线 108 事件/3 对、SC4=1 / 阈值校准「沿用初值」/ SC4 双边邀请真机验收通过）。**M5 规划定稿 ✅**（`tasks/plan-m5.md`：SC5 处置能力 + app_open 双计修复，待放行动码）；Checkpoint M4 仅剩人工终审。
-- **Git**：远程 `main` 已对齐本地（2026-08-30 实测 `3d05c07`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
+- **Git**：远程 `main` 已对齐本地（2026-08-30 20:25 实测 `c8e3e2d`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。
 - **🔴 两个最致命历史坑（已修但极易复发）**：A. 云函数 A `callFunction` 调 B 时 B 的 `OPENID=undefined` → 幽灵 pair，已抽 `growth-core.js` 共享内核，改完务必 `npm run sync:core` 再部署；B. **NoSQL delete 用 `$in` 只删 1 条，必须精确 `_id` 逐条删**（强删云端数据前必列 `_id` 给用户）。

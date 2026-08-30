@@ -84,3 +84,14 @@
 - `HANDOFF.md:248`（性能待办，含 comments/posts 索引）
 - `tasks/launch-readiness.md`（M8.4 已建 reports/events 索引，方法可复用）
 - 代码入口：community/index.js、match/index.js、chat/index.js、chat.vue、realtime.js
+
+## 9. 实施状态（已落地 / 待办）
+- [x] **P1 聊天增量轮询** → commit `688a00d`（chat/index.js `since` + chat.vue append/1.5s）
+- [x] **P2 recommend 游标** → commit `0c681bb`（match/index.js `createdAt` 游标 + 内存排除自己）
+- [x] **P3 game 削冗余读** → commit `281a4f9`（joinGame/submitAnswer 不再回读同 doc）
+- [x] **P3 community 评论首屏分页** → commit `efb305b`
+  - `getPostDetail` 评论 `limit(100)→limit(30)`，返回 `commentHasMore`
+  - 新增 `listComments` action（page 懒加载，命中 comments 复合索引）
+  - detail.vue 首屏 30 条 + 「加载更多评论」按钮；标题用 `post.commentCount` 真实总数
+- [ ] **P0 索引（唯一未释放杠杆）** → 仍需在 CloudBase 控制台手动建 7 集合索引（MCP 无建索引能力），规格见 §2。建好后 ① 社区详情/信息流、③ 聊天 list 才从全表扫描变索引命中。
+- 远端 HEAD：`origin/main = efb305b`

@@ -21,16 +21,17 @@
         <view class="chips" v-if="(p.milestones || []).length">
           <text class="chip" v-for="m in p.milestones" :key="m">{{ m }}</text>
         </view>
+        <!-- 我发起的邀请：等待状态行放信息区，不占按钮列（rel-actions 尺寸稳定不跳动） -->
+        <view class="invite-status" v-if="isMyInvite(p)">
+          <text>💌 等待 {{ p.peer.nickname || 'TA' }} 回应 · {{ inviteRemain(p) }}</text>
+          <text class="cancel-link" @click="onCancel(p)">撤销</text>
+        </view>
       </view>
       <view class="rel-actions">
         <text class="btn play" @click="onPlay(p)">一起玩</text>
         <text class="btn chat" v-if="reached(stageOf(p.growthValue), 'S1')" @click="onChat(p)">聊聊</text>
         <text class="btn contact" v-if="reached(stageOf(p.growthValue), 'S4')" @click="onContact(p)">联系方式</text>
 
-        <!-- 我发起的邀请：等待对方回应（点一下可撤销） -->
-        <text class="btn pending" v-if="isMyInvite(p)" @click="onCancel(p)">
-          等待 {{ p.peer.nickname || 'TA' }} 回应 · {{ inviteRemain(p) }}（点此撤销）
-        </text>
         <!-- 未确认、达 S1、且无进行中邀请：可发起 -->
         <text class="btn confirm" v-if="canConfirm(p) && !isInviteActive(p)" @click="onConfirm(p)">我们在一起了 🎉</text>
       </view>
@@ -252,7 +253,18 @@ export default {
 .btn.chat { background: #FFB199; }
 .btn.contact { background: #7c5cff; }
 .btn.confirm { background: #FFD166; color: #7a5b00; }
-.btn.pending { background: #cfcfcf; color: #555; }
+.invite-status {
+  margin-top: 10rpx;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  font-size: 22rpx;
+  color: #9a7b00;
+  background: #fff8e1;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+}
+.cancel-link { color: #FF6B81; margin-left: 14rpx; text-decoration: underline; }
 .empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
 
 /* 在一起确认邀请弹窗 */

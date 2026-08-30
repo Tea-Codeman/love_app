@@ -2,7 +2,7 @@
 
 # 项目/任务
 
-从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M4 全部完成（M4.3 结论=样本不足沿用初值；M4.4 双边邀请真机验收通过）；**M5 已签字放行且代码全部落地（2026-08-30）**：M5.1–M5.4 完成、safety/metrics 部署 Active、dashboard 冒烟 PASS（提交 `993e1c0`/`6a7c486`/`74e0cf0`/`022cdad`）。**Checkpoint M5 待人工项：① `admins` 集合未建（需建 + 插管理员 openid，否则 handleReport 全 403）；② 真机验收（SC5 闭环 + app_open 双计复验）**。
+从零构建「恋爱成长型社交小程序」v1 —— 以"关系成长"为核心驱动的微信小程序，让单身用户从陌生 → 好感累积 → 信任，最终促成真实伴侣关系。当前处于 **Implement 阶段**，M0–M4 全部完成；**M5 全收官（2026-08-30）**：M5.1–M5.4 落地部署、线上验收 PASS（SC5 rate=100 / 双计修复实证）、阈值回灌评估 #2 维持初值、**人工终审 21:40 签字通过**。**下一步 = M6 规划**（候选：管理员 UI + 403/幂等真机补验、冷启动准备、自然用户数据观察）。
 
 > **⚠️ 2026-08-29 实测推翻旧版前提**：旧版 HANDOFF 称"4 个云函数未部署、3 个集合未建、从未真机验证"。**实测全不成立**——7 个存量云函数全部已部署且与本地逐字节一致；10+ 个集合全部已建且有数据；M2 主链路云端跑通过完整一局。瓶颈从来不是部署，而是**真机验证**与**埋点校准**。
 
@@ -159,8 +159,13 @@
     - M5.3：dashboard SC5（`74e0cf0`）——reports 直读 24h 处置率 + pendingCount，替换 no_data；
     - M5.4：App.vue 双计修复（`022cdad`）——`coldLaunching` 标记跳过冷启动配对 onShow；
     - docs：`77622d7`（todo/plan-m5/verification-log）。
-    - **部署核验**：safety/metrics 均 `Status=Active` 且 CodeInfo 含新代码；dashboard MCP 冒烟 code=0，`SC5={status:no_data, pendingCount:1}`（reports 有 1 条历史 pending 可用于验收）。
-    - **遗留**：`admins` 集合未建（handleReport 现对所有人 403，护栏生效但无人能处置）；真机验收未做。
+    - **部署核验**：safety/metrics 均 `Status=Active` 且 CodeInfo 含新代码；dashboard MCP 冒烟 code=0。
+23. **Checkpoint M5 线上验收 + 人工终审通过（2026-08-30 21:20–21:40）**：
+    - 用户自建 `admins` 集合（1 管理员 openid `oUsf1xRnPxcjWLiSG3XFR-6LrPFY`，21:14）。
+    - 验收 PASS：① 未登录守卫（MCP invoke → 401）；② 处置 1 条 pending（等价字段模拟，无管理员 UI 无法真实触发）→ `SC5={ok, rate:100, handledCount:1, pendingCount:2}`；③ app_open 双计修复实证（部署后 5 次启动全单条，部署前有成对样本）。提交 `90db466`。
+    - **403 / alreadyHandled 未走真实登录态**（逻辑经代码审查覆盖），待管理员 UI 上线补验。
+    - 阈值回灌评估 #2（`4666752`）：样本无增量（n=3 对测试数据 / 0 自然用户 / 无跨天），**维持沿用初值 12/40/90/150**；唯一新信号=SC5 首次有数（n=1，不构成校准依据）。下次回灌条件：自然用户 ≥10 对 + 跨天可算。
+    - **人工终审通过（21:40，用户签字）→ M5 全收官，下一步 = M6 规划**。
 
 ---
 
@@ -199,7 +204,7 @@
 
 # 当前状态
 
-**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、**M4 全部完成 ✅**（M4.1 全闭环 + M4.2 看板上线 + M4.3 阈值校准「沿用初值」+ M4.4 SC4 双边邀请确认真机验收通过）。**M5 规划定稿 ✅（plan-m5.md，待放行动码）**。Checkpoint M4 仅剩人工终审放行。
+**进度位置**：M0 已验收、M1 Checkpoint 通过、M2 已收尾、M3 已通过（含 BUG-1/BUG-2 真机复验 PASS）、M4 全部完成 ✅、**M5 全收官 ✅（2026-08-30：代码落地 + 线上验收 PASS + 阈值回灌评估 #2 + 人工终审 21:40 签字通过）**。**下一步 = M6 规划**。Checkpoint M4/M5 均已终审放行。
 
 **M4.1 埋点终验结果（2026-08-30，查库 47 条 / 11 类事件）**
 - `app_open`×23、`match_accept`×4、`game_join`×3、`game_done`×3、`message_sent`×7、`pair_stage_changed`×2、`mbti_completed`×1、`chat_unlocked`×1、`profile_completed`×1、`recommend_view`×2
@@ -340,7 +345,7 @@
 # 极简版
 
 - **做什么**：微信小程序「恋爱成长型社交」v1（单身主链路：社区→游戏破冰→关系升温→加微信导流）。uni-app(Vue3)→mp-weixin + CloudBase（**纯 NoSQL，无 PG/MySQL**）；弱实时；成长 5 阶段 S0–S4（阈值 12/40/90/150，只增不减）。
-- **现状**：M0/M1/M2/M3 全部完成；**M4 全部完成 ✅**（埋点闭环 / 看板上线 108 事件/3 对、SC4=1 / 阈值校准「沿用初值」/ SC4 双边邀请真机验收通过）。**M5 已签字放行并全部落地 ✅（2026-08-30）**：M5.1–M5.4 完成、safety/metrics 部署 Active、dashboard 冒烟 PASS（SC5 分支出 pendingCount=1）；**剩余人工项 = 建 `admins` 集合 + 插管理员 openid、真机验收 Checkpoint M5**。
+- **现状**：M0/M1/M2/M3/M4 全部完成；**M5 全收官 ✅（2026-08-30 21:40 人工终审通过）**：M5.1–M5.4 落地部署、验收 PASS（SC5 rate=100%、双计修复实证、admins 已建）、回灌评估 #2 维持初值。**遗留 1 项进 M6：403/alreadyHandled 待管理员 UI 上线后真机补验**。下一步 = M6 规划。
 - **Git**：远程 `main` 已对齐本地（2026-08-30 20:25 实测 `c8e3e2d`），全部推送，工作树干净。**⚠️ 沙箱 `origin/main` ref 显示 gone 是怪象，以 `git ls-remote` 真实 SHA 为准。**
 - **三条硬性原则**：① `auth.sanitizeProfile` 是严格白名单——加任何用户资料字段须同步改它；② 拉黑过滤只能服务端执行（前端传参可空数组绕过）；③ `recommend` 的 `.field()` 投影须含新字段，否则打分恒 0。
 - **必避坑**：① npm 卡死= safe-delete 拦删除，`unset CODEBUDDY_SESSION_ID CLAUDE_SESSION_ID` 解（用"已尝试"完整命令）；② DevTools 只读 `dist/dev/mp-weixin`，改完跑 `npm run dev:mp-weixin`；③ 云函数部署环境必须=`love-app-server-d2fhg32320d65c12`；④ `build:mp-weixin` 偶卡 3–11 分钟（停掉重跑，别误判失败）；⑤ 自定义组件事件名避开 `tap/click` 且声明 `emits`；⑥ 个人账号别定义 `onShareAppMessage`；⑦ 子页 `navigateBack` 后 `onLoad` 不重跑，刷数据用 `onShow`；⑧ "一开就显示已登录"是模拟器 Storage 未清；⑨ 查云端代码须归一化换行符再 diff（云端 CRLF/本地 LF）；⑩ 查日志用 `queryLogs` 不用 `listFunctionLogs`（已废弃）。

@@ -6,9 +6,10 @@
 //       listBlocks（黑名单列表，一次 join users 取昵称头像）/ unblock（解除拉黑）
 // 架构约定：**过滤只能由服务端执行**。拉黑是安全机制，若改成由前端传列表给后端过滤，
 // 客户端传空数组即可绕过，防骚扰能力会完全失效。前端只负责"显示"黑名单。
-// 原型期：本地关键词/规则分类器兜底（USE_WX_SECURITY=false）。
-// 企业主体 + 社交类目资质就绪后，将 USE_WX_SECURITY 置 true，
-// 即切换为微信官方内容安全 API（cloud.openapi.security.msgSecCheck / mediaCheckAsync），业务代码无需改动。
+// 原型期：本地关键词/规则分类器兜底（useWxSecurity=false）。
+// 企业主体 + 社交类目资质就绪后，在 CloudBase 控制台将 server_config 文档(launch)的 useWxSecurity 置 true，
+// 即切换为微信官方内容安全 API（cloud.openapi.security.msgSecCheck / mediaCheckAsync），业务代码无需改动、免重部署（O1）。
+// 读取带 60s TTL 内存缓存；文档缺失/读失败回落 false（原型行为不变）。
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -20,7 +21,23 @@ const _ = db.command
 const metrics = require('./metrics-core')
 const metricsCtx = { db }
 
-const USE_WX_SECURITY = false
+// O1：上架开关外置为云端配置（server_config 文档 _id=launch），控制台改一处即生效、免重部署。
+// 未来扩展：requireInvite（灰度门禁 O6）等同理放在此文档。
+let _launchCache = { value: null, ts: 0 }
+const LAUNCH_TTL = 60 * 1000
+async function getUseWxSecurity() {
+  const now = Date.now()
+  if (_launchCache.value !== null && now - _launchCache.ts < LAUNCH_TTL) return _launchCache.value
+  try {
+    const r = await db.collection('server_config').doc('launch').get()
+    const v = !!(r && r.data && r.data.useWxSecurity)
+    _launchCache = { value: v, ts: now }
+    return v
+  } catch (e) {
+    _launchCache = { value: false, ts: now } // 配置缺失/读失败 → 回落原型默认 false
+    return false
+  }
+}
 
 // 示例违规词（原型样本，仅用于验证"不过审→不发"链路；真实判定由微信官方 API 完成）
 const BLOCKLIST = ['代开发票', '涉黄', '赌博', '诈骗', '违规样例', '广告加微']
@@ -246,12 +263,14 @@ exports.main = async (event = {}) => {
   const OPENID = cloud.getWXContext().OPENID
   try {
     if (action === 'checkText') {
-      const r = USE_WX_SECURITY ? await wxCheckText(event.content) : localCheckText(event.content)
+      const useWx = await getUseWxSecurity()
+      const r = useWx ? await wxCheckText(event.content) : localCheckText(event.content)
       return { code: 0, data: r }
     }
     if (action === 'checkImage') {
-      // 原型期无 CV 能力，图片默认通过；切官方 API 后走 mediaCheckAsync
-      const r = USE_WX_SECURITY ? await wxCheckImage(event.mediaUrl) : { pass: true }
+      // 原型期无 CV 能力，图片默认通过；切官方 API 后走 mediaCheckAsync（O2 未来补全异步回调）
+      const useWx = await getUseWxSecurity()
+      const r = useWx ? await wxCheckImage(event.mediaUrl) : { pass: true }
       return { code: 0, data: r }
     }
     if (action === 'report') return await report(event, OPENID)

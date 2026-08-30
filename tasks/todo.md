@@ -479,7 +479,7 @@
 > 规划：`tasks/plan-m8.md`（2026-08-30 范围已拍板：上线就绪 = 资质主体 / 隐私正式文案 / 内容安全切换 / 复合索引）。**已签字放行（2026-08-30 23:41）**：M8.2 隐私文案 ✅ 已落地、M8.4 复合索引 ✅ 已建、M8.1 资质指引 ✅ 已出（用户侧待办·门禁）、M8.3 🟡 待 M8.1 资质（强依赖，不擅自 flip）。
 > 门禁依赖：M8.3 强依赖 M8.1（个人/未认证主体调 `msgSecCheck` 报 48001）；M8.2 / M8.4 可与 M8.1 并行。
 
-### Task M8.1: 账号主体升级 + 社交类目资质 ✅ 指引已出（用户侧待办 · M8.3 门禁）
+### Task M8.1: 账号主体升级 + 社交类目资质 🔻 降级·延后（用户申请资质中，维持个人账号受限邀请原型）
 **Description:** Agent 出微信公众平台指引清单（主体升级企业/个体 + 社交类目 + 内容安全权限）；用户达标后 Agent 核验 `msgSecCheck` 非 48001。为 M8.3 前置门禁。
 **Acceptance criteria:** 三项达标 + Agent 侧试跑无 48001。
 **Dependencies:** 无（用户侧先行）
@@ -493,7 +493,7 @@
 **Files likely touched:** `src/pages/privacy/privacy.vue`
 **Estimated scope:** S
 
-### Task M8.3: 内容安全切换 USE_WX_SECURITY=true 🟡 待 M8.1 资质门禁（强依赖）
+### Task M8.3: 内容安全切换 USE_WX_SECURITY=true 🔻 降级·维持 false（待 M8.1 资质，延后 flip）
 **Description:** `cloudfunctions/safety/index.js:23` 置 true；验收 `msgSecCheck` 违规拒/正常放行。🟡 图像 `mediaCheckAsync` 异步回调无调用点，记为缺口不实现。
 **Acceptance criteria:** 部署 Active + CodeInfo 含 `USE_WX_SECURITY=true` + 文本真审验收。
 **Dependencies:** M8.1
@@ -507,12 +507,50 @@
 **Files likely touched:** 文档（控制台/CLI）
 **Estimated scope:** S
 
-### Checkpoint M8（上线就绪收尾）
-- [ ] 账号主体升级 + 社交类目资质达标（M8.1：Agent 指引已出 `tasks/m8-account-guide.md`，用户侧微信后台三项待办 + Agent 核验 msgSecCheck 非 48001）
+### Checkpoint M8（上线就绪收尾 · 降级模式）
+- [ ] 账号主体升级 + 社交类目资质达标（M8.1：🔻 降级·用户申请中，延后；指引见 `tasks/m8-account-guide.md`）
 - [x] 隐私政策正式文案上线（M8.2，build 通过）
-- [ ] 内容安全切真审（M8.3，🔴 强依赖 M8.1 资质，不擅自 flip USE_WX_SECURITY）
+- [ ] 内容安全切真审（M8.3：🔻 降级·维持 USE_WX_SECURITY=false 本地兜底，待 M8.1 资质就绪再 flip）
 - [x] reports/events 复合索引 ready（M8.4，CloudBase MCP 已建 + listIndexes 复核）
-- [ ] 人工终审 → 下一阶段（收官 / 灰度上线）
+- [ ] 人工终审 → 下一阶段（收官 / 灰度上线 · 受限邀请原型）
+
+---
+
+## 收官/灰度上线（受限邀请原型）
+
+> 规划：`tasks/plan-launch.md`（2026-08-31 启动，M8.1 降级后「往后」阶段）。**LA.1–LA.3 已落地、LA.4 交接更新已同步**。
+> 降级前提：M8.1 资质延后（个人账号不公开上架）、M8.3 内容安全维持 `false`（本地兜底）。
+
+### Task LA.1: 终态部署核验 ✅ 已核验
+**Description:** 7 云函数 Active + build DONE + safety 线上 `USE_WX_SECURITY=false` 实证（下载代码 grep 第 23 行）。
+**Acceptance criteria:** 7 函数 Active；build EXIT=0；safety 降级 false 实证（M8 未改云函数源码，态 = M7.1 部署）。
+**Dependencies:** 无
+**Estimated scope:** S
+
+### Task LA.2: 主链路冒烟 + 受限邀请 gate ✅ 已核验（只读）
+**Description:** 主链路 社区→游戏→关系→加微信 接线完整（M0–M7 真机验收 PASS）；受限邀请 = 不公开上架 + T2 分享卡片(`?inviter=`)绑定（`App.vue:39-40` + `auth.js:11-19`）。
+**Acceptance criteria:** 主链路齐备；受限邀请 gate 确认（唯一受限准入路径，无新代码）。
+**Dependencies:** 无
+**Estimated scope:** S
+
+### Task LA.3: 收官文档 ✅ 已出
+**Description:** `tasks/launch-readiness.md`（交付说明 + 受限邀请就绪清单 + 已知限制 + 用户手动步骤 + 阈值回灌条件 + 收官核验记录）。
+**Acceptance criteria:** 文档覆盖 6 节，与 HANDOFF/verification-log 互引。
+**Dependencies:** LA.1, LA.2
+**Estimated scope:** S
+
+### Task LA.4: 交接更新 ✅ 已同步
+**Description:** HANDOFF 收官段（进度位置/极简版/接手指南 LA 指引）+ 本 LA 任务卡与 Checkpoint。
+**Acceptance criteria:** HANDOFF/todo 状态同步。
+**Dependencies:** LA.1–LA.3
+**Estimated scope:** S
+
+### Checkpoint LA（收官/灰度上线 · 受限邀请原型）
+- [x] 7 云函数 Active + 前端 build DONE + safety 线上 USE_WX_SECURITY=false 实证（LA.1）
+- [x] 主链路接线完整 + 受限邀请 gate 确认（LA.2）
+- [x] 收官文档 `launch-readiness.md` 发布（LA.3）
+- [x] 交接更新 HANDOFF/todo（LA.4）
+- [ ] 人工终审 → 用户受限邀请实测 → 资质就绪后补 M8.1/M8.3 公开上架
 
 ---
 

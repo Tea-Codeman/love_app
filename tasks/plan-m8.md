@@ -1,7 +1,7 @@
 # M8 规划：上线就绪（冷启动准备）
 
 > 本文档是 **M8 阶段执行规划**，基于 `HANDOFF.md`（M7 收官现状、待确认事项「账号主体/社交类目资质现状？内容安全云调用权限是否就绪？隐私政策文案进度？」）、`cloudfunctions/safety/index.js`（内容安全开关现状）、`src/pages/privacy/privacy.vue`（占位文案）、`tasks/plan-m7.md`（「明确不做」清单已把四项留 M8）。
-> 状态：**已签字放行（2026-08-30 用户签字），按 M8.1→M8.4 落地**。**M8.1 为用户侧资质门禁（Agent 出指引+核验）；M8.3 强依赖 M8.1；M8.2 / M8.4 由 Agent 并行落地。**
+> 状态：**已签字放行（2026-08-30 用户签字），按 M8.1→M8.4 落地**。**M8.1 为用户侧资质门禁（Agent 出指引+核验）；M8.3 强依赖 M8.1；M8.2 / M8.4 由 Agent 并行落地。** **🔻 2026-08-31 用户决策降级：M8.1 资质仍在申请中 → 维持个人账号「受限邀请原型验证」模式（不公开上架）；M8.3 同步降级维持 `USE_WX_SECURITY=false`（本地关键词兜底），待资质就绪再 flip。M8.2/M8.4 已落地不受影响。**
 > M8 = v1 正式上架前的最后准备；收尾后即进入「收官 / 灰度上线」。
 
 ## 1. 本轮目标
@@ -15,7 +15,7 @@
 
 ## 2. 任务卡
 
-### Task M8.1: 账号主体升级 + 社交类目资质（用户侧 · gating）
+### Task M8.1: 账号主体升级 + 社交类目资质 🔻 降级·延后（用户申请资质中，维持个人账号原型验证）
 
 **Description:**
 - Agent 出微信公众平台操作指引清单：① 主体类型——个人主体无法调用 `cloud.openapi.security.*` 且社区/匹配属社交类目受限，需升级为企业/个体工商户并认证；② 类目——在「服务类目」加「社交 → 陌生人社交 / 婚恋交友」类目，提交资质（ICP 备案/《增值电信业务经营许可证》或平台要求的替代材料）；③ 内容安全——开通「内容安全」接口权限（文本检测 `msgSecCheck`）。
@@ -44,7 +44,7 @@
 **Files likely touched:** `src/pages/privacy/privacy.vue`（仅文案/结构）
 **Estimated scope:** S
 
-### Task M8.3: 内容安全切换 USE_WX_SECURITY=true（M）
+### Task M8.3: 内容安全切换 USE_WX_SECURITY=true 🔻 降级·维持 false（强依赖 M8.1 资质，延后至资质就绪）
 
 **Description:**
 - 改 `cloudfunctions/safety/index.js:23` `const USE_WX_SECURITY = false` → `true`；`checkText` 分支（249 行）即切到 `wxCheckText`（`cloud.openapi.security.msgSecCheck`）。
@@ -72,13 +72,13 @@
 **Files likely touched:** 文档（索引清单入 verification-log）；控制台/CLI 操作，无源码改动
 **Estimated scope:** S
 
-### Checkpoint M8（上线就绪收尾）
+### Checkpoint M8（上线就绪收尾 · 降级模式）
 
-- [ ] 账号主体升级 + 社交类目资质达标（M8.1 用户侧完成 + Agent 核验）
-- [ ] 隐私政策正式文案上线（M8.2，覆盖合规字段）
-- [ ] 内容安全切真审（M8.3，USE_WX_SECURITY=true + msgSecCheck 验收，无 48001）
-- [ ] reports/events 复合索引 ready（M8.4）
-- [ ] 人工终审 → 下一阶段（收官 / 灰度上线）
+- [ ] 账号主体升级 + 社交类目资质达标（M8.1：🔻 降级·用户申请中，延后；v1 走受限邀请原型验证，不公开上架）
+- [x] 隐私政策正式文案上线（M8.2，覆盖合规字段，build 通过）
+- [ ] 内容安全切真审（M8.3：🔻 降级·维持 USE_WX_SECURITY=false 本地兜底，待 M8.1 资质就绪再 flip）
+- [x] reports/events 复合索引 ready（M8.4，CloudBase MCP 已建 + listIndexes 复核）
+- [ ] 人工终审 → 下一阶段（收官 / 灰度上线 · 受限邀请原型）
 
 ## 3. 本轮明确不做（留收官后 / 后续）
 

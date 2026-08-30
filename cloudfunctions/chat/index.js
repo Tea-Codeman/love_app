@@ -207,16 +207,20 @@ async function send({ peerId, content, type = 'text' } = {}, OPENID) {
   }
 }
 
-async function list({ peerId, limit = 50, since = 0 } = {}, OPENID) {
+async function list({ peerId, limit = 50, since = 0, before = 0 } = {}, OPENID) {
   if (!OPENID) return { code: 401, message: '未登录' }
   if (!peerId) return { code: 400, message: '缺少 peerId' }
   const n = Math.min(200, Math.max(1, Number(limit) || 50))
   const pairKey = pairKeyOf(OPENID, peerId)
   try {
-    // 增量拉取：since > 0 时仅返回 createdAt 严格大于 since 的消息（轮询去重靠 _.gt，不会重复末条）。
-    // 命中 {pairKey, createdAt} 复合索引（P0）；无 since 时退回全量，兼容首屏。
+    // 增量拉取：
+    //   - since > 0：仅返回 createdAt 严格大于 since 的消息（轮询拉新，_.gt 不重复末条）。
+    //   - before > 0：仅返回 createdAt 严格小于 before 的消息（上滑翻历史，prepend 到顶部）。
+    //   - 二者皆无：首屏全量（取最新 n 条）。
+    // 命中 {pairKey, createdAt} 复合索引（P0）。
     const where = { pairKey }
     if (since) where.createdAt = _.gt(Number(since))
+    else if (before) where.createdAt = _.lt(Number(before))
     const r = await db.collection(MESSAGES_COL)
       .where(where)
       .orderBy('createdAt', 'desc')
@@ -233,7 +237,9 @@ async function list({ peerId, limit = 50, since = 0 } = {}, OPENID) {
         mine: m.senderId === OPENID,
         createdAt: m.createdAt || 0
       }))
-    return { code: 0, data: { messages } }
+    // hasMore：本次取满 n 条说明同方向可能还有更多（用于历史翻页「没有更多了」判定）。
+    const hasMore = (r.data || []).length >= n
+    return { code: 0, data: { messages, hasMore } }
   } catch (e) {
     const msg = (e && e.message) || String(e)
     if (/not exist|does not exist|no such collection/i.test(msg)) {

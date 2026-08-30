@@ -17,7 +17,9 @@
       <text class="locked-desc">再一起玩几局、把成长值提升到 12 就能开始轻聊啦</text>
     </view>
 
-    <scroll-view class="msgs" scroll-y :scroll-into-view="anchor" v-else>
+    <scroll-view class="msgs" scroll-y :scroll-into-view="anchor" @scrolltoupper="onReachTop" @scrolltolower="onReachBottom" v-else>
+      <view class="hist" v-if="!olderExhausted">{{ olderLoading ? '加载更早消息…' : '下滑到顶加载更早消息' }}</view>
+      <view class="hist" v-else>没有更多了</view>
       <view class="empty" v-if="messages.length === 0">还没有消息，打个招呼吧 ›</view>
       <view :id="'m-' + m.msgId" class="row" :class="{ mine: m.mine }" v-for="m in messages" :key="m.msgId">
         <text class="bubble">{{ m.content }}</text>
@@ -64,7 +66,11 @@ export default {
       sending: false,
       timer: null,
       anchor: '',
-      lastCreatedAt: 0
+      lastCreatedAt: 0,
+      oldestCreatedAt: 0,
+      olderLoading: false,
+      olderExhausted: false,
+      atBottom: true
     }
   },
   computed: {
@@ -101,6 +107,9 @@ export default {
     async refresh() {
       // 重新进入页面（onShow）时整页刷新：游标归零，loadMessages 走服务端全量
       this.lastCreatedAt = 0
+      this.oldestCreatedAt = 0
+      this.olderExhausted = false
+      this.atBottom = true
       await Promise.all([this.loadPair(), this.loadMessages()])
     },
     // 关系状态：阶段由 growthValue 派生，门禁以前端计算为准、服务端再兜一次
@@ -123,6 +132,7 @@ export default {
         if (since <= 0) {
           // 首屏 / 重新进入：全量替换（服务端 since<=0 时返回全部）
           this.messages = incoming
+          this.oldestCreatedAt = incoming.length ? incoming[0].createdAt : 0
         } else if (incoming.length) {
           // 轮询增量：按 msgId 去重后仅追加真正的新消息，杜绝重复拼接旧记录
           const have = new Set(this.messages.map(m => m.msgId))
@@ -133,11 +143,44 @@ export default {
         const known = this.messages
         const latest = known.length ? known[known.length - 1] : null
         if (latest) this.lastCreatedAt = latest.createdAt
-        // 仅首屏或本次确有新消息时才自动滚到底（避免轮询空拉时抢走滚动位置）
-        if (since <= 0 || incoming.length) this.scrollToBottom()
+        // 首屏必沉底；轮询仅在用户本就贴底时自动沉底（避免抢走向上看历史的滚动位置）
+        if (since <= 0 || (incoming.length && this.atBottom)) this.scrollToBottom()
       } finally {
         this._fetching = false
       }
+    },
+    // 上滑到顶：加载更早历史（prepend 到顶部，msgId 去重，游标用 oldestCreatedAt）
+    async loadOlder() {
+      if (this.olderLoading || this.olderExhausted) return
+      if (!this.messages.length) return
+      this.olderLoading = true
+      const before = this.oldestCreatedAt
+      try {
+        const r = await callFunction('chat', { action: 'list', peerId: this.peerId, limit: 50, before })
+        if (!r.ok) return
+        const incoming = (r.data && r.data.messages) || []
+        if (!incoming.length) { this.olderExhausted = true; return }
+        const have = new Set(this.messages.map(m => m.msgId))
+        const fresh = incoming.filter(m => !have.has(m.msgId))
+        if (fresh.length) {
+          this.messages = fresh.concat(this.messages)   // 早的在前，拼到顶部
+          this.oldestCreatedAt = fresh[0].createdAt      // fresh 升序，首条最早
+          // 锚定到首条新载入的消息，保持用户阅读位置不跳
+          this.anchor = 'm-' + fresh[0].msgId
+        }
+        if (!r.data || !r.data.hasMore) this.olderExhausted = true
+      } finally {
+        this.olderLoading = false
+      }
+    },
+    onReachTop() {
+      // 滚到顶：标记不在底部，并触发历史翻页
+      this.atBottom = false
+      this.loadOlder()
+    },
+    onReachBottom() {
+      // 滚到底：标记在底部，新消息来时自动沉底
+      this.atBottom = true
     },
     scrollToBottom() {
       const last = this.messages[this.messages.length - 1]
@@ -189,6 +232,7 @@ export default {
         createdAt: r.data.createdAt
       }])
       this.lastCreatedAt = Math.max(this.lastCreatedAt || 0, r.data.createdAt || 0)
+      this.atBottom = true
       this.scrollToBottom()
       // 互聊结算会让成长值上涨，顺带刷新关系状态条（消息已在本地乐观追加，无需再 loadMessages）
       await this.loadPair()
@@ -209,6 +253,7 @@ export default {
 .locked-desc { font-size: 24rpx; color: #aaa; margin-top: 12rpx; text-align: center; }
 .msgs { flex: 1; padding: 20rpx 24rpx; box-sizing: border-box; }
 .empty { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
+.hist { text-align: center; font-size: 22rpx; color: #c9c9c9; padding: 16rpx 0 8rpx; }
 .row { display: flex; margin-bottom: 20rpx; }
 .row.mine { justify-content: flex-end; }
 .bubble {

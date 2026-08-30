@@ -44,9 +44,11 @@ const EVENTS = {
   // **自由文本 textarea**（src/pages/community/report.vue:6），属于 UGC，可能含 PII。
   // 隐私红线（§1.6「props 只放 ID/枚举/数值，禁止正文」）优先级更高 → 只留 targetType。
   // SC5 只需要按 targetType 统计举报量与处置率，不需要理由文本。
-  report_created: { dim: 'user', props: ['targetType'] }
-  // report_handled：需 `safety.handleReport` 处置能力，plan-m4.md 决策 3 已定留到 M5。
-  // 未处置就上报会让 SC5 的「24h 处置率」分母虚高，故**暂不入白名单**。
+  report_created: { dim: 'user', props: ['targetType'] },
+  // M5（plan-m5.md 决策 2）：处置动作完成时上报。props 只含枚举（targetType/decision），
+  // 不含 note（自由文本可能含 PII）。SC5 计算源是 reports 集合（权威源），
+  // 本事件仅作观测流，dashboard 不从 events 算处置率。
+  report_handled: { dim: 'user', props: ['targetType', 'decision'] }
 }
 
 // 单条 props 序列化上限（字节）

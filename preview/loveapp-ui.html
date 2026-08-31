@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LoveApp 重设计预览 · 恋爱成长小程序</title>
+<style>
+  :root{
+    --brand-50:#FFF1F4; --brand-100:#FFE3E9; --brand-200:#FECDD6; --brand-300:#FBA3B2;
+    --brand-400:#F7728E; --brand-500:#F43F6A; --brand-600:#E11D54; --brand-700:#BE123C;
+    --coral:#FF8A65; --gold-400:#FBBF24; --gold-500:#F59E0B; --violet-500:#8B5CF6;
+    --success:#16A34A; --danger:#EF4444;
+    --ink-900:#2B2330; --ink-700:#4A4250; --ink-500:#7A7280; --ink-400:#A89FA8;
+    --surface:#FFFFFF; --bg:#FFFAFB; --bg-soft:#FFF1F4; --border:#FBE1E7;
+    --grad-primary:linear-gradient(135deg,#FF8A65 0%,#F43F6A 55%,#E11D54 100%);
+    --shadow-sm:0 2px 8px rgba(244,63,106,.06);
+    --shadow:0 8px 24px rgba(244,63,106,.10);
+    --shadow-lg:0 16px 40px rgba(244,63,106,.16);
+    --shadow-glow:0 8px 24px rgba(244,63,106,.35);
+    --r-sm:16px; --r:24px; --r-lg:32px; --r-pill:999px;
+    --font-display:"Varela Round","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    --font-body:"Nunito Sans","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-body);background:#f4eef0;color:var(--ink-900);line-height:1.6;-webkit-font-smoothing:antialiased;padding:28px}
+  h1,h2,h3{font-family:var(--font-display);font-weight:700}
+  .wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 360px;gap:28px}
+  @media(max-width:920px){.wrap{grid-template-columns:1fr}}
+  /* ---------- header ---------- */
+  .hd{grid-column:1/-1;background:#fff;border-radius:var(--r-lg);padding:26px 30px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  .hd h1{font-size:26px;color:var(--brand-600)}
+  .hd p{color:var(--ink-500);font-size:14px;margin-top:4px}
+  .hd .tag{font-size:12px;background:var(--brand-50);color:var(--brand-600);padding:6px 14px;border-radius:999px;border:1px solid var(--brand-100)}
+  /* ---------- token panel ---------- */
+  .panel{background:#fff;border-radius:var(--r-lg);padding:24px;box-shadow:var(--shadow)}
+  .panel h2{font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .panel h2::before{content:'';width:8px;height:22px;border-radius:8px;background:var(--grad-primary)}
+  .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+  .sw{height:54px;border-radius:var(--r-sm);box-shadow:var(--shadow-sm);position:relative}
+  .sw small{position:absolute;bottom:4px;left:6px;font-size:10px;color:#fff;font-family:monospace;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .scale{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+  .scale .row{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--ink-700)}
+  .scale .row b{width:64px;color:var(--ink-400);font-weight:600;font-size:12px}
+  .scale .row .s{font-size:15px;color:var(--ink-900);font-family:var(--font-display)}
+  .tokens-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .tok{background:var(--bg-soft);border-radius:var(--r-sm);padding:12px;font-size:12px;color:var(--ink-700)}
+  .tok b{display:block;color:var(--ink-900);font-size:13px;margin-bottom:4px;font-family:var(--font-display)}
+  .radius-demo{display:flex;gap:10px;align-items:flex-end;margin-top:6px}
+  .radius-demo span{width:44px;height:44px;background:var(--grad-primary);display:block}
+  /* ---------- gallery ---------- */
+  .gallery{display:flex;flex-direction:column;gap:18px}
+  .demo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow)}
+  .demo-card .lbl{font-size:12px;color:var(--ink-400);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+  /* growth bar */
+  .gb-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .gb-stage{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--brand-600);font-size:15px}
+  .gb-dot{width:14px;height:14px;border-radius:50%;background:var(--grad-primary);box-shadow:0 0 0 6px rgba(244,63,106,.12)}
+  .gb-val{font-size:12px;color:var(--ink-400)}
+  .gb-track{position:relative;height:14px;background:var(--brand-100);border-radius:99px;margin:22px 8px 6px}
+  .gb-fill{position:absolute;left:0;top:0;height:100%;background:var(--grad-primary);border-radius:99px;transition:width .4s ease}
+  .gb-node{position:absolute;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--brand-200);display:flex;align-items:center;justify-content:center}
+  .gb-node.done{border-color:var(--brand-500)}
+  .gb-node.done i{width:11px;height:11px;border-radius:50%;background:var(--grad-primary)}
+  .gb-node.cur{border-color:var(--brand-500);animation:pulse 1.6s infinite}
+  .gb-node.cur i{width:11px;height:11px;border-radius:50%;background:var(--grad-primary)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(244,63,106,.45)}70%{box-shadow:0 0 0 14px rgba(244,63,106,0)}100%{box-shadow:0 0 0 0 rgba(244,63,106,0)}}
+  .gb-labels{display:flex;justify-content:space-between;margin-top:6px}
+  .gb-labels span{flex:1;text-align:center;font-size:11px;color:var(--ink-400)}
+  .gb-labels span.on{color:var(--brand-600);font-weight:700}
+  .gb-next{font-size:12px;color:var(--ink-500);margin-top:10px;display:block}
+  .gb-next.max{color:var(--brand-600);font-weight:700}
+  .slider{width:100%;margin-top:16px;accent-color:var(--brand-500)}
+  /* post card */
+  .post{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow);margin-bottom:12px}
+  .post .h{display:flex;align-items:center;gap:12px}
+  .post .av{width:46px;height:46px;border-radius:50%;background:var(--brand-100);box-shadow:0 0 0 3px var(--brand-100)}
+  .post .nm{font-weight:600;font-size:15px}
+  .post .tp{font-size:12px;color:var(--brand-600);background:var(--brand-50);padding:3px 12px;border-radius:99px;margin-top:4px;display:inline-block}
+  .post .ct{font-size:15px;color:var(--ink-700);margin:12px 0}
+  .post .ft{display:flex;align-items:center;font-size:13px;color:var(--ink-500)}
+  .post .ft .lk{color:var(--brand-600);font-weight:600;margin-right:18px}
+  .post .ft .tm{margin-left:auto;color:var(--ink-400);font-size:12px}
+  /* buttons & chips */
+  .btns{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;justify-content:center;font-weight:600;color:#fff;background:var(--grad-primary);padding:12px 28px;border-radius:99px;box-shadow:var(--shadow-glow);cursor:pointer;border:none;font-size:14px;font-family:var(--font-body);transition:transform .12s}
+  .btn:hover{transform:scale(.97)}
+  .btn.ghost{background:#fff;color:var(--brand-600);border:2px solid var(--brand-200);box-shadow:var(--shadow-sm)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip{font-size:12px;color:var(--brand-600);background:var(--brand-50);border:1px solid var(--brand-100);padding:5px 14px;border-radius:99px}
+  .chip.gold{color:var(--gold-500);background:#FFF7E6;border-color:#FFE9BD}
+  /* tab bar */
+  .tabbar{position:relative;height:72px;background:#fff;border-radius:var(--r-lg);box-shadow:0 -6px 24px rgba(244,63,106,.10);border:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-around;margin-top:8px}
+  .tabbar .ti{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink-400);font-size:11px;padding-bottom:8px}
+  .tabbar .ti svg{width:22px;height:22px;stroke:var(--ink-400);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tabbar .ti.on{color:var(--brand-500)}
+  .tabbar .ti.on svg{stroke:var(--brand-500)}
+  .tabbar .fab{position:relative;top:-22px;width:62px;height:62px;border-radius:50%;background:var(--grad-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(244,63,106,.45);border:4px solid #fff;color:#fff;font-size:11px;font-weight:600}
+  .tabbar .fab svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2}
+  /* ---------- phone ---------- */
+  .phone-col{position:sticky;top:20px}
+  .phone{width:340px;height:700px;background:#1c1620;border-radius:46px;padding:12px;box-shadow:0 30px 70px rgba(43,35,48,.35);margin:0 auto}
+  .screen{width:100%;height:100%;background:var(--grad-soft);border-radius:36px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:140px;height:26px;background:#1c1620;border-radius:0 0 18px 18px;z-index:30}
+  .switcher{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+  .switcher button{font-size:12px;border:none;background:#fff;color:var(--ink-500);padding:7px 13px;border-radius:99px;cursor:pointer;box-shadow:var(--shadow-sm);font-family:var(--font-body)}
+  .switcher button.on{background:var(--grad-primary);color:#fff}
+  .pg{display:none;flex:1;flex-direction:column;overflow-y:auto;padding:18px 16px}
+  .pg.show{display:flex}
+  /* screen shared */
+  .s-title{font-size:24px;font-family:var(--font-display);font-weight:700;color:var(--ink-900);padding:24px 8px 4px}
+  .s-sub{font-size:13px;color:var(--ink-500);padding:0 8px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:16px}
+  .fab-btn{position:absolute;right:18px;bottom:90px;width:54px;height:54px;border-radius:50%;background:var(--grad-primary);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-glow);z-index:20}
+  /* screen: login */
+  .pg-login{background:radial-gradient(120% 80% at 50% 0%,#FFE3E9 0%,#FFFAFB 60%);align-items:center;justify-content:center;text-align:center}
+  .pg-login .logo{width:120px;height:120px;border-radius:28px;background:var(--grad-primary);box-shadow:var(--shadow-lg);display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px;font-family:var(--font-display)}
+  .pg-login .nm{font-size:30px;font-family:var(--font-display);font-weight:700;color:var(--brand-600);margin-top:18px}
+  .pg-login .sg{font-size:14px;color:var(--ink-500);margin-top:6px}
+  .pg-login .lb{margin-top:54px;width:230px;height:52px;border-radius:99px;background:var(--grad-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;box-shadow:var(--shadow-glow);font-size:16px}
+  /* screen: community */
+  .chips-row{display:flex;gap:8px;overflow-x:auto;padding:12px 4px}
+  .chips-row .c{flex:0 0 auto;font-size:13px;padding:7px 16px;border-radius:99px;background:#fff;border:1px solid var(--border);color:var(--ink-500)}
+  .chips-row .c.on{background:var(--grad-primary);color:#fff;border-color:transparent;font-weight:600}
+  .feed{display:flex;flex-direction:column;gap:12px;padding-bottom:80px}
+  /* screen: match */
+  .m-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;box-shadow:var(--shadow);margin-bottom:12px}
+  .m-av{width:54px;height:54px;border-radius:50%;background:var(--brand-100);box-shadow:0 0 0 3px var(--brand-100);flex-shrink:0}
+  .m-meta{flex:1;display:flex;flex-direction:column}
+  .m-meta .nn{font-weight:600;font-size:15px}
+  .m-meta .in{font-size:12px;color:var(--ink-500)}
+  .m-meta .tg{font-size:11px;color:var(--brand-600);background:var(--brand-50);padding:2px 10px;border-radius:99px;margin-top:4px;align-self:flex-start}
+  .m-btn{font-size:12px;color:#fff;background:var(--grad-primary);padding:8px 14px;border-radius:99px;font-weight:600;flex-shrink:0;text-align:center;box-shadow:var(--shadow-glow)}
+  .m-btn.c{background:#FFB199;box-shadow:none}
+  .m-btn.v{background:var(--violet-500);box-shadow:none}
+  /* screen: game */
+  .quiz{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow);margin:14px 4px}
+  .quiz .pr{font-size:19px;font-family:var(--font-display);font-weight:700;margin-bottom:16px;line-height:1.4}
+  .quiz .op{font-size:15px;color:var(--ink-700);background:var(--brand-50);border:2px solid var(--brand-100);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+  .quiz .op.sel{background:var(--grad-primary);color:#fff;border-color:transparent;font-weight:600;box-shadow:var(--shadow-glow)}
+  .pgame .prog{display:flex;justify-content:space-between;padding:14px 6px;font-size:13px}
+  .pgame .prog .r{font-weight:600}
+  .pgame .prog .t{color:var(--success)}
+  /* screen: relation */
+  .rel-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+  .rel-card .rh{display:flex;align-items:center;gap:12px}
+  .rel-card .rav{width:54px;height:54px;border-radius:50%;background:var(--brand-100);box-shadow:0 0 0 3px var(--brand-100)}
+  .rel-card .rn{font-weight:600;font-size:15px}
+  .rel-card .rst{font-size:11px;color:#fff;background:var(--grad-primary);padding:3px 12px;border-radius:99px;font-weight:600}
+  .rel-card .rstat{font-size:12px;color:var(--ink-500);margin-top:6px}
+  .rel-card .rchips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .rel-card .rbtns{display:flex;gap:8px;margin-top:10px}
+  .rel-card .rbtns .b{font-size:12px;color:#fff;background:var(--grad-primary);padding:8px 14px;border-radius:99px;font-weight:600;box-shadow:var(--shadow-glow)}
+  .rel-card .rbtns .b.g{background:var(--gold-400);color:#7A5B00;box-shadow:none}
+  .modal-mask{position:absolute;inset:0;background:rgba(43,35,48,.45);display:flex;align-items:center;justify-content:center;z-index:40}
+  .modal{width:240px;background:#fff;border-radius:var(--r-lg);padding:24px 20px;text-align:center;box-shadow:var(--shadow-lg);animation:pop .28s ease}
+  @keyframes pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+  .modal .me{font-size:34px}
+  .modal .mt{font-weight:700;color:var(--brand-600);margin-top:4px}
+  .modal .mb{font-size:13px;color:var(--ink-700);margin-top:10px}
+  .modal .ma{display:flex;gap:10px;margin-top:16px}
+  .modal .ma span{flex:1;font-size:13px;padding:10px 0;border-radius:99px}
+  .modal .ma .rj{background:#F2F2F2;color:var(--ink-500)}
+  .modal .ma .ac{background:var(--grad-primary);color:#fff}
+  /* screen: contact */
+  .qr{width:180px;height:180px;margin:10px auto;background:var(--brand-50);border:1px solid var(--border);border-radius:var(--r);padding:12px;display:flex;align-items:center;justify-content:center}
+  .qr svg{width:100%;height:100%}
+  .qr-tip{text-align:center;font-size:12px;color:var(--ink-500)}
+  .row-id{display:flex;align-items:center;background:var(--brand-50);padding:14px 16px;border-radius:var(--r);margin-top:14px}
+  .row-id .l{font-size:13px;color:var(--ink-500);width:60px}
+  .row-id .v{flex:1;font-weight:600}
+  .row-id .cp{font-size:12px;color:#fff;background:var(--grad-primary);padding:7px 16px;border-radius:99px}
+  .locked{text-align:center;padding:30px 10px}
+  .locked .lt{font-weight:700;font-size:16px;color:var(--ink-700)}
+  .locked .ld{font-size:13px;color:var(--ink-400);margin-top:8px;line-height:1.6}
+  .locked .ln{display:inline-block;margin-top:14px;font-size:13px;font-weight:700;color:#fff;background:var(--grad-primary);padding:8px 18px;border-radius:99px}
+  .pb{height:80px}
+  .foot{text-align:center;color:var(--ink-400);font-size:12px;padding:18px;grid-column:1/-1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hd">
+    <div>
+      <h1>恋爱成长 · LoveApp 重设计预览</h1>
+      <p>uni-app (Vue3 + Vite) → mp-weixin · 基于 SPEC.md + ui-ux-pro-max 设计情报</p>
+    </div>
+    <span class="tag">暖玫瑰 × 珊瑚渐变 · 圆润柔光</span>
+  </div>
+
+  <!-- ============ LEFT: tokens + gallery ============ -->
+  <div>
+    <div class="panel" style="margin-bottom:24px">
+      <h2>设计令牌</h2>
+      <div class="swatches">
+        <div class="sw" style="background:#F43F6A"><small>#F43F6A</small></div>
+        <div class="sw" style="background:#E11D54"><small>#E11D54</small></div>
+        <div class="sw" style="background:#FF8A65"><small>#FF8A65</small></div>
+        <div class="sw" style="background:#8B5CF6"><small>#8B5CF6</small></div>
+        <div class="sw" style="background:#F59E0B"><small>#F59E0B</small></div>
+        <div class="sw" style="background:#16A34A"><small>#16A34A</small></div>
+        <div class="sw" style="background:#FFF1F4"><small>#FFF1F4</small></div>
+        <div class="sw" style="background:#2B2330"><small>#2B2330</small></div>
+      </div>
+      <div class="tokens-grid">
+        <div class="tok"><b>字体</b>展示 Varela Round · 正文 Nunito Sans · 中文回退 PingFang SC</div>
+        <div class="tok"><b>圆角</b><div class="radius-demo"><span style="border-radius:16px"></span><span style="border-radius:24px"></span><span style="border-radius:32px"></span><span style="border-radius:99px"></span></div></div>
+        <div class="tok"><b>阴影</b>柔光分层 · 品牌色投影（非重黑影）</div>
+        <div class="tok"><b>间距</b>8 / 12 / 16 / 24 / 32 / 40 / 48 (rpx)</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>组件画廊</h2>
+      <div class="gallery">
+        <!-- growth bar interactive -->
+        <div class="demo-card">
+          <div class="lbl">签名组件 · 关系成长 S0–S4（拖动体验）</div>
+          <div class="gb-head">
+            <div class="gb-stage"><span class="gb-dot"></span><span id="gbLabel">初相识</span></div>
+            <span class="gb-val" id="gbVal">成长 0</span>
+          </div>
+          <div class="gb-track">
+            <div class="gb-fill" id="gbFill" style="width:0%"></div>
+            <div class="gb-node" style="left:0%"><i></i></div>
+            <div class="gb-node" id="n1" style="left:8%"><i></i></div>
+            <div class="gb-node" id="n2" style="left:27%"><i></i></div>
+            <div class="gb-node" id="n3" style="left:60%"><i></i></div>
+            <div class="gb-node" id="n4" style="left:100%"><i></i></div>
+          </div>
+          <div class="gb-labels">
+            <span id="l0" class="on">初相识</span><span id="l1">初步破冰</span><span id="l2">渐入佳境</span><span id="l3">互相在意</span><span id="l4">心动确认</span>
+          </div>
+          <span class="gb-next" id="gbNext">再一起玩一局，开始升温</span>
+          <input class="slider" id="gbSlider" type="range" min="0" max="150" value="0" />
+        </div>
+
+        <!-- post card -->
+        <div class="demo-card">
+          <div class="lbl">社区帖子卡</div>
+          <div class="post">
+            <div class="h"><div class="av"></div><div><div class="nm">小鹿</div><div class="tp">#周末去哪</div></div></div>
+            <div class="ct">有没有人周末想一起去逛展？一个人去有点尴尬哈哈</div>
+            <div class="ft"><span class="lk">赞 12</span><span>评 3</span><span class="tm">2 小时前</span></div>
+          </div>
+        </div>
+
+        <!-- buttons + chips -->
+        <div class="demo-card">
+          <div class="lbl">按钮 / 标签</div>
+          <div class="btns"><button class="btn">一起玩</button><button class="btn ghost">聊聊</button></div>
+          <div class="chips"><span class="chip">#电影</span><span class="chip">#旅行</span><span class="chip gold">默契 8 题</span></div>
+        </div>
+
+        <!-- tab bar -->
+        <div class="demo-card">
+          <div class="lbl">底部导航（≤5）</div>
+          <div class="tabbar">
+            <div class="ti on"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.5-.8L3 21l1.9-5.5A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>社区</div>
+            <div class="ti"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>匹配</div>
+            <div class="fab"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/></svg>一起玩</div>
+            <div class="ti"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>关系</div>
+            <div class="ti"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>我的</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RIGHT: phone preview ============ -->
+  <div class="phone-col">
+    <div class="switcher" id="switcher">
+      <button data-pg="login" class="on">登录</button>
+      <button data-pg="community">社区</button>
+      <button data-pg="match">匹配</button>
+      <button data-pg="game">游戏</button>
+      <button data-pg="relation">关系</button>
+      <button data-pg="contact">联系</button>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="notch"></div>
+
+        <!-- login -->
+        <div class="pg pg-login show" id="pg-login">
+          <div class="logo">♥</div>
+          <div class="nm">恋爱成长</div>
+          <div class="sg">一起玩，慢慢靠近</div>
+          <div class="lb">微信授权登录</div>
+        </div>
+
+        <!-- community -->
+        <div class="pg" id="pg-community">
+          <div class="s-title">社区</div>
+          <div class="chips-row">
+            <div class="c on">全部</div><div class="c">#周末去哪</div><div class="c">#情感树洞</div><div class="c">#美食</div><div class="c">#电影</div>
+          </div>
+          <div class="feed">
+            <div class="post">
+              <div class="h"><div class="av"></div><div><div class="nm">小鹿</div><div class="tp">#周末去哪</div></div></div>
+              <div class="ct">有没有人周末想一起去逛展？一个人去有点尴尬哈哈</div>
+              <div class="ft"><span class="lk">赞 12</span><span>评 3</span><span class="tm">2 小时前</span></div>
+            </div>
+            <div class="post">
+              <div class="h"><div class="av"></div><div><div class="nm">阿哲</div><div class="tp">#情感树洞</div></div></div>
+              <div class="ct">和刚认识的 TA 玩了默契问答，居然答对 7 题，有点心动了</div>
+              <div class="ft"><span class="lk">赞 28</span><span>评 9</span><span class="tm">昨天</span></div>
+            </div>
+          </div>
+          <div class="fab-btn">＋</div>
+        </div>
+
+        <!-- match -->
+        <div class="pg" id="pg-match">
+          <div class="s-title">匹配破冰</div>
+          <div class="s-sub">找到聊得来的人，一起玩个小游戏</div>
+          <div style="margin-top:14px">
+            <div class="m-card">
+              <div class="m-av"></div>
+              <div class="m-meta"><div class="nn">林夏</div><div class="in">24岁 · 上海</div><div class="tg">#电影 #旅行</div></div>
+              <div class="m-btn">一起玩</div>
+            </div>
+            <div class="m-card">
+              <div class="m-av"></div>
+              <div class="m-meta">
+                <div class="nn">阿哲</div>
+                <div class="in">契合度 86 · 已玩2局</div>
+                <div id="mgb"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+                <div class="m-btn">一起玩</div><div class="m-btn c">聊聊</div><div class="m-btn v">联系</div>
+              </div>
+            </div>
+          </div>
+          <div class="pb"></div>
+        </div>
+
+        <!-- game -->
+        <div class="pg pgame" id="pg-game">
+          <div class="s-title">默契问答</div>
+          <div class="prog"><span class="r">第 2 / 5 题（你）</span><span class="t">对方已答 1 / 5</span></div>
+          <div class="quiz">
+            <div class="pr">如果只能带一样东西去旅行，你会选？</div>
+            <div class="op">相机，记录每个瞬间</div>
+            <div class="op sel">一本好书，安静独处</div>
+            <div class="op">耳机，沉浸在音乐里</div>
+            <div class="op">帐篷，说走就走</div>
+          </div>
+          <div class="pb"></div>
+        </div>
+
+        <!-- relation -->
+        <div class="pg" id="pg-relation">
+          <div class="s-title">我的关系</div>
+          <div class="s-sub">一起玩得越多，成长值越高，解锁的互动也越多</div>
+          <div style="margin-top:14px">
+            <div class="rel-card">
+              <div class="rh"><div class="rav"></div><div style="flex:1"><div class="rn">阿哲</div></div><div class="rst">互相在意</div></div>
+              <div class="rstat">已玩 5 局 · 默契 19 题</div>
+              <div id="rgb"></div>
+              <div class="rchips"><span class="chip gold">初次破冰</span><span class="chip gold">渐入佳境</span></div>
+              <div class="rbtns"><span class="b">一起玩</span><span class="b">聊聊</span><span class="b g">我们在一起了</span></div>
+            </div>
+          </div>
+          <div class="modal-mask">
+            <div class="modal">
+              <div class="me">💌</div>
+              <div class="mt">在一起确认邀请</div>
+              <div class="mb"><b>阿哲</b> 想和你确认在一起</div>
+              <div class="ma"><span class="rj">拒绝</span><span class="ac">同意 🎉</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- contact -->
+        <div class="pg" id="pg-contact">
+          <div class="s-title">联系方式</div>
+          <div class="card" style="margin-top:16px;text-align:center">
+            <div class="qr"><svg viewBox="0 0 100 100" fill="none" stroke="#E11D54" stroke-width="3">
+              <rect x="8" y="8" width="84" height="84" rx="8"/>
+              <rect x="20" y="20" width="22" height="22" rx="3" fill="#E11D54" stroke="none"/>
+              <rect x="58" y="20" width="22" height="22" rx="3"/>
+              <rect x="20" y="58" width="22" height="22" rx="3"/>
+              <circle cx="69" cy="69" r="9" fill="#E11D54" stroke="none"/>
+            </svg></div>
+            <div class="qr-tip">长按二维码识别添加</div>
+            <div class="row-id"><span class="l">微信号</span><span class="v">love_app2026</span><span class="cp">复制</span></div>
+          </div>
+          <div class="pb"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">预览为静态示意，已在 src/ 工程中以同一设计语言落地（tokens 见 App.vue；组件见 components/；页面见 pages/）。</div>
+</div>
+
+<script>
+  // 屏幕切换
+  const sw = document.getElementById('switcher');
+  sw.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#switcher button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    const pg = b.dataset.pg;
+    document.querySelectorAll('.pg').forEach(p=>p.classList.remove('show'));
+    document.getElementById('pg-'+pg).classList.add('show');
+  });
+
+  // 关系成长条交互
+  const MAX=150, stages=[{v:0,l:'初相识'},{v:12,l:'初步破冰'},{v:40,l:'渐入佳境'},{v:90,l:'互相在意'},{v:150,l:'心动确认'}];
+  const s=document.getElementById('gbSlider'), fill=document.getElementById('gbFill'),
+        lbl=document.getElementById('gbLabel'), val=document.getElementById('gbVal'), nx=document.getElementById('gbNext');
+  function render(){
+    const v=+s.value;
+    fill.style.width=(v/MAX*100)+'%';
+    val.textContent='成长 '+v;
+    let idx=0; for(let i=0;i<stages.length;i++){ if(v>=stages[i].v) idx=i; }
+    lbl.textContent=stages[idx].l;
+    document.querySelectorAll('.gb-node').forEach((n,i)=>{
+      n.classList.toggle('done', i<=idx); n.classList.toggle('cur', i===idx);
+    });
+    document.querySelectorAll('.gb-labels span').forEach((sp,i)=>sp.classList.toggle('on', i<=idx));
+    if(idx<stages.length-1){ const need=stages[idx+1].v-v; nx.textContent='再得 '+need+' 成长值解锁「'+stages[idx+1].l+'」'; nx.classList.remove('max'); }
+    else { nx.textContent='已到最高阶段 · 可解锁联系方式'; nx.classList.add('max'); }
+  }
+  s.addEventListener('input', render); render();
+
+  // 把画廊的"关系成长条"也塞进 match / relation 屏作为内嵌演示
+  function miniBar(hostId, value){
+    const host=document.getElementById(hostId); if(!host) return;
+    const v=value, pct=v/MAX*100;
+    let idx=0; for(let i=0;i<stages.length;i++){ if(v>=stages[i].v) idx=i; }
+    const label=stages[idx].l;
+    host.innerHTML='<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#E11D54;font-weight:700">'+label+'</span><span style="color:#A89FA8">成长 '+v+'</span></div>'+
+      '<div style="position:relative;height:10px;background:#FFE3E9;border-radius:99px;margin:8px 4px 2px"><div style="position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:linear-gradient(135deg,#FF8A65,#F43F6A);border-radius:99px"></div>'+
+      '<div style="position:absolute;left:0%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(0<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
+      '<div style="position:absolute;left:8%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(1<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
+      '<div style="position:absolute;left:27%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(2<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
+      '<div style="position:absolute;left:60%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(3<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
+      '<div style="position:absolute;left:100%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(4<=idx?'#F43F6A':'#FECDD6')+'"></div></div></div>';
+  }
+  miniBar('mgb', 95);
+  miniBar('rgb', 95);
+</script>
+</body>
+</html>

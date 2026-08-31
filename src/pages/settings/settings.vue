@@ -92,7 +92,7 @@ export default {
 </script>
 
 <style>
-.settings { min-height: 100vh; background: #FFF7F8; padding-bottom: 40rpx; }
+.settings { min-height: 100vh; background: var(--bg, #FFFAFB); padding-bottom: 40rpx; }
 .section { margin: 20rpx 24rpx; }
 .section-title { font-size: 28rpx; color: #666; font-weight: 600; display: block; margin: 16rpx 4rpx; }
 .section-desc { font-size: 22rpx; color: #aaa; display: block; margin: 0 4rpx 16rpx; }
@@ -113,7 +113,7 @@ export default {
 .btn {
   font-size: 26rpx;
   color: #fff;
-  background: #FF6B81;
+  background: var(--brand-500, #F43F6A);
   padding: 14rpx 28rpx;
   border-radius: 30rpx;
   flex-shrink: 0;

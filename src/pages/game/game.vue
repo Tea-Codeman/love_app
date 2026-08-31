@@ -197,24 +197,24 @@ export default {
 </script>
 
 <style>
-.game { min-height: 100vh; background: #FFF7F8; }
-.center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; }
-.big { font-size: 120rpx; margin-bottom: 24rpx; }
-.tip { font-size: 30rpx; color: #666; }
-.result { font-size: 40rpx; color: #FF6B81; font-weight: 700; margin-bottom: 12rpx; }
+.game { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); }
+.center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; padding: 0 60rpx; }
+.big { font-size: 120rpx; margin-bottom: 24rpx; animation: floatY 2.4s ease-in-out infinite; }
+.tip { font-size: 30rpx; color: var(--ink-500, #7A7280); text-align: center; }
+.result { font-size: 44rpx; color: var(--brand-600, #E11D54); font-weight: 700; margin-bottom: 12rpx; font-family: var(--font-display); }
 .btn {
-  margin-top: 48rpx;
-  font-size: 30rpx;
-  color: #fff;
-  background: #FF6B81;
-  padding: 20rpx 64rpx;
-  border-radius: 40rpx;
+  margin-top: 48rpx; font-size: 30rpx; font-weight: 600; color: #fff;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  padding: 22rpx 72rpx; border-radius: 999rpx;
+  box-shadow: var(--shadow-glow, 0 8rpx 24rpx rgba(244,63,106,.35));
+  transition: transform .12s ease;
 }
-.btn.ghost { background: #ddd; color: #666; }
+.btn:active { transform: scale(.96); }
+.btn.ghost { background: #F2F2F2; color: var(--ink-500, #7A7280); box-shadow: none; }
 .playing { padding-top: 16rpx; }
-.progress { display: flex; justify-content: space-between; padding: 20rpx 32rpx; }
-.round { font-size: 28rpx; color: #333; font-weight: 600; }
-.tacit { font-size: 28rpx; color: #2ecc71; }
-.status { text-align: center; font-size: 26rpx; color: #999; padding: 16rpx 0 40rpx; }
-.status.ok { color: #FF6B81; }
+.progress { display: flex; justify-content: space-between; align-items: center; padding: 24rpx 32rpx; }
+.round { font-size: 28rpx; color: var(--ink-900, #2B2330); font-weight: 600; }
+.tacit { font-size: 26rpx; color: var(--success, #16A34A); }
+.status { text-align: center; font-size: 26rpx; color: var(--ink-500, #7A7280); padding: 16rpx 0 40rpx; }
+.status.ok { color: var(--brand-600, #E11D54); font-weight: 600; }
 </style>

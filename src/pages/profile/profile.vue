@@ -44,16 +44,19 @@
     <text class="privacy-tip">微信号不会公开展示；只有和你的关系成长到 S4（心动确认）的人才能看到。</text>
     <button class="save-btn" :loading="saving" @click="onSave">保存</button>
     <text class="tip" v-if="msg">{{ msg }}</text>
+    <tab-bar current="profile"></tab-bar>
   </view>
 </template>
 
 <script>
 import { callFunction } from '../../utils/request'
+import tabBar from '../../components/tab-bar.vue'
 import { getUser, setUser } from '../../utils/storage'
 import { validateProfile } from '../../utils/validate'
 import { getRole } from '../../utils/mbti'
 
 export default {
+  components: { tabBar },
   data() {
     return {
       form: { nickname: '', avatarUrl: '', gender: 0, age: 0, city: '', interestTags: [], bio: '', mbti: '', wechatId: '' },
@@ -128,17 +131,24 @@ export default {
 </script>
 
 <style>
-.profile { padding: 32rpx; background: #FFF7F8; min-height: 100vh; }
-.field { display: flex; align-items: center; padding: 24rpx 0; border-bottom: 1rpx solid #f0e3e6; }
-.label { width: 160rpx; font-size: 28rpx; color: #555; }
-.input { flex: 1; font-size: 28rpx; }
-.picker { flex: 1; font-size: 28rpx; color: #333; }
-.avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: #eee; }
-.textarea { flex: 1; height: 120rpx; font-size: 28rpx; }
-.mbti-val { flex: 1; font-size: 28rpx; color: #FF6B81; }
-.mbti-empty { flex: 1; font-size: 28rpx; color: #bbb; }
-.arrow { font-size: 32rpx; color: #ccc; }
-.privacy-tip { display: block; font-size: 22rpx; color: #aaa; padding: 16rpx 8rpx 0; line-height: 1.6; }
-.save-btn { margin-top: 48rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff; border-radius: 44rpx; font-size: 32rpx; }
-.tip { display: block; text-align: center; margin-top: 20rpx; font-size: 24rpx; color: #e74c3c; }
+.profile { padding: 32rpx 32rpx 180rpx; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); min-height: 100vh; }
+.field { display: flex; align-items: center; padding: 26rpx 4rpx; border-bottom: 1rpx solid var(--border, #FBE1E7); }
+.label { width: 160rpx; font-size: 28rpx; color: var(--ink-500, #7A7280); flex-shrink: 0; }
+.input { flex: 1; font-size: 28rpx; color: var(--ink-900, #2B2330); }
+.picker { flex: 1; font-size: 28rpx; color: var(--ink-900, #2B2330); }
+.avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: var(--brand-100, #FFE3E9); border: 3rpx solid #fff; box-shadow: 0 0 0 3rpx var(--brand-100, #FFE3E9); }
+.textarea { flex: 1; height: 120rpx; font-size: 28rpx; color: var(--ink-900, #2B2330); }
+.mbti-val { flex: 1; font-size: 28rpx; color: var(--brand-600, #E11D54); font-weight: 600; }
+.mbti-empty { flex: 1; font-size: 28rpx; color: var(--ink-400, #A89FA8); }
+.arrow { font-size: 32rpx; color: var(--ink-400, #A89FA8); }
+.privacy-tip { display: block; font-size: 22rpx; color: var(--ink-400, #A89FA8); padding: 16rpx 8rpx 0; line-height: 1.6; }
+.save-btn {
+  margin-top: 48rpx; width: 100%; height: 92rpx; line-height: 92rpx;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  color: #fff; border-radius: 999rpx; font-size: 32rpx; font-weight: 600;
+  box-shadow: var(--shadow-glow, 0 8rpx 24rpx rgba(244,63,106,.35));
+  transition: transform .12s ease;
+}
+.save-btn:active { transform: scale(.98); }
+.tip { display: block; text-align: center; margin-top: 20rpx; font-size: 24rpx; color: var(--danger, #EF4444); }
 </style>

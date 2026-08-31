@@ -132,7 +132,7 @@ export default {
 </script>
 
 <style>
-.admin { min-height: 100vh; background: #FFF7F8; padding-bottom: 40rpx; }
+.admin { min-height: 100vh; background: var(--bg, #FFFAFB); padding-bottom: 40rpx; }
 .tabs { display: flex; background: #fff; padding: 12rpx 24rpx 0; }
 .tab {
   flex: 1;
@@ -142,7 +142,7 @@ export default {
   padding: 20rpx 0;
   border-bottom: 4rpx solid transparent;
 }
-.tab.active { color: #FF6B81; font-weight: 600; border-bottom-color: #FF6B81; }
+.tab.active { color: var(--brand-500, #F43F6A); font-weight: 600; border-bottom-color: var(--brand-500, #F43F6A); }
 .list { padding: 20rpx 24rpx; }
 .card {
   background: #fff;
@@ -162,7 +162,7 @@ export default {
 .note { width: 100%; height: 120rpx; margin-top: 16rpx; background: #fafafa; border-radius: 12rpx; padding: 16rpx; font-size: 26rpx; box-sizing: border-box; }
 .actions { display: flex; gap: 20rpx; margin-top: 16rpx; }
 .btn { flex: 1; height: 76rpx; line-height: 76rpx; border-radius: 38rpx; font-size: 28rpx; color: #fff; margin: 0; }
-.btn.handled { background: #FF6B81; }
+.btn.handled { background: var(--brand-500, #F43F6A); }
 .btn.dismissed { background: #f2f2f2; color: #666; }
 .done-info { display: flex; justify-content: space-between; margin-top: 14rpx; font-size: 24rpx; color: #888; }
 .empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }

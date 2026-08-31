@@ -90,7 +90,7 @@ export default {
 </script>
 
 <style>
-.post-edit { padding: 32rpx; background: #FFF7F8; min-height: 100vh; }
+.post-edit { padding: 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; }
 .field { display: flex; align-items: center; padding: 20rpx 0; }
 .label { width: 120rpx; font-size: 28rpx; color: #555; }
 .picker { flex: 1; font-size: 28rpx; color: #333; background: #fff; padding: 18rpx 24rpx; border-radius: 12rpx; }
@@ -110,6 +110,6 @@ export default {
 .img { width: 160rpx; height: 160rpx; border-radius: 12rpx; }
 .del { position: absolute; top: -12rpx; right: -12rpx; width: 40rpx; height: 40rpx; line-height: 36rpx; text-align: center; background: rgba(0,0,0,0.5); color: #fff; border-radius: 50%; font-size: 32rpx; }
 .img-add { width: 160rpx; height: 160rpx; line-height: 156rpx; text-align: center; font-size: 60rpx; color: #ccc; background: #fff; border: 2rpx dashed #ddd; border-radius: 12rpx; }
-.submit { margin-top: 48rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff; border-radius: 44rpx; font-size: 32rpx; }
+.submit { margin-top: 48rpx; height: 88rpx; line-height: 88rpx; background: var(--brand-500, #F43F6A); color: #fff; border-radius: 44rpx; font-size: 32rpx; }
 .tip { display: block; text-align: center; margin-top: 20rpx; font-size: 24rpx; color: #e74c3c; }
 </style>

@@ -40,11 +40,31 @@ export default {
 </script>
 
 <style>
-.login { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FFF7F8; }
-.hero { display: flex; flex-direction: column; align-items: center; margin-bottom: 80rpx; }
-.logo { width: 200rpx; height: 200rpx; border-radius: 32rpx; }
-.app-name { font-size: 44rpx; font-weight: 700; color: #FF6B81; margin-top: 24rpx; }
-.slogan { font-size: 26rpx; color: #b0a0a4; margin-top: 12rpx; }
-.login-btn { width: 560rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff; border-radius: 44rpx; font-size: 32rpx; }
-.tip { margin-top: 24rpx; font-size: 24rpx; color: #e74c3c; }
+.login {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(120% 80% at 50% 0%, #FFE3E9 0%, #FFFAFB 60%);
+  position: relative; overflow: hidden;
+}
+.login::before {
+  content: ''; position: absolute; top: -120rpx; right: -80rpx; width: 360rpx; height: 360rpx; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,138,101,.35), transparent 70%);
+}
+.login::after {
+  content: ''; position: absolute; bottom: -140rpx; left: -100rpx; width: 380rpx; height: 380rpx; border-radius: 50%;
+  background: radial-gradient(circle, rgba(244,63,106,.22), transparent 70%);
+}
+.hero { display: flex; flex-direction: column; align-items: center; margin-bottom: 90rpx; position: relative; z-index: 1; }
+.logo { width: 200rpx; height: 200rpx; border-radius: 40rpx; box-shadow: var(--shadow-lg, 0 16rpx 40rpx rgba(244,63,106,.16)); }
+.app-name { font-size: 48rpx; font-weight: 700; color: var(--brand-600, #E11D54); margin-top: 28rpx; font-family: var(--font-display); }
+.slogan { font-size: 26rpx; color: var(--ink-500, #7A7280); margin-top: 12rpx; }
+.login-btn {
+  position: relative; z-index: 1;
+  width: 560rpx; height: 92rpx; line-height: 92rpx;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  color: #fff; border-radius: 46rpx; font-size: 32rpx; font-weight: 600;
+  box-shadow: var(--shadow-glow, 0 8rpx 24rpx rgba(244,63,106,.35));
+  transition: transform .12s ease, opacity .2s ease;
+}
+.login-btn:active { transform: scale(.96); opacity: .94; }
+.tip { position: relative; z-index: 1; margin-top: 24rpx; font-size: 24rpx; color: var(--danger, #EF4444); }
 </style>

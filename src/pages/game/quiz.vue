@@ -31,17 +31,26 @@ export default {
 </script>
 
 <style>
-.quiz { background: #fff; border-radius: 20rpx; padding: 32rpx; margin: 20rpx 24rpx; box-shadow: 0 4rpx 16rpx rgba(255, 107, 129, 0.08); }
-.prompt { font-size: 34rpx; color: #333; font-weight: 600; display: block; margin-bottom: 24rpx; line-height: 1.4; }
+.quiz {
+  background: #fff; border: 1rpx solid var(--border, #FBE1E7);
+  border-radius: var(--r-lg, 32rpx); padding: 36rpx 32rpx; margin: 20rpx 24rpx;
+  box-shadow: var(--shadow, 0 8rpx 24rpx rgba(244,63,106,.10));
+}
+.prompt { font-size: 36rpx; color: var(--ink-900, #2B2330); font-weight: 700; display: block; margin-bottom: 28rpx; line-height: 1.45; font-family: var(--font-display); }
 .options { display: flex; flex-direction: column; }
 .option {
-  font-size: 30rpx;
-  color: #444;
-  background: #faf3f4;
-  border: 2rpx solid #f3e2e5;
-  border-radius: 16rpx;
-  padding: 24rpx 28rpx;
+  font-size: 30rpx; color: var(--ink-700, #4A4250);
+  background: var(--brand-50, #FFF1F4);
+  border: 2rpx solid var(--brand-100, #FFE3E9);
+  border-radius: var(--r, 24rpx);
+  padding: 26rpx 28rpx;
   margin-bottom: 18rpx;
+  transition: all .18s ease;
 }
-.option.chosen { background: #FF6B81; color: #fff; border-color: #FF6B81; }
+.option:active { transform: scale(.98); }
+.option.chosen {
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  color: #fff; border-color: transparent; font-weight: 600;
+  box-shadow: var(--shadow-glow, 0 8rpx 24rpx rgba(244,63,106,.3));
+}
 </style>

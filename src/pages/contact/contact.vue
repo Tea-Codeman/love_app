@@ -74,22 +74,36 @@ export default {
 </script>
 
 <style>
-.contact { min-height: 100vh; background: #FFF7F8; padding: 32rpx 24rpx; }
+.contact { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); padding: 32rpx 24rpx 80rpx; }
 .card {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 40rpx 32rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 129, 0.08);
+  background: #fff; border: 1rpx solid var(--border, #FBE1E7);
+  border-radius: var(--r-lg, 32rpx); padding: 48rpx 32rpx;
+  box-shadow: var(--shadow, 0 8rpx 24rpx rgba(244,63,106,.10));
+  text-align: center;
 }
-.qr { width: 400rpx; height: 400rpx; margin: 0 auto 16rpx; display: block; background: #fafafa; }
-.qr-tip { display: block; text-align: center; font-size: 24rpx; color: #999; margin-bottom: 24rpx; }
-.row { display: flex; align-items: center; margin-top: 12rpx; }
-.label { font-size: 26rpx; color: #999; width: 110rpx; }
-.value { flex: 1; font-size: 30rpx; color: #333; font-weight: 600; }
-.copy { font-size: 24rpx; color: #fff; background: #FF6B81; padding: 10rpx 26rpx; border-radius: 24rpx; }
-.empty-tip { text-align: center; font-size: 26rpx; color: #bbb; padding: 30rpx 0; }
+.qr {
+  width: 400rpx; height: 400rpx; margin: 0 auto 20rpx; display: block;
+  background: var(--brand-50, #FFF1F4); border-radius: var(--r, 24rpx); padding: 16rpx;
+  border: 1rpx solid var(--border, #FBE1E7);
+}
+.qr-tip { display: block; text-align: center; font-size: 24rpx; color: var(--ink-500, #7A7280); margin-bottom: 24rpx; }
+.row { display: flex; align-items: center; margin-top: 16rpx; background: var(--brand-50, #FFF1F4); padding: 20rpx 24rpx; border-radius: var(--r, 24rpx); }
+.label { font-size: 26rpx; color: var(--ink-500, #7A7280); width: 120rpx; text-align: left; }
+.value { flex: 1; font-size: 30rpx; color: var(--ink-900, #2B2330); font-weight: 600; text-align: left; }
+.copy {
+  font-size: 24rpx; color: #fff; font-weight: 600;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  padding: 12rpx 28rpx; border-radius: 999rpx;
+  transition: transform .12s ease;
+}
+.copy:active { transform: scale(.95); }
+.empty-tip { text-align: center; font-size: 26rpx; color: var(--ink-400, #A89FA8); padding: 30rpx 0; }
 .locked { text-align: center; }
-.locked-title { font-size: 32rpx; color: #666; font-weight: 600; display: block; }
-.locked-desc { font-size: 24rpx; color: #aaa; margin-top: 12rpx; display: block; }
-.locked-need { font-size: 26rpx; color: #FF6B81; margin-top: 20rpx; display: block; }
+.locked-title { font-size: 32rpx; color: var(--ink-700, #4A4250); font-weight: 700; display: block; }
+.locked-desc { font-size: 24rpx; color: var(--ink-400, #A89FA8); margin-top: 12rpx; display: block; line-height: 1.6; }
+.locked-need {
+  display: inline-block; margin-top: 20rpx; font-size: 26rpx; font-weight: 700; color: #fff;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  padding: 12rpx 28rpx; border-radius: 999rpx;
+}
 </style>

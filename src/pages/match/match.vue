@@ -50,6 +50,7 @@
       <view class="empty" v-if="!loading && visibleCandidates.length === 0">附近还没有更多小伙伴，晚点再来看看 ›</view>
       <view class="loading" v-if="loading">匹配中…</view>
     </view>
+    <tab-bar current="match"></tab-bar>
   </view>
 </template>
 
@@ -57,11 +58,12 @@
 import { callFunction } from '../../utils/request'
 import { getOpenid } from '../../utils/storage'
 import growthBar from '../../components/growth-bar.vue'
+import tabBar from '../../components/tab-bar.vue'
 import { stageOf, reached } from '../../utils/growth'
 import { track, flushTrack } from '../../utils/track'
 
 export default {
-  components: { growthBar },
+  components: { growthBar, tabBar },
   data() {
     return {
       openid: '',
@@ -219,7 +221,7 @@ export default {
           title: '拉黑 ' + name + '？',
           content: '拉黑后你们不会再出现在彼此的推荐里，可在「设置 → 黑名单」中解除。',
           confirmText: '拉黑',
-          confirmColor: '#FF6B81',
+          confirmColor: '#E11D54',
           success: r => resolve(!!r.confirm),
           fail: () => resolve(false)
         })
@@ -249,45 +251,54 @@ export default {
 </script>
 
 <style>
-.match { min-height: 100vh; background: #FFF7F8; padding-bottom: 40rpx; }
-.topbar { padding: 24rpx 32rpx 8rpx; }
-.title { font-size: 38rpx; font-weight: 700; color: #FF6B81; display: block; }
-.sub { font-size: 24rpx; color: #999; margin-top: 6rpx; display: block; }
+.match { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); padding-bottom: 180rpx; }
+.topbar { padding: 28rpx 32rpx 8rpx; }
+.title { font-size: 42rpx; font-weight: 700; color: var(--ink-900, #2B2330); font-family: var(--font-display); display: block; }
+.sub { font-size: 24rpx; color: var(--ink-500, #7A7280); margin-top: 6rpx; display: block; }
 .section { margin: 20rpx 24rpx; }
-.section-title { font-size: 28rpx; color: #666; font-weight: 600; display: block; margin: 16rpx 4rpx; }
+.section-title { font-size: 28rpx; color: var(--ink-700, #4A4250); font-weight: 700; display: block; margin: 16rpx 4rpx; }
 .cand-card, .invite-card {
   display: flex;
   align-items: center;
   background: #fff;
-  border-radius: 20rpx;
+  border: 1rpx solid var(--border, #FBE1E7);
+  border-radius: var(--r-lg, 32rpx);
   padding: 24rpx;
   margin-bottom: 18rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 129, 0.08);
+  box-shadow: var(--shadow, 0 8rpx 24rpx rgba(244,63,106,.10));
+  transition: transform .15s ease;
 }
-.avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #eee; flex-shrink: 0; }
+.cand-card:active, .invite-card:active { transform: scale(.99); }
+.avatar {
+  width: 96rpx; height: 96rpx; border-radius: 50%; background: var(--brand-100, #FFE3E9);
+  border: 3rpx solid #fff; box-shadow: 0 0 0 3rpx var(--brand-100, #FFE3E9); flex-shrink: 0;
+}
 .cand-meta, .invite-meta { flex: 1; margin-left: 20rpx; display: flex; flex-direction: column; }
-.nickname { font-size: 30rpx; color: #333; font-weight: 600; }
-.info { font-size: 24rpx; color: #999; margin-top: 4rpx; }
-.hint { font-size: 24rpx; color: #999; margin-top: 4rpx; }
-.tags { margin-top: 8rpx; }
-.tag { font-size: 22rpx; color: #FF6B81; background: #fdeef0; padding: 4rpx 14rpx; border-radius: 20rpx; margin-right: 10rpx; }
-.score { font-size: 22rpx; color: #2ecc71; margin-top: 6rpx; }
-.tacit { font-size: 20rpx; color: #FF9F43; margin-top: 4rpx; }
-.mbti { font-size: 20rpx; color: #8e7cc3; margin-top: 4rpx; }
-.btn {
-  font-size: 26rpx;
-  color: #fff;
-  background: #FF6B81;
-  padding: 14rpx 28rpx;
-  border-radius: 30rpx;
-  flex-shrink: 0;
+.nickname { font-size: 30rpx; color: var(--ink-900, #2B2330); font-weight: 600; }
+.info { font-size: 24rpx; color: var(--ink-500, #7A7280); margin-top: 4rpx; }
+.hint { font-size: 24rpx; color: var(--ink-500, #7A7280); margin-top: 4rpx; }
+.tags { margin-top: 8rpx; display: flex; flex-wrap: wrap; }
+.tag {
+  font-size: 20rpx; color: var(--brand-600, #E11D54);
+  background: var(--brand-50, #FFF1F4); padding: 4rpx 14rpx; border-radius: 999rpx; margin: 4rpx 10rpx 0 0;
 }
-.btn.play { margin-bottom: 12rpx; }
-.btn.chat { background: #FFB199; margin-bottom: 12rpx; text-align: center; }
-.btn.contact { background: #7c5cff; margin-bottom: 12rpx; text-align: center; font-size: 24rpx; padding: 10rpx 22rpx; }
+.score { font-size: 22rpx; color: var(--success, #16A34A); margin-top: 6rpx; font-weight: 600; }
+.tacit { font-size: 20rpx; color: var(--gold-500, #F59E0B); margin-top: 4rpx; }
+.mbti { font-size: 20rpx; color: #8E7CC3; margin-top: 4rpx; }
 .invite-actions, .cand-actions { display: flex; flex-direction: column; flex-shrink: 0; margin-left: 16rpx; }
+.btn {
+  font-size: 26rpx; color: #fff; font-weight: 600;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  padding: 14rpx 28rpx; border-radius: 999rpx; flex-shrink: 0; text-align: center;
+  box-shadow: var(--shadow-glow, 0 8rpx 24rpx rgba(244,63,106,.3));
+  transition: transform .12s ease;
+}
+.btn:active { transform: scale(.95); }
+.btn.play { margin-bottom: 12rpx; }
+.btn.chat { background: #FFB199; box-shadow: none; margin-bottom: 12rpx; }
+.btn.contact { background: var(--violet-500, #8B5CF6); box-shadow: none; margin-bottom: 12rpx; font-size: 24rpx; padding: 10rpx 22rpx; }
 .btn.accept { margin-bottom: 12rpx; }
-.btn.decline { background: #ddd; color: #666; }
-.btn.block { background: #f2f2f2; color: #999; font-size: 24rpx; padding: 10rpx 22rpx; text-align: center;}
-.empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
+.btn.decline { background: #F2F2F2; color: var(--ink-500, #7A7280); box-shadow: none; }
+.btn.block { background: #F7F2F3; color: var(--ink-400, #A89FA8); font-size: 24rpx; padding: 10rpx 22rpx; box-shadow: none; }
+.empty, .loading { text-align: center; font-size: 26rpx; color: var(--ink-400, #A89FA8); padding: 60rpx 0; }
 </style>

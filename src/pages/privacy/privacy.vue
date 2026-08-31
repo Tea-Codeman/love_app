@@ -62,13 +62,13 @@ export default {
 </script>
 
 <style>
-.privacy { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #FFF7F8; padding: 32rpx; }
+.privacy { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg, #FFFAFB); padding: 32rpx; }
 .card { width: 100%; background: #fff; border-radius: 24rpx; padding: 40rpx; box-shadow: 0 8rpx 30rpx rgba(255,107,129,0.12); }
-.title { font-size: 38rpx; font-weight: 700; color: #FF6B81; display: block; margin-bottom: 24rpx; }
+.title { font-size: 38rpx; font-weight: 700; color: var(--brand-500, #F43F6A); display: block; margin-bottom: 24rpx; }
 .body { max-height: 860rpx; }
 .para { font-size: 26rpx; color: #666; line-height: 1.7; display: block; margin-bottom: 14rpx; }
 .h { font-size: 28rpx; font-weight: 700; color: #333; margin-top: 18rpx; margin-bottom: 10rpx; }
-.strong { color: #FF6B81; font-weight: 600; margin-top: 10rpx; }
-.agree-btn { margin-top: 32rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff; border-radius: 44rpx; font-size: 32rpx; }
+.strong { color: var(--brand-500, #F43F6A); font-weight: 600; margin-top: 10rpx; }
+.agree-btn { margin-top: 32rpx; height: 88rpx; line-height: 88rpx; background: var(--brand-500, #F43F6A); color: #fff; border-radius: 44rpx; font-size: 32rpx; }
 .decline { display: block; text-align: center; margin-top: 20rpx; font-size: 26rpx; color: #999; }
 </style>

@@ -95,7 +95,7 @@ export default {
 </script>
 
 <style>
-.mbti { padding: 40rpx 32rpx; background: #FFF7F8; min-height: 100vh; }
+.mbti { padding: 40rpx 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; }
 .q-progress { font-size: 24rpx; color: #999; text-align: center; }
 .q-dim { margin-top: 12rpx; font-size: 24rpx; color: #b07a86; text-align: center; }
 .q-text { margin: 60rpx 0 48rpx; font-size: 40rpx; font-weight: 700; color: #333; text-align: center; line-height: 1.5; }
@@ -103,10 +103,10 @@ export default {
        font-size: 30rpx; border: 2rpx solid #f0e3e6; border-radius: 20rpx; line-height: 1.5; }
 .opt::after { border: none; }
 .preview { margin-top: 80rpx; text-align: center; }
-.pv-type { display: block; font-size: 48rpx; font-weight: 700; color: #FF6B81; letter-spacing: 4rpx; }
+.pv-type { display: block; font-size: 48rpx; font-weight: 700; color: var(--brand-500, #F43F6A); letter-spacing: 4rpx; }
 .pv-tip { display: block; margin-top: 10rpx; font-size: 22rpx; color: #aaa; }
 
-.role-card { margin-top: 40rpx; padding: 48rpx 36rpx; background: #fff; border: 4rpx solid #FF6B81; border-radius: 28rpx; text-align: center; }
+.role-card { margin-top: 40rpx; padding: 48rpx 36rpx; background: #fff; border: 4rpx solid var(--brand-500, #F43F6A); border-radius: 28rpx; text-align: center; }
 .role-badge { display: inline-block; padding: 10rpx 32rpx; color: #fff; font-size: 44rpx; font-weight: 700;
               letter-spacing: 4rpx; border-radius: 40rpx; }
 .role-name { display: block; margin-top: 24rpx; font-size: 32rpx; color: #333; }
@@ -115,7 +115,7 @@ export default {
 .role-line { display: block; margin-top: 32rpx; font-size: 28rpx; color: #666; line-height: 1.6; }
 .role-hint { display: block; margin-top: 20rpx; font-size: 22rpx; color: #bbb; }
 
-.save-btn { margin-top: 48rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff;
+.save-btn { margin-top: 48rpx; height: 88rpx; line-height: 88rpx; background: var(--brand-500, #F43F6A); color: #fff;
             border-radius: 44rpx; font-size: 32rpx; }
 .retest { display: block; margin-top: 28rpx; text-align: center; font-size: 26rpx; color: #999; }
 .tip { display: block; margin-top: 20rpx; text-align: center; font-size: 24rpx; color: #e74c3c; }

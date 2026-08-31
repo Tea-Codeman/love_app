@@ -27,15 +27,17 @@
     </view>
 
     <view class="fab" @click="goPost">＋</view>
+    <tab-bar current="community"></tab-bar>
   </view>
 </template>
 
 <script>
 import { callFunction } from '../../utils/request'
 import postCard from '../../components/post-card.vue'
+import tabBar from '../../components/tab-bar.vue'
 
 export default {
-  components: { postCard },
+  components: { postCard, tabBar },
   data() {
     return {
       topics: [],
@@ -115,47 +117,47 @@ export default {
 </script>
 
 <style>
-.community { min-height: 100vh; background: #FFF7F8; }
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx 8rpx; }
-.title { font-size: 38rpx; font-weight: 700; color: #FF6B81; }
-.invite { font-size: 26rpx; color: #fff; background: #FF6B81; padding: 10rpx 24rpx; border-radius: 28rpx; }
+.community { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); padding-bottom: 180rpx; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx 8rpx; }
+.title { font-size: 42rpx; font-weight: 700; color: var(--ink-900, #2B2330); font-family: var(--font-display); }
 .tabs {
   white-space: nowrap;
   padding: 16rpx 12rpx;
-  background: #fff;
+  background: transparent;
   position: sticky;
   top: 0;
   z-index: 10;
 }
 .tab {
   display: inline-block;
-  padding: 12rpx 28rpx;
+  padding: 12rpx 30rpx;
   margin: 0 8rpx;
-  font-size: 28rpx;
-  color: #666;
-  background: #f5eef0;
-  border-radius: 32rpx;
-}
-.tab.active { color: #fff; background: #FF6B81; }
-.feed { padding-bottom: 40rpx; }
-.empty, .nomore, .loading {
-  text-align: center;
   font-size: 26rpx;
-  color: #bbb;
-  padding: 60rpx 0;
+  color: var(--ink-500, #7A7280);
+  background: #fff;
+  border: 1rpx solid var(--border, #FBE1E7);
+  border-radius: 999rpx;
+  box-shadow: var(--shadow-sm);
+  transition: all .2s ease;
 }
+.tab.active { color: #fff; background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A)); border-color: transparent; font-weight: 600; }
+.feed { padding-bottom: 40rpx; }
+.empty, .nomore, .loading { text-align: center; font-size: 26rpx; color: var(--ink-400, #A89FA8); padding: 60rpx 0; }
 .fab {
   position: fixed;
   right: 40rpx;
-  bottom: 60rpx;
-  width: 96rpx;
-  height: 96rpx;
+  bottom: calc(env(safe-area-inset-bottom) + 170rpx);
+  width: 104rpx;
+  height: 104rpx;
   border-radius: 50%;
-  background: #FF6B81;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
   color: #fff;
   font-size: 56rpx;
-  line-height: 92rpx;
+  line-height: 100rpx;
   text-align: center;
-  box-shadow: 0 8rpx 24rpx rgba(255, 107, 129, 0.4);
+  box-shadow: var(--shadow-glow, 0 8rpx 24rpx rgba(244,63,106,.45));
+  z-index: 40;
+  transition: transform .12s ease;
 }
+.fab:active { transform: scale(.92); }
 </style>

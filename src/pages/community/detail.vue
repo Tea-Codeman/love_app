@@ -145,12 +145,12 @@ export default {
 </script>
 
 <style>
-.detail { padding: 32rpx; background: #FFF7F8; min-height: 100vh; padding-bottom: 140rpx; }
+.detail { padding: 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; padding-bottom: 140rpx; }
 .head { display: flex; align-items: center; }
 .avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #eee; }
 .meta { margin-left: 18rpx; display: flex; flex-direction: column; flex: 1; }
 .nickname { font-size: 28rpx; color: #333; font-weight: 600; }
-.topic { font-size: 22rpx; color: #FF6B81; margin-top: 4rpx; }
+.topic { font-size: 22rpx; color: var(--brand-500, #F43F6A); margin-top: 4rpx; }
 .report { font-size: 24rpx; color: #999; margin-left: 20rpx; }
 .block { font-size: 24rpx; color: #999; margin-left: 20rpx; }
 .content { display: block; font-size: 32rpx; color: #333; line-height: 1.6; margin: 24rpx 0; word-break: break-all; }
@@ -158,17 +158,17 @@ export default {
 .img { width: 200rpx; height: 200rpx; border-radius: 12rpx; margin: 0 12rpx 12rpx 0; }
 .action { display: flex; align-items: center; padding: 24rpx 0; border-top: 1rpx solid #f0e3e6; border-bottom: 1rpx solid #f0e3e6; }
 .like { font-size: 30rpx; color: #999; }
-.like.liked { color: #FF6B81; }
+.like.liked { color: var(--brand-500, #F43F6A); }
 .ccount { font-size: 28rpx; color: #999; margin-left: 40rpx; }
 .comments { margin-top: 24rpx; }
 .c-title { font-size: 26rpx; color: #888; }
 .c-item { padding: 16rpx 0; border-bottom: 1rpx solid #f5eef0; }
-.c-name { font-size: 26rpx; color: #FF6B81; margin-right: 12rpx; }
+.c-name { font-size: 26rpx; color: var(--brand-500, #F43F6A); margin-right: 12rpx; }
 .c-text { font-size: 28rpx; color: #333; }
 .c-empty { text-align: center; font-size: 24rpx; color: #bbb; padding: 40rpx 0; }
-.c-more { text-align: center; font-size: 26rpx; color: #FF6B81; padding: 28rpx 0; }
+.c-more { text-align: center; font-size: 26rpx; color: var(--brand-500, #F43F6A); padding: 28rpx 0; }
 .c-more.loading { color: #bbb; }
 .comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; padding: 16rpx 24rpx; background: #fff; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.05); }
 .c-input { flex: 1; background: #f5eef0; border-radius: 32rpx; padding: 16rpx 28rpx; font-size: 28rpx; }
-.c-send { margin-left: 16rpx; background: #FF6B81; color: #fff; font-size: 28rpx; border-radius: 32rpx; padding: 0 32rpx; }
+.c-send { margin-left: 16rpx; background: var(--brand-500, #F43F6A); color: #fff; font-size: 28rpx; border-radius: 32rpx; padding: 0 32rpx; }
 </style>

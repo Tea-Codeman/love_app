@@ -57,12 +57,12 @@ export default {
 </script>
 
 <style>
-.report { padding: 32rpx; background: #FFF7F8; min-height: 100vh; }
+.report { padding: 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; }
 .target { font-size: 26rpx; color: #888; margin-bottom: 24rpx; }
 .field { display: flex; }
 .label { width: 100rpx; font-size: 28rpx; color: #555; }
 .reason { flex: 1; height: 200rpx; background: #fff; border-radius: 12rpx; padding: 20rpx; font-size: 28rpx; }
-.submit { margin-top: 40rpx; height: 88rpx; line-height: 88rpx; background: #FF6B81; color: #fff; border-radius: 44rpx; font-size: 32rpx; }
+.submit { margin-top: 40rpx; height: 88rpx; line-height: 88rpx; background: var(--brand-500, #F43F6A); color: #fff; border-radius: 44rpx; font-size: 32rpx; }
 .block-btn { margin-top: 24rpx; height: 88rpx; line-height: 88rpx; background: #fff; color: #e74c3c; border: 2rpx solid #e74c3c; border-radius: 44rpx; font-size: 32rpx; }
 .tip { display: block; text-align: center; margin-top: 20rpx; font-size: 24rpx; color: #e74c3c; }
 </style>

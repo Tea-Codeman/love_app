@@ -53,6 +53,7 @@
         </view>
       </view>
     </view>
+  <tab-bar current="relation"></tab-bar>
   </view>
 </template>
 
@@ -60,6 +61,7 @@
 import { callFunction } from '../../utils/request'
 import { getOpenid } from '../../utils/storage'
 import growthBar from '../../components/growth-bar.vue'
+import tabBar from '../../components/tab-bar.vue'
 import { stageOf, stageInfo, reached } from '../../utils/growth'
 import {
   inviteState,
@@ -75,7 +77,7 @@ import {
 } from '../../utils/confirmInvite'
 
 export default {
-  components: { growthBar },
+  components: { growthBar, tabBar },
   data() {
     return {
       loading: false,
@@ -213,92 +215,70 @@ export default {
 </script>
 
 <style>
-.relation { min-height: 100vh; background: #FFF7F8; padding-bottom: 40rpx; }
-.topbar { padding: 24rpx 32rpx 8rpx; }
-.title { font-size: 38rpx; font-weight: 700; color: #FF6B81; display: block; }
-.sub { font-size: 24rpx; color: #999; margin-top: 6rpx; display: block; }
+.relation { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); padding-bottom: 180rpx; }
+.topbar { padding: 28rpx 32rpx 8rpx; }
+.title { font-size: 42rpx; font-weight: 700; color: var(--ink-900, #2B2330); font-family: var(--font-display); display: block; }
+.sub { font-size: 24rpx; color: var(--ink-500, #7A7280); margin-top: 6rpx; display: block; }
 .rel-card {
-  display: flex;
-  align-items: flex-start;
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  margin: 20rpx 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 129, 0.08);
+  display: flex; align-items: flex-start;
+  background: #fff; border: 1rpx solid var(--border, #FBE1E7);
+  border-radius: var(--r-lg, 32rpx); padding: 24rpx; margin: 20rpx 24rpx;
+  box-shadow: var(--shadow, 0 8rpx 24rpx rgba(244,63,106,.10));
 }
-.avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: #eee; flex-shrink: 0; }
+.avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: var(--brand-100, #FFE3E9); border: 3rpx solid #fff; box-shadow: 0 0 0 3rpx var(--brand-100, #FFE3E9); flex-shrink: 0; }
 .rel-meta { flex: 1; margin-left: 20rpx; display: flex; flex-direction: column; }
 .name-row { display: flex; align-items: baseline; justify-content: space-between; }
-.nickname { font-size: 30rpx; color: #333; font-weight: 600; }
-.stage { font-size: 22rpx; color: #FF6B81; }
-.stat { font-size: 22rpx; color: #999; margin-top: 6rpx; }
-.chips { margin-top: 10rpx; }
+.nickname { font-size: 30rpx; color: var(--ink-900, #2B2330); font-weight: 600; }
+.stage {
+  font-size: 20rpx; color: #fff; font-weight: 600;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  padding: 4rpx 16rpx; border-radius: 999rpx;
+}
+.stat { font-size: 22rpx; color: var(--ink-500, #7A7280); margin-top: 6rpx; }
+.chips { margin-top: 10rpx; display: flex; flex-wrap: wrap; }
 .chip {
-  font-size: 20rpx;
-  color: #FF9F43;
-  background: #fff5e9;
-  padding: 4rpx 14rpx;
-  border-radius: 20rpx;
-  margin-right: 10rpx;
+  font-size: 20rpx; color: var(--gold-500, #F59E0B);
+  background: #FFF7E6; padding: 4rpx 14rpx; border-radius: 999rpx; margin: 4rpx 10rpx 0 0;
 }
 .rel-actions { display: flex; flex-direction: column; flex-shrink: 0; margin-left: 16rpx; }
 .btn {
-  font-size: 24rpx;
-  color: #fff;
-  background: #FF6B81;
-  padding: 12rpx 24rpx;
-  border-radius: 26rpx;
-  text-align: center;
-  margin-bottom: 12rpx;
+  font-size: 24rpx; color: #fff; font-weight: 600;
+  background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A));
+  padding: 12rpx 24rpx; border-radius: 999rpx; text-align: center; margin-bottom: 12rpx;
+  box-shadow: var(--shadow-glow, 0 8rpx 24rpx rgba(244,63,106,.3));
+  transition: transform .12s ease;
 }
-.btn.chat { background: #FFB199; }
-.btn.contact { background: #7c5cff; }
-.btn.confirm { background: #FFD166; color: #7a5b00; }
+.btn:active { transform: scale(.95); }
+.btn.chat { background: #FFB199; box-shadow: none; }
+.btn.contact { background: var(--violet-500, #8B5CF6); box-shadow: none; }
+.btn.confirm { background: var(--gold-400, #FBBF24); color: #7A5B00; box-shadow: none; }
 .invite-status {
-  margin-top: 10rpx;
-  align-self: flex-start;
-  display: flex;
-  align-items: center;
-  font-size: 22rpx;
-  color: #9a7b00;
-  background: #fff8e1;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
+  margin-top: 10rpx; align-self: flex-start; display: flex; align-items: center;
+  font-size: 22rpx; color: #9A7B00; background: #FFF8E1; padding: 8rpx 16rpx; border-radius: 999rpx;
 }
-.cancel-link { color: #FF6B81; margin-left: 14rpx; text-decoration: underline; }
-.empty, .loading { text-align: center; font-size: 26rpx; color: #bbb; padding: 60rpx 0; }
+.cancel-link { color: var(--brand-600, #E11D54); margin-left: 14rpx; text-decoration: underline; }
+.empty, .loading { text-align: center; font-size: 26rpx; color: var(--ink-400, #A89FA8); padding: 60rpx 0; }
 
 /* 在一起确认邀请弹窗 */
 .modal-mask {
-  position: fixed;
-  left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
+  position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(43,35,48,.45); display: flex; align-items: center; justify-content: center;
+  z-index: 100; animation: fadeUp .2s ease both;
 }
 .modal {
-  width: 560rpx;
-  background: #fff;
-  border-radius: 28rpx;
-  padding: 44rpx 36rpx 32rpx;
-  text-align: center;
-  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.18);
+  width: 560rpx; background: #fff; border-radius: var(--r-lg, 32rpx);
+  padding: 44rpx 36rpx 32rpx; text-align: center;
+  box-shadow: var(--shadow-lg, 0 16rpx 40rpx rgba(244,63,106,.16));
+  animation: popIn .28s ease both;
 }
-.modal-emoji { font-size: 64rpx; }
-.modal-title { font-size: 32rpx; font-weight: 700; color: #FF6B81; margin-top: 8rpx; }
-.modal-body { font-size: 28rpx; color: #333; margin-top: 20rpx; line-height: 1.5; }
-.modal-peer { color: #FF6B81; font-weight: 600; }
-.modal-tip { font-size: 22rpx; color: #999; margin-top: 12rpx; }
+.modal-emoji { font-size: 64rpx; animation: floatY 2s ease-in-out infinite; }
+.modal-title { font-size: 32rpx; font-weight: 700; color: var(--brand-600, #E11D54); margin-top: 8rpx; }
+.modal-body { font-size: 28rpx; color: var(--ink-700, #4A4250); margin-top: 20rpx; line-height: 1.5; }
+.modal-peer { color: var(--brand-600, #E11D54); font-weight: 600; }
+.modal-tip { font-size: 22rpx; color: var(--ink-400, #A89FA8); margin-top: 12rpx; }
 .modal-actions { display: flex; margin-top: 32rpx; }
-.m-btn {
-  flex: 1;
-  font-size: 28rpx;
-  padding: 18rpx 0;
-  border-radius: 30rpx;
-  margin: 0 10rpx;
-}
-.m-btn.reject { background: #f2f2f2; color: #888; }
-.m-btn.accept { background: #FF6B81; color: #fff; }
+.m-btn { flex: 1; font-size: 28rpx; padding: 18rpx 0; border-radius: 999rpx; margin: 0 10rpx; transition: transform .12s ease; }
+.m-btn:active { transform: scale(.96); }
+.m-btn.reject { background: #F2F2F2; color: var(--ink-500, #7A7280); }
+.m-btn.accept { background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A)); color: #fff; }
 </style>

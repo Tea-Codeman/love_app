@@ -9,11 +9,11 @@ v1 已具备「受限邀请原型验证」上线就绪条件：
 
 | 项 | 状态 | 证据 |
 |---|---|---|
-| 云函数部署 | ✅ 7 函数 Active | env `love-app-server-d2fhg32320d65c12`；态 = M7.1 部署（ModTime 2026-08-30 23:01:15），M8 未改云函数源码 |
+| 云函数部署 | ✅ 7 函数 Active | env `love-app-server-d2fhg32320d65c12`；`auth`(17:34:54 在线状态 setOnline/getStatus)/`match`(18:09:29=`b3d0a80` 在线过滤+解构修复) 本轮部署，其余 5 个维持 M7.1 态（23:01:15） |
 | 前端构建 | ✅ DONE | `npm run build:mp-weixin` EXIT=0，`src/utils` 完好 |
 | 隐私正式文案 | ✅ 已上线 | M8.2 重写 `privacy.vue`（七节合规字段），门禁链路不变 |
 | 复合索引 | ✅ ready | M8.4 建 reports `status_createdAt` + events `eventName_day`/`pairId_day` |
-| 内容安全 | 🔻 降级 false | 云端 `safety` 第 23 行 `USE_WX_SECURITY=false`（下载代码 grep 实证），走本地关键词兜底 |
+| 内容安全 | 🔻 降级 false | O1 已外置为 `server_config.launch.useWxSecurity`（2026-08-31 实测=false），缺失回落 false；走本地关键词兜底 |
 | 账号资质 | 🔻 延后 | 个人账号 · 不公开上架；受限邀请 = 预览二维码小圈子分发（配对走 match，不经分享；`?inviter=` 分享裂变冻结至 M8.1 达标） |
 
 ## 1. 交付说明（M0–M8 已完成项）
@@ -56,7 +56,11 @@ v1 已具备「受限邀请原型验证」上线就绪条件：
 
 ## 6. 收官核验记录（LA.1 / LA.2）
 
-- **LA.1 终态部署核验**：`build:mp-weixin` EXIT=0；下载云端 `safety` 代码包归一化 grep `USE_WX_SECURITY` → 第 23 行 `const USE_WX_SECURITY = false`（249/254 行走本地兜底分支），实证降级态为线上真实态；7 云函数 = M7.1 部署态（M8 未改云函数源码，仅前端隐私文案 + DB 索引）。
+- **LA.1 终态部署核验（2026-08-31 复核）**：`build:mp-weixin` EXIT=0；`queryFunctions(listFunctions)` 确认 10 个云函数全 Active（核心 7 个 growth/game/chat/match/safety/auth/metrics 均 Active）。
+  - `auth`（ModTime 2026-08-31 17:34:54）线上含本轮新增 `setOnline`/`getStatus`（在线状态功能已部署，非"未部署"）；
+  - `match`（ModTime 2026-08-31 18:09:29 = `b3d0a80`）线上含在线过滤（`_.or` 顶层）+ `recommend` 解构 `event` 修复；
+  - 其余 5 个（growth/game/chat/safety/metrics）维持 M7.1 部署态（ModTime 2026-08-30 23:01:15）；
+  - 内容安全降级：O1 已外置为 `server_config.launch.useWxSecurity`，`getFunctionDetail(safety)` 确认走运行时读取 + 缺失回落 false；实测 `server_config.launch.useWxSecurity=false` → 降级态为线上真实态（旧"grep 第 23 行常量"实证已作废，O1 改为配置驱动）。
 - **LA.2 主链路 + 受限邀请 gate**：主链路 社区→游戏破冰→关系升温→加微信导流 接线完整（M0–M7 真机验收 PASS）；受限准入 = 不公开上架 + 预览二维码小圈子分发（配对走 `match.recommend`/`accept`，不经分享）；`?inviter=` 分享裂变因个人账号禁转发 + 前端 `invite.js` 已删而冻结，待 M8.1 达标恢复（归因代码 `App.vue:39-40` + `auth.js:11-19` 仍在）。
 
 ---

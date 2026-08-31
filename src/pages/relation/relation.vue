@@ -214,7 +214,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .relation { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); padding-bottom: 180rpx; }
 .topbar { padding: 28rpx 32rpx 8rpx; }
 .title { font-size: 42rpx; font-weight: 700; color: var(--ink-900, #2B2330); font-family: var(--font-display); display: block; }

@@ -131,7 +131,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .admin { min-height: 100vh; background: var(--bg, #FFFAFB); padding-bottom: 40rpx; }
 .tabs { display: flex; background: #fff; padding: 12rpx 24rpx 0; }
 .tab {

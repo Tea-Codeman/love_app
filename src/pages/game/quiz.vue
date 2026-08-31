@@ -30,7 +30,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .quiz {
   background: #fff; border: 1rpx solid var(--border, #FBE1E7);
   border-radius: var(--r-lg, 32rpx); padding: 36rpx 32rpx; margin: 20rpx 24rpx;

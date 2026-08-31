@@ -61,7 +61,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .privacy { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg, #FFFAFB); padding: 32rpx; }
 .card { width: 100%; background: #fff; border-radius: 24rpx; padding: 40rpx; box-shadow: 0 8rpx 30rpx rgba(255,107,129,0.12); }
 .title { font-size: 38rpx; font-weight: 700; color: var(--brand-500, #F43F6A); display: block; margin-bottom: 24rpx; }

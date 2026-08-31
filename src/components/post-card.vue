@@ -45,7 +45,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .post-card {
   margin: 20rpx 24rpx;
   padding: 28rpx;

@@ -141,7 +141,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .profile { padding: 24rpx 32rpx 180rpx; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); min-height: 100vh; }
 .profile-header { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 4rpx 24rpx; }
 .profile-title { font-size: 44rpx; font-weight: 700; color: var(--ink-900, #2B2330); font-family: var(--font-display); }

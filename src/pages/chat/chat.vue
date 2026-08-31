@@ -241,7 +241,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .chat { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); display: flex; flex-direction: column; }
 .relbar { background: #fff; padding: 20rpx 28rpx; border-bottom: 1rpx solid var(--border, #FBE1E7); box-shadow: var(--shadow-sm, 0 2rpx 8rpx rgba(244,63,106,.06)); }
 .rel-head { display: flex; align-items: baseline; justify-content: space-between; }

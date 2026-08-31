@@ -89,7 +89,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .post-edit { padding: 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; }
 .field { display: flex; align-items: center; padding: 20rpx 0; }
 .label { width: 120rpx; font-size: 28rpx; color: #555; }

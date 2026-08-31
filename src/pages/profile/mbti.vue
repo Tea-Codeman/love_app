@@ -94,7 +94,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .mbti { padding: 40rpx 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; }
 .q-progress { font-size: 24rpx; color: #999; text-align: center; }
 .q-dim { margin-top: 12rpx; font-size: 24rpx; color: #b07a86; text-align: center; }

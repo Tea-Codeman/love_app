@@ -56,7 +56,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .report { padding: 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; }
 .target { font-size: 26rpx; color: #888; margin-bottom: 24rpx; }
 .field { display: flex; }

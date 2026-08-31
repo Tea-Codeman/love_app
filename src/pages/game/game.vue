@@ -196,7 +196,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .game { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); }
 .center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; padding: 0 60rpx; }
 .big { font-size: 120rpx; margin-bottom: 24rpx; animation: floatY 2.4s ease-in-out infinite; }

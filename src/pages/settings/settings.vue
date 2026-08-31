@@ -94,7 +94,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .settings { min-height: 100vh; background: var(--bg, #FFFAFB); padding-bottom: 180rpx; }
 .section { margin: 20rpx 24rpx; }
 .section-title { font-size: 28rpx; color: #666; font-weight: 600; display: block; margin: 16rpx 4rpx; }

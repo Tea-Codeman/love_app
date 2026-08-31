@@ -26,7 +26,7 @@
       <view class="nomore" v-if="!loading && posts.length > 0 && !hasMore">没有更多了</view>
     </view>
 
-    <view class="fab" @click="goPost">＋</view>
+    <view class="compose-fab" @click="goPost">＋</view>
     <tab-bar current="community"></tab-bar>
   </view>
 </template>
@@ -116,7 +116,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .community { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); padding-bottom: 180rpx; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx 8rpx; }
 .title { font-size: 42rpx; font-weight: 700; color: var(--ink-900, #2B2330); font-family: var(--font-display); }
@@ -143,7 +143,7 @@ export default {
 .tab.active { color: #fff; background: var(--grad-primary, linear-gradient(135deg, #FF8A65, #F43F6A)); border-color: transparent; font-weight: 600; }
 .feed { padding-bottom: 40rpx; }
 .empty, .nomore, .loading { text-align: center; font-size: 26rpx; color: var(--ink-400, #A89FA8); padding: 60rpx 0; }
-.fab {
+.compose-fab {
   position: fixed;
   right: 40rpx;
   bottom: calc(env(safe-area-inset-bottom) + 170rpx);
@@ -159,5 +159,5 @@ export default {
   z-index: 40;
   transition: transform .12s ease;
 }
-.fab:active { transform: scale(.92); }
+.compose-fab:active { transform: scale(.92); }
 </style>

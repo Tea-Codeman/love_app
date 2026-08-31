@@ -144,7 +144,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .detail { padding: 32rpx; background: var(--bg, #FFFAFB); min-height: 100vh; padding-bottom: 140rpx; }
 .head { display: flex; align-items: center; }
 .avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #eee; }

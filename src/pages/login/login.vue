@@ -39,7 +39,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .login {
   min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: radial-gradient(120% 80% at 50% 0%, #FFE3E9 0%, #FFFAFB 60%);

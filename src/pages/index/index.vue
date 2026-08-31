@@ -220,7 +220,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .home {
   position: relative;
   overflow: hidden;

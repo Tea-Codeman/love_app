@@ -73,7 +73,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .contact { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); padding: 32rpx 24rpx 80rpx; }
 .card {
   background: #fff; border: 1rpx solid var(--border, #FBE1E7);

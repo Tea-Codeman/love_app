@@ -115,7 +115,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .growth-bar { margin-top: 14rpx; padding: 0 16rpx; }
 .gb-head { display: flex; align-items: center; justify-content: space-between; }
 .gb-stage { display: flex; align-items: center; }

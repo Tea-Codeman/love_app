@@ -27,6 +27,25 @@ const PATHS = {
  * @param {string} color 描边色，十六进制
  * @param {number} size  画布边长（px，渲染尺寸由组件 CSS 控制）
  */
+// 微信小程序 <image> 组件对「URL-encoded SVG data URI」不渲染（官方社区确认，
+// 只有 base64 编码的 data URI 能正常显示）。故这里统一输出 base64，
+// SVG 内不预编码——base64 会对所有字符（含 #）一并转义，无需再 encodeURIComponent。
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+function b64encode(str) {
+  let out = ''
+  for (let i = 0; i < str.length; i += 3) {
+    const c1 = str.charCodeAt(i) & 0xff
+    const c2 = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN
+    const c3 = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN
+    const e1 = c1 >> 2
+    const e2 = ((c1 & 3) << 4) | (isNaN(c2) ? 0 : c2 >> 4)
+    const e3 = isNaN(c2) ? 64 : (((c2 & 15) << 2) | (isNaN(c3) ? 0 : c3 >> 6))
+    const e4 = isNaN(c3) ? 64 : c3 & 63
+    out += B64.charAt(e1) + B64.charAt(e2) + (e3 === 64 ? '=' : B64.charAt(e3)) + (e4 === 64 ? '=' : B64.charAt(e4))
+  }
+  return out
+}
+
 export function svgIcon(name, color = '#A89FA8', size = 48) {
   const svg =
     "<svg xmlns='http://www.w3.org/2000/svg' width='" +
@@ -38,5 +57,5 @@ export function svgIcon(name, color = '#A89FA8', size = 48) {
     "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     (PATHS[name] || '') +
     '</svg>'
-  return 'data:image/svg+xml,' + encodeURIComponent(svg)
+  return 'data:image/svg+xml;base64,' + b64encode(svg)
 }

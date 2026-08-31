@@ -34,7 +34,7 @@
       <view class="empty" v-if="!loading && blocks.length === 0">还没有拉黑任何人</view>
       <view class="loading" v-if="loading">加载中…</view>
     </view>
-    <tab-bar current="settings"></tab-bar>
+    <tab-bar current="profile"></tab-bar>
   </view>
 </template>
 

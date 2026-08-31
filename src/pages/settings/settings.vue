@@ -10,6 +10,15 @@
     </view>
 
     <view class="section">
+      <text class="section-title">在线状态</text>
+      <text class="section-desc">选择「离线」后，你不会出现在他人的推荐里</text>
+      <view class="row">
+        <text class="row-label">当前在线</text>
+        <switch :checked="online" @change="onToggleOnline" color="#F43F6A" />
+      </view>
+    </view>
+
+    <view class="section">
       <text class="section-title">黑名单</text>
       <text class="section-desc">拉黑后你们不会再出现在彼此的推荐里</text>
 
@@ -41,12 +50,14 @@ export default {
       blocks: [],
       loading: false,
       busy: false,
-      isAdmin: false
+      isAdmin: false,
+      online: true
     }
   },
   onShow() {
     this.loadBlocks()
     this.loadAdmin()
+    this.loadOnline()
   },
   methods: {
     async loadAdmin() {
@@ -54,6 +65,21 @@ export default {
     },
     goAdmin() {
       uni.navigateTo({ url: '/pages/admin/reports' })
+    },
+    // 读取当前在线状态（存量未设 online 字段的用户按在线处理）
+    async loadOnline() {
+      const r = await callFunction('auth', { action: 'getProfile' })
+      if (r.ok && r.data && r.data.user) this.online = r.data.user.online !== false
+    },
+    // 手动切换在线/离线，失败回滚
+    async onToggleOnline(e) {
+      const v = !!e.detail.value
+      this.online = v
+      const r = await callFunction('auth', { action: 'setOnline', online: v })
+      if (!r.ok) {
+        this.online = !v
+        uni.showToast({ title: r.message || '设置失败', icon: 'none' })
+      }
     },
     async loadBlocks() {
       this.loading = true

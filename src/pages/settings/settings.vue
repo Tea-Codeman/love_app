@@ -25,14 +25,17 @@
       <view class="empty" v-if="!loading && blocks.length === 0">还没有拉黑任何人</view>
       <view class="loading" v-if="loading">加载中…</view>
     </view>
+    <tab-bar current="settings"></tab-bar>
   </view>
 </template>
 
 <script>
 import { callFunction } from '../../utils/request'
 import { isCurrentUserAdmin } from '../../utils/admin'
+import tabBar from '../../components/tab-bar.vue'
 
 export default {
+  components: { tabBar },
   data() {
     return {
       blocks: [],
@@ -92,7 +95,7 @@ export default {
 </script>
 
 <style>
-.settings { min-height: 100vh; background: var(--bg, #FFFAFB); padding-bottom: 40rpx; }
+.settings { min-height: 100vh; background: var(--bg, #FFFAFB); padding-bottom: 180rpx; }
 .section { margin: 20rpx 24rpx; }
 .section-title { font-size: 28rpx; color: #666; font-weight: 600; display: block; margin: 16rpx 4rpx; }
 .section-desc { font-size: 22rpx; color: #aaa; display: block; margin: 0 4rpx 16rpx; }
@@ -103,7 +106,7 @@ export default {
   border-radius: 20rpx;
   padding: 24rpx;
   margin-bottom: 18rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 129, 0.08);
+  box-shadow: var(--shadow, 0 8rpx 24rpx rgba(244,63,106,.10));
 }
 .avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #eee; flex-shrink: 0; }
 .meta { flex: 1; margin-left: 20rpx; display: flex; flex-direction: column; }
@@ -127,7 +130,7 @@ export default {
   border-radius: 20rpx;
   padding: 28rpx 24rpx;
   margin-bottom: 18rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 129, 0.08);
+  box-shadow: var(--shadow, 0 8rpx 24rpx rgba(244,63,106,.10));
 }
 .row-label { font-size: 30rpx; color: #333; font-weight: 600; }
 .arrow { font-size: 36rpx; color: #ccc; }

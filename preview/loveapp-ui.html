@@ -111,6 +111,47 @@
   .s-sub{font-size:13px;color:var(--ink-500);padding:0 8px}
   .card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:16px}
   .fab-btn{position:absolute;right:18px;bottom:90px;width:54px;height:54px;border-radius:50%;background:var(--grad-primary);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-glow);z-index:20}
+  /* screen: home（个人名片主页） */
+  .pg-home{position:relative}
+  .deco{position:absolute;border-radius:50%;pointer-events:none}
+  .deco-a{top:-70px;right:-50px;width:190px;height:190px;background:linear-gradient(135deg,rgba(255,138,101,.26),rgba(244,63,106,.14))}
+  .deco-b{top:110px;left:-70px;width:150px;height:150px;background:linear-gradient(135deg,rgba(244,63,106,.16),rgba(255,138,101,.08))}
+  .hero-c{position:relative;background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-lg);padding:24px 16px 16px;display:flex;flex-direction:column;align-items:center}
+  .av-ring{width:78px;height:78px;border-radius:50%;background:var(--grad-primary);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-glow)}
+  .av-ring i{width:72px;height:72px;border-radius:50%;background:var(--brand-100);border:3px solid #fff;display:block}
+  .h-nick{font-size:20px;font-weight:700;font-family:var(--font-display);color:var(--ink-900);margin-top:10px}
+  .h-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:7px}
+  .h-chips span{font-size:11px;color:var(--brand-600);background:var(--brand-50);border:1px solid var(--brand-100);padding:2px 9px;border-radius:99px}
+  .h-bio{font-size:13px;color:var(--ink-500);text-align:center;margin-top:8px;line-height:1.6}
+  .comp{width:100%;margin-top:16px;background:var(--brand-50);border-radius:12px;padding:10px 12px 9px}
+  .comp .ch{display:flex;justify-content:space-between;align-items:center}
+  .comp .cl{font-size:12px;font-weight:600;color:var(--ink-700)}
+  .comp .cp{font-size:13px;font-weight:700;color:var(--brand-600)}
+  .comp .ct{height:7px;background:rgba(244,63,106,.14);border-radius:99px;margin-top:6px;overflow:hidden}
+  .comp .cf{height:100%;border-radius:99px;background:var(--grad-primary);width:75%}
+  .comp .tip{font-size:11px;color:var(--ink-500);margin-top:6px}
+  .sec{font-size:15px;font-weight:700;color:var(--ink-900);display:flex;align-items:center;padding:14px 2px 7px}
+  .sec::before{content:'';width:4px;height:15px;border-radius:4px;background:var(--grad-primary);margin-right:7px}
+  .role-c{background:linear-gradient(135deg,rgba(111,174,142,.14),rgba(111,174,142,.04));border:1px solid rgba(111,174,142,.28);border-radius:16px;padding:14px}
+  .role-top{display:flex;align-items:center;justify-content:space-between}
+  .role-nm{font-size:19px;font-weight:700;font-family:var(--font-display);color:var(--ink-900)}
+  .role-an{font-size:11px;color:var(--ink-400)}
+  .role-type{font-size:12px;font-weight:700;color:#fff;background:#6fae8e;padding:4px 11px;border-radius:99px;letter-spacing:.5px}
+  .role-tags{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .role-tags span{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px}
+  .role-line{font-size:13.5px;color:var(--ink-700);line-height:1.7;margin-top:4px}
+  .role-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:9px;border-top:1px solid var(--border)}
+  .role-foot .h{font-size:12px;font-weight:600;color:var(--brand-600)}
+  .role-foot .a{color:var(--ink-400);font-size:16px}
+  .tag-cloud{display:flex;flex-wrap:wrap;gap:7px}
+  .tag-cloud span{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:99px}
+  .info-grid{display:flex;flex-wrap:wrap;padding:6px 4px}
+  .info-grid .it{width:50%;display:flex;align-items:center;padding:11px 8px;box-sizing:border-box}
+  .info-grid .ic{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-right:9px;flex-shrink:0}
+  .info-grid .ic svg{width:18px;height:18px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .info-grid .lb{font-size:11px;color:var(--ink-400)}
+  .info-grid .vl{font-size:14px;font-weight:600;color:var(--ink-900)}
+  .info-grid .vl.e{color:var(--ink-400);font-weight:400}
   /* screen: login */
   .pg-login{background:radial-gradient(120% 80% at 50% 0%,#FFE3E9 0%,#FFFAFB 60%);align-items:center;justify-content:center;text-align:center}
   .pg-login .logo{width:120px;height:120px;border-radius:28px;background:var(--grad-primary);box-shadow:var(--shadow-lg);display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px;font-family:var(--font-display)}
@@ -221,10 +262,12 @@
           </div>
           <div class="gb-track">
             <div class="gb-fill" id="gbFill" style="width:0%"></div>
+            <!-- 节点均匀排布（0/25/50/75/100%），与 growth-bar.vue 一致：
+                 标签均分、节点按真实阈值定位会导致最大 23 个百分点的错位 -->
             <div class="gb-node" style="left:0%"><i></i></div>
-            <div class="gb-node" id="n1" style="left:8%"><i></i></div>
-            <div class="gb-node" id="n2" style="left:27%"><i></i></div>
-            <div class="gb-node" id="n3" style="left:60%"><i></i></div>
+            <div class="gb-node" id="n1" style="left:25%"><i></i></div>
+            <div class="gb-node" id="n2" style="left:50%"><i></i></div>
+            <div class="gb-node" id="n3" style="left:75%"><i></i></div>
             <div class="gb-node" id="n4" style="left:100%"><i></i></div>
           </div>
           <div class="gb-labels">
@@ -269,7 +312,8 @@
   <!-- ============ RIGHT: phone preview ============ -->
   <div class="phone-col">
     <div class="switcher" id="switcher">
-      <button data-pg="login" class="on">登录</button>
+      <button data-pg="home" class="on">主页</button>
+      <button data-pg="login">登录</button>
       <button data-pg="community">社区</button>
       <button data-pg="match">匹配</button>
       <button data-pg="game">游戏</button>
@@ -280,8 +324,82 @@
       <div class="screen">
         <div class="notch"></div>
 
+        <!-- home：个人名片主页 -->
+        <div class="pg pg-home show" id="pg-home">
+          <div class="deco deco-a"></div>
+          <div class="deco deco-b"></div>
+          <div class="hero-c">
+            <div class="av-ring"><i></i></div>
+            <div class="h-nick">林夏</div>
+            <div class="h-chips"><span>女</span><span>24 岁</span><span>上海</span></div>
+            <div class="h-bio">周末爱逛展，想找个能一起安静看展的人。</div>
+            <div class="comp">
+              <div class="ch"><span class="cl">资料完整度</span><span class="cp">75%</span></div>
+              <div class="ct"><div class="cf"></div></div>
+              <div class="tip">还差 2 项：MBTI、签名</div>
+            </div>
+          </div>
+
+          <div class="sec">我的角色</div>
+          <div class="role-c">
+            <div class="role-top">
+              <div><div class="role-nm">引灯</div><div class="role-an">鹿</div></div>
+              <div class="role-type">INFJ</div>
+            </div>
+            <div class="role-tags">
+              <span style="background:rgba(244,63,106,.10);color:#E11D54">温柔</span>
+              <span style="background:rgba(139,92,246,.10);color:#7C3AED">理想</span>
+              <span style="background:rgba(245,158,11,.14);color:#B45309">洞察</span>
+            </div>
+            <div class="role-line">我想遇见一个灵魂同频的人。</div>
+            <div class="role-foot"><span class="h">重新测一次</span><span class="a">›</span></div>
+          </div>
+
+          <div class="sec">我的兴趣</div>
+          <div class="card">
+            <div class="tag-cloud">
+              <span style="background:rgba(244,63,106,.10);color:#E11D54">看展</span>
+              <span style="background:rgba(139,92,246,.10);color:#7C3AED">摄影</span>
+              <span style="background:rgba(245,158,11,.14);color:#B45309">咖啡</span>
+              <span style="background:rgba(16,185,129,.10);color:#047857">旅行</span>
+              <span style="background:rgba(244,63,106,.10);color:#E11D54">独立音乐</span>
+            </div>
+          </div>
+
+          <div class="sec">我的资料</div>
+          <div class="card">
+            <div class="info-grid">
+              <div class="it">
+                <div class="ic" style="background:rgba(244,63,106,.10)">
+                  <svg viewBox="0 0 24 24" stroke="#E11D54"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <div><div class="lb">城市</div><div class="vl">上海</div></div>
+              </div>
+              <div class="it">
+                <div class="ic" style="background:rgba(139,92,246,.10)">
+                  <svg viewBox="0 0 24 24" stroke="#7C3AED"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                </div>
+                <div><div class="lb">年龄</div><div class="vl">24 岁</div></div>
+              </div>
+              <div class="it">
+                <div class="ic" style="background:rgba(245,158,11,.12)">
+                  <svg viewBox="0 0 24 24" stroke="#B45309"><circle cx="12" cy="12" r="9"/><path d="M12 7a5 5 0 0 1 0 10"/></svg>
+                </div>
+                <div><div class="lb">性别</div><div class="vl">女</div></div>
+              </div>
+              <div class="it">
+                <div class="ic" style="background:rgba(16,185,129,.10)">
+                  <svg viewBox="0 0 24 24" stroke="#047857"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.5-.8L3 21l1.9-5.5A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>
+                </div>
+                <div><div class="lb">微信号</div><div class="vl e">未填写</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="pb"></div>
+        </div>
+
         <!-- login -->
-        <div class="pg pg-login show" id="pg-login">
+        <div class="pg pg-login" id="pg-login">
           <div class="logo">♥</div>
           <div class="nm">恋爱成长</div>
           <div class="sg">一起玩，慢慢靠近</div>
@@ -409,11 +527,24 @@
 
   // 关系成长条交互
   const MAX=150, stages=[{v:0,l:'初相识'},{v:12,l:'初步破冰'},{v:40,l:'渐入佳境'},{v:90,l:'互相在意'},{v:150,l:'心动确认'}];
+  // 分段线性映射：节点均匀排布在 0/25/50/75/100%，填充值在当前阶段区间内插值。
+  // 保证「成长值达标」的瞬间填充正好抵达该阶段节点（直算 value/150 会出现已到 S2 但填充未达节点）。
+  function valueToPos(v){
+    const mins=stages.map(x=>x.v);
+    for(let i=mins.length-1;i>=0;i--){
+      if(v>=mins[i]){
+        if(i===mins.length-1) return 100;
+        const span=mins[i+1]-mins[i];
+        return (i*25) + (span>0 ? (v-mins[i])/span : 1)*25;
+      }
+    }
+    return 0;
+  }
   const s=document.getElementById('gbSlider'), fill=document.getElementById('gbFill'),
         lbl=document.getElementById('gbLabel'), val=document.getElementById('gbVal'), nx=document.getElementById('gbNext');
   function render(){
     const v=+s.value;
-    fill.style.width=(v/MAX*100)+'%';
+    fill.style.width=valueToPos(v)+'%';
     val.textContent='成长 '+v;
     let idx=0; for(let i=0;i<stages.length;i++){ if(v>=stages[i].v) idx=i; }
     lbl.textContent=stages[idx].l;
@@ -429,16 +560,15 @@
   // 把画廊的"关系成长条"也塞进 match / relation 屏作为内嵌演示
   function miniBar(hostId, value){
     const host=document.getElementById(hostId); if(!host) return;
-    const v=value, pct=v/MAX*100;
+    const v=value, pct=valueToPos(v);
     let idx=0; for(let i=0;i<stages.length;i++){ if(v>=stages[i].v) idx=i; }
     const label=stages[idx].l;
+    const nodes=[0,25,50,75,100].map((pos,i)=>
+      '<div style="position:absolute;left:'+pos+'%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(i<=idx?'#F43F6A':'#FECDD6')+'"></div>'
+    ).join('');
     host.innerHTML='<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#E11D54;font-weight:700">'+label+'</span><span style="color:#A89FA8">成长 '+v+'</span></div>'+
       '<div style="position:relative;height:10px;background:#FFE3E9;border-radius:99px;margin:8px 4px 2px"><div style="position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:linear-gradient(135deg,#FF8A65,#F43F6A);border-radius:99px"></div>'+
-      '<div style="position:absolute;left:0%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(0<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
-      '<div style="position:absolute;left:8%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(1<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
-      '<div style="position:absolute;left:27%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(2<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
-      '<div style="position:absolute;left:60%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(3<=idx?'#F43F6A':'#FECDD6')+'"></div>'+
-      '<div style="position:absolute;left:100%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid '+(4<=idx?'#F43F6A':'#FECDD6')+'"></div></div></div>';
+      nodes+'</div></div>';
   }
   miniBar('mgb', 95);
   miniBar('rgb', 95);

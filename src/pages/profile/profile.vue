@@ -135,7 +135,11 @@ export default {
       if (!res.ok) { this.msg = res.message || '保存失败'; return }
       if (res.data && res.data.user) setUser(res.data.user)
       this.msg = '已保存'
-      setTimeout(() => uni.navigateBack(), 600)
+      // profile 是 tab 页（tab-bar 用 reLaunch 进入），常作为页栈底，无上一页可返回；
+      // 仅当存在上一页时返回，否则留在原地（避免 navigateBack 在首页报错）
+      if (getCurrentPages().length > 1) {
+        setTimeout(() => uni.navigateBack(), 600)
+      }
     }
   }
 }

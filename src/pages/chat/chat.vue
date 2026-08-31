@@ -3,7 +3,14 @@
     <!-- 关系状态条：S1 才解锁聊天，未解锁时展示还需多少成长值 -->
     <view class="relbar">
       <view class="rel-head">
-        <text class="peer">{{ nickname || 'TA' }}</text>
+        <view class="peer-col">
+          <text class="peer">{{ nickname || 'TA' }}</text>
+          <!-- F-new：对方在线/离线状态，定时拉取 -->
+          <view class="status" :class="{ online: peerOnline }">
+            <text class="dot"></text>
+            <text class="status-text">{{ peerOnline ? '在线' : '离线' }}</text>
+          </view>
+        </view>
         <text class="stage">{{ stageLabel }}</text>
         <!-- M3.4：S4 解锁后可在聊天里直达联系方式页 -->
         <text class="goto" v-if="contactUnlocked" @click="goContact">联系方式 ›</text>
@@ -65,6 +72,8 @@ export default {
       draft: '',
       sending: false,
       timer: null,
+      peerOnline: true,
+      statusTimer: null,
       anchor: '',
       lastCreatedAt: 0,
       oldestCreatedAt: 0,
@@ -100,9 +109,10 @@ export default {
   onShow() {
     this.refresh()
     this.startPolling()
+    this.startStatusPolling()
   },
-  onHide() { this.stopPolling() },
-  onUnload() { this.stopPolling() },
+  onHide() { this.stopPolling(); this.stopStatusPolling() },
+  onUnload() { this.stopPolling(); this.stopStatusPolling() },
   methods: {
     async refresh() {
       // 重新进入页面（onShow）时整页刷新：游标归零，loadMessages 走服务端全量
@@ -201,6 +211,24 @@ export default {
         this.timer = null
       }
     },
+    // F-new：定时拉取对方在线状态（8s 一次，够及时又不刷屏）。聊天页已轮询消息，
+    // 状态单独走低频定时，避免叠加到消息轮询里放大调用量。
+    startStatusPolling() {
+      this.stopStatusPolling()
+      this.fetchPeerStatus()
+      this.statusTimer = setInterval(() => this.fetchPeerStatus(), 8000)
+    },
+    stopStatusPolling() {
+      if (this.statusTimer) {
+        clearInterval(this.statusTimer)
+        this.statusTimer = null
+      }
+    },
+    async fetchPeerStatus() {
+      if (!this.peerId) return
+      const r = await callFunction('auth', { action: 'getStatus', targetId: this.peerId })
+      if (r.ok && r.data) this.peerOnline = !!r.data.online
+    },
     goContact() {
       uni.navigateTo({
         url: '/pages/contact/contact?peerId=' + this.peerId + '&nickname=' + encodeURIComponent(this.nickname || 'TA')
@@ -245,7 +273,13 @@ export default {
 .chat { min-height: 100vh; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); display: flex; flex-direction: column; }
 .relbar { background: #fff; padding: 20rpx 28rpx; border-bottom: 1rpx solid var(--border, #FBE1E7); box-shadow: var(--shadow-sm, 0 2rpx 8rpx rgba(244,63,106,.06)); }
 .rel-head { display: flex; align-items: baseline; justify-content: space-between; }
+.peer-col { display: flex; flex-direction: column; }
 .peer { font-size: 30rpx; color: var(--ink-900, #2B2330); font-weight: 600; }
+.status { display: flex; align-items: center; margin-top: 6rpx; }
+.status .dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: #C9C9C9; margin-right: 8rpx; }
+.status.online .dot { background: var(--success, #16A34A); }
+.status-text { font-size: 20rpx; color: #C9C9C9; }
+.status.online .status-text { color: var(--success, #16A34A); }
 .stage { font-size: 22rpx; color: var(--brand-600, #E11D54); font-weight: 600; }
 .goto { font-size: 22rpx; color: var(--violet-500, #8B5CF6); font-weight: 600; }
 .locked { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80rpx 60rpx; }

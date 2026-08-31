@@ -92,18 +92,27 @@ export default {
 .tab-label { font-size: 20rpx; color: #A89FA8; }
 .tab-label.active { color: #E11D54; font-weight: 600; }
 
-/* 居中突出的「一起玩」CTA：品牌渐变圆形上浮按钮 */
+/* 居中突出的「一起玩」CTA：圆形渐变图标按钮 + 文字在圆下方 */
 .tab-item.fab {
-  flex: 0 0 116rpx;
+  flex: 0 0 110rpx;
+  height: auto;
   position: relative;
-  top: -28rpx;
-  width: 116rpx; height: 116rpx;
-  border-radius: 50%;
-  background: var(--grad-primary, linear-gradient(135deg,#FF8A65,#F43F6A));
-  box-shadow: 0 10rpx 28rpx rgba(244,63,106,.45);
-  border: 6rpx solid #fff;
+  top: -16rpx;
+  justify-content: flex-start;
 }
 .tab-item.fab:active { transform: scale(.94); }
-.tab-item.fab .fab-icon { width: 44rpx; height: 44rpx; }
-.tab-item.fab .tab-label { color: #E11D54; font-weight: 600; }
+.tab-item.fab .fab-icon {
+  width: 88rpx; height: 88rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--grad-primary, linear-gradient(135deg,#FF8A65,#F43F6A));
+  border: 5rpx solid #fff;
+  box-shadow: 0 10rpx 26rpx rgba(244,63,106,.45);
+}
+.tab-item.fab .tab-label {
+  color: #E11D54;
+  font-weight: 600;
+  margin-top: 4rpx;
+}
 </style>

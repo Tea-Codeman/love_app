@@ -61,7 +61,8 @@ v1 已具备「受限邀请原型验证」上线就绪条件：
   - `match`（ModTime 2026-08-31 18:09:29 = `b3d0a80`）线上含在线过滤（`_.or` 顶层）+ `recommend` 解构 `event` 修复；
   - 其余 5 个（growth/game/chat/safety/metrics）维持 M7.1 部署态（ModTime 2026-08-30 23:01:15）；
   - 内容安全降级：O1 已外置为 `server_config.launch.useWxSecurity`，`getFunctionDetail(safety)` 确认走运行时读取 + 缺失回落 false；实测 `server_config.launch.useWxSecurity=false` → 降级态为线上真实态（旧"grep 第 23 行常量"实证已作废，O1 改为配置驱动）。
-- **LA.2 主链路 + 受限邀请 gate**：主链路 社区→游戏破冰→关系升温→加微信导流 接线完整（M0–M7 真机验收 PASS）；受限准入 = 不公开上架 + 预览二维码小圈子分发（配对走 `match.recommend`/`accept`，不经分享）；`?inviter=` 分享裂变因个人账号禁转发 + 前端 `invite.js` 已删而冻结，待 M8.1 达标恢复（归因代码 `App.vue:39-40` + `auth.js:11-19` 仍在）。
+- **LA.2 主链路 + 受限邀请 gate（2026-08-31 只读冒烟）**：grep 确认主链路接线完整 —— 破冰：`match.vue:132` `recommend` + `:197` `accept` → `relation.vue:195` → 游戏房 `game.vue:163` `joinGame`；升温：`relation.vue` 按 `stageOf` 显隐 S1 聊(:32)/S4 联系方式(:33) + 双边邀请 `acceptConfirmInvite`(:165) 经 `confirmInvite.js` 全局投递；导流：`chat.vue:95` `contactUnlocked` → `contact.vue` → `chat.contact`(:49)。受限邀请 gate：① 服务端 `auth.login` 消费 `inviteCode` 写 `invitedBy`（`auth.js:11-19` 提交 + `auth` CodeInfo 实证）；② `confirmInvite.js` 全局 store 为双边邀请唯一投递路径；③ 个人账号不公开上架，配对走 `match`（在线+未拉黑服务端过滤），不经微信分享（`?inviter=` 入口因 `invite.js` 删除冻结、归因代码保留）。结论：主链路 + 受限准入 gate 均存在且为唯一路径，无需新代码。
+- **LA.3 收官文档**：`tasks/launch-readiness.md` §0–§5 已覆盖交付说明/就绪清单/已知限制/用户手动步骤/阈值回灌条件；本轮 LA.1/LA.2 结论并入 §6，文档齐备（LA.4 的 todo/HANDOFF 交接已于前置 LA 会话同步 ✅）。
 
 ---
 

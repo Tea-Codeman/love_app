@@ -196,7 +196,7 @@ async function aggregateGrowthStats(OPENID, userIds) {
   return stats
 }
 
-async function recommend({ limit = 10 } = {}, OPENID) {
+async function recommend({ limit = 10, cursor: cursorArg } = {}, OPENID) {
   if (!OPENID) return { code: 401, message: '未登录' }
   const meRes = await db.collection(USERS_COL).where({ openid: OPENID }).get()
   const me = (meRes.data && meRes.data[0]) || {}
@@ -213,7 +213,7 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   // 这样「减少数据库查询量」落在 DB 查询阶段，而非只看内存过滤。
   let candidates = []
   try {
-    const cursor = Number(event.cursor) || Date.now()
+    const cursor = Number(cursorArg) || Date.now()
     const common = { createdAt: _.lt(new Date(cursor)) }
     if (blocked.length) common.openid = _.nin(blocked)
     // 在线过滤（F-new）：只保留「online==true」或「未设置 online 字段（存量用户按在线处理）」的候选。

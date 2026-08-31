@@ -33,6 +33,7 @@ exports.main = async (event) => {
         bio: '',
         mbti: '',
         invitedBy: '',
+        online: true,
         createdAt: db.serverDate()
       }
       // 邀请归因（T2）：消耗邀请码，写入邀请人 openid
@@ -89,6 +90,29 @@ exports.main = async (event) => {
     }
 
     return { code: 0, data: { user } }
+  }
+
+  // 设置在线状态（F-new）：用户在「设置」页手动切换在线/离线。
+  // 离线后不会出现在他人推荐（recommend 服务端按 online 过滤），但自身功能不受影响。
+  if (action === 'setOnline') {
+    const v = !!(event && event.online)
+    await users.where({ openid: OPENID }).update({ data: { online: v } })
+    return { code: 0, data: { online: v } }
+  }
+
+  // 获取指定用户的在线状态（F-new）：供聊天页显示对方「在线/离线」。
+  // 未设置 online 字段的存量用户按「在线」处理（与 recommend 过滤口径一致：缺省即在线）。
+  if (action === 'getStatus') {
+    const targetId = event && event.targetId
+    if (!targetId) return { code: 400, message: '缺少 targetId' }
+    try {
+      const r = await users.where({ openid: targetId }).field({ online: true }).limit(1).get()
+      const u = r.data && r.data[0]
+      const online = u ? (u.online !== false) : false
+      return { code: 0, data: { online } }
+    } catch (e) {
+      return { code: 0, data: { online: false } }
+    }
   }
 
   return { code: 404, message: 'unknown action: ' + action }

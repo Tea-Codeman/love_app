@@ -20,6 +20,8 @@
 </template>
 
 <script>
+import { svgIcon } from '../utils/icons'
+
 // 底部导航（≤5）。非 tabBar 注册模式下用 reLaunch 切换顶层页；
 // 深层页（详情/聊天/游戏房）不挂此组件。current 由所在页传入以高亮。
 const TABS = [
@@ -28,15 +30,6 @@ const TABS = [
   { key: 'relation', label: '关系', url: '/pages/relation/relation' },
   { key: 'profile', label: '我的', url: '/pages/profile/profile' }
 ]
-
-// 线性图标路径（24x24，stroke 颜色由 color 注入）
-const PATHS = {
-  community: "<path d='M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.5-.8L3 21l1.9-5.5A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z'/>",
-  match: "<path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z'/>",
-  relation: "<path d='M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1'/><path d='M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1'/>",
-  profile: "<path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/><circle cx='12' cy='7' r='4'/>",
-  game: "<rect x='3' y='3' width='18' height='18' rx='4'/><circle cx='8.5' cy='8.5' r='1.5'/><circle cx='15.5' cy='15.5' r='1.5'/><circle cx='15.5' cy='8.5' r='1.5'/><circle cx='8.5' cy='15.5' r='1.5'/>"
-}
 
 export default {
   name: 'tab-bar',
@@ -47,15 +40,8 @@ export default {
     return { tabs: TABS }
   },
   methods: {
-    // 生成可换色的 SVG data URI
     icon(key, color) {
-      const svg =
-        "<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='" +
-        color +
-        "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
-        (PATHS[key] || '') +
-        '</svg>'
-      return 'data:image/svg+xml,' + encodeURIComponent(svg)
+      return svgIcon(key, color)
     },
     go(key) {
       const t = key === 'match'

@@ -29,15 +29,16 @@ import { svgIcon } from '../utils/icons'
 
 // 底部导航（5 项，一起玩居中突出）。非 tabBar 注册模式下用 reLaunch 切换顶层页；
 // 深层页（详情/聊天/游戏房）不挂此组件。current 由所在页传入以高亮。
-// 顺序即视觉顺序：社区 · 关系 · 一起玩(居中) · 我的 · 设置。
+// 顺序即视觉顺序：主页 · 社区 · 一起玩(居中) · 关系 · 我的。
+// 「设置」已下放到「我的」页内（齿轮按钮进入），不再占导航位。
 // 「一起玩」指向匹配破冰中枢页 /pages/match/match（在此页内才创建对局跳 game.vue），
 // 故不再单独设「匹配」侧Tab，避免两处指向同一页造成的重复入口。
 const NAV = [
+  { key: 'home', label: '主页', url: '/pages/index/index' },
   { key: 'community', label: '社区', url: '/pages/community/community' },
-  { key: 'relation', label: '关系', url: '/pages/relation/relation' },
   { key: 'game', label: '一起玩', url: '/pages/match/match', fab: true },
-  { key: 'profile', label: '我的', url: '/pages/profile/profile' },
-  { key: 'settings', label: '设置', url: '/pages/settings/settings' }
+  { key: 'relation', label: '关系', url: '/pages/relation/relation' },
+  { key: 'profile', label: '我的', url: '/pages/profile/profile' }
 ]
 
 export default {

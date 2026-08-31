@@ -87,7 +87,7 @@
       </view>
     </block>
 
-    <tab-bar current=""></tab-bar>
+    <tab-bar current="home"></tab-bar>
   </view>
 </template>
 

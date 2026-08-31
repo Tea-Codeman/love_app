@@ -11,6 +11,7 @@ const PATHS = {
   relation: "<path d='M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1'/><path d='M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1'/>",
   profile: "<path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/><circle cx='12' cy='7' r='4'/>",
   game: "<rect x='3' y='3' width='18' height='18' rx='4'/><circle cx='8.5' cy='8.5' r='1.5'/><circle cx='15.5' cy='15.5' r='1.5'/><circle cx='15.5' cy='8.5' r='1.5'/><circle cx='8.5' cy='15.5' r='1.5'/>",
+  home: "<path d='m3 9 9-7 9 7'/><path d='M9 22V12h6v10'/>",
   // 资料字段
   city: "<path d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z'/><circle cx='12' cy='10' r='3'/>",
   age: "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/>",

@@ -206,12 +206,19 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   // 冷启期：拉取候选用户（排除自己/已拉黑/已匹配），客户端排序取前 N
   // P2（方案 X）：去掉 _.neq(OPENID) 全表扫描，改用 createdAt 游标走 users.createdAt 索引。
   // 首页 cursor 默认当前时间，取 createdAt 最新的 100 个候选；命中 P0 的 users {createdAt:-1} 索引，
-  // v1 用户量小，单页 100 即够，不做客户端翻页。自己/已拉黑/已匹配在下方内存过滤补回。
+  // v1 用户量小，单页 100 即够，不做客户端翻页。自己/已匹配在下方内存过滤补回。
+  // 【F-new 在线过滤】在 DB 层直接收窄结果集：
+  //   1) openid 用 _.nin(blocked) 排除已拉黑用户（双向拉黑集合），减少下传到客户端再内存过滤的数据量；
+  //   2) online 用 _.or([在线, 字段不存在]) 只保留当前在线用户，存量未设 online 字段的按在线处理。
+  // 这样「减少数据库查询量」落在 DB 查询阶段，而非只看内存过滤。
   let candidates = []
   try {
     const cursor = Number(event.cursor) || Date.now()
+    const where = { createdAt: _.lt(new Date(cursor)) }
+    if (blocked.length) where.openid = _.nin(blocked)
+    where.online = _.or([{ online: true }, { online: _.exists(false) }])
     const r = await db.collection(USERS_COL)
-      .where({ createdAt: _.lt(new Date(cursor)) })
+      .where(where)
       .field({ openid: true, nickname: true, avatarUrl: true, gender: true, age: true, city: true, interestTags: true, mbti: true })
       .orderBy('createdAt', 'desc')
       .limit(100)

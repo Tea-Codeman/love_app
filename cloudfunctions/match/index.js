@@ -214,9 +214,17 @@ async function recommend({ limit = 10 } = {}, OPENID) {
   let candidates = []
   try {
     const cursor = Number(event.cursor) || Date.now()
-    const where = { createdAt: _.lt(new Date(cursor)) }
-    if (blocked.length) where.openid = _.nin(blocked)
-    where.online = _.or([{ online: true }, { online: _.exists(false) }])
+    const common = { createdAt: _.lt(new Date(cursor)) }
+    if (blocked.length) common.openid = _.nin(blocked)
+    // 在线过滤（F-new）：只保留「online==true」或「未设置 online 字段（存量用户按在线处理）」的候选。
+    // ⚠️ CloudBase 的 _.or 是**顶层查询操作符**，绝不能嵌在字段值里（否则生成非法的
+    // `online:{$or:[...]}` 令查询抛错、候选人全空）。必须整体上提为顶层 _.or，
+    // 两个分支各自带上 common（createdAt 游标 + 拉黑排除），等价于
+    // createdAt<cursor AND (online==true OR online 字段不存在)。
+    const where = _.or([
+      { ...common, online: true },
+      { ...common, online: _.exists(false) }
+    ])
     const r = await db.collection(USERS_COL)
       .where(where)
       .field({ openid: true, nickname: true, avatarUrl: true, gender: true, age: true, city: true, interestTags: true, mbti: true })

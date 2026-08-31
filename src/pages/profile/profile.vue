@@ -1,5 +1,11 @@
 <template>
   <view class="profile">
+    <view class="profile-header">
+      <text class="profile-title">我的</text>
+      <view class="settings-btn" @click="goSettings">
+        <image class="settings-icon" :src="icon('settings', '#7A7280')" mode="aspectFit"></image>
+      </view>
+    </view>
     <view class="field">
       <text class="label">昵称</text>
       <input class="input" v-model="form.nickname" maxlength="20" placeholder="给自己起个名字" />
@@ -54,6 +60,7 @@ import tabBar from '../../components/tab-bar.vue'
 import { getUser, setUser } from '../../utils/storage'
 import { validateProfile } from '../../utils/validate'
 import { getRole } from '../../utils/mbti'
+import { svgIcon } from '../../utils/icons'
 
 export default {
   components: { tabBar },
@@ -91,6 +98,10 @@ export default {
     mbtiRole() { return getRole(this.form.mbti) }
   },
   methods: {
+    icon(name, color) { return svgIcon(name, color) },
+    goSettings() {
+      uni.navigateTo({ url: '/pages/settings/settings' })
+    },
     goMbti() {
       uni.navigateTo({ url: '/pages/profile/mbti' })
     },
@@ -131,7 +142,12 @@ export default {
 </script>
 
 <style>
-.profile { padding: 32rpx 32rpx 180rpx; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); min-height: 100vh; }
+.profile { padding: 24rpx 32rpx 180rpx; background: var(--grad-soft, linear-gradient(180deg, #FFF1F4, #FFFAFB)); min-height: 100vh; }
+.profile-header { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 4rpx 24rpx; }
+.profile-title { font-size: 44rpx; font-weight: 700; color: var(--ink-900, #2B2330); font-family: var(--font-display); }
+.settings-btn { width: 80rpx; height: 80rpx; display: flex; align-items: center; justify-content: center; margin-right: -12rpx; }
+.settings-btn:active { transform: scale(.92); }
+.settings-icon { width: 40rpx; height: 40rpx; }
 .field { display: flex; align-items: center; padding: 26rpx 4rpx; border-bottom: 1rpx solid var(--border, #FBE1E7); }
 .label { width: 160rpx; font-size: 28rpx; color: var(--ink-500, #7A7280); flex-shrink: 0; }
 .input { flex: 1; font-size: 28rpx; color: var(--ink-900, #2B2330); }

@@ -50,7 +50,7 @@
       <view class="empty" v-if="!loading && visibleCandidates.length === 0">附近还没有更多小伙伴，晚点再来看看 ›</view>
       <view class="loading" v-if="loading">匹配中…</view>
     </view>
-    <tab-bar current="match"></tab-bar>
+    <tab-bar current="game"></tab-bar>
   </view>
 </template>
 

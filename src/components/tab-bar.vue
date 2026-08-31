@@ -1,7 +1,7 @@
 <template>
   <view class="tab-bar">
-    <!-- 中央突出 CTA：一起玩（破冰游戏入口） -->
-    <view class="tab-fab" :class="{ active: current === 'match' || current === 'game' }" @tap="go('match')">
+    <!-- 中央突出 CTA：一起玩（匹配破冰入口） -->
+    <view class="tab-fab" :class="{ active: current === 'game' }" @tap="go('game')">
       <image class="fab-icon" :src="icon('game', '#fff')" mode="aspectFit"></image>
       <text class="fab-text">一起玩</text>
     </view>
@@ -26,7 +26,6 @@ import { svgIcon } from '../utils/icons'
 // 深层页（详情/聊天/游戏房）不挂此组件。current 由所在页传入以高亮。
 const TABS = [
   { key: 'community', label: '社区', url: '/pages/community/community' },
-  { key: 'match', label: '匹配', url: '/pages/match/match' },
   { key: 'relation', label: '关系', url: '/pages/relation/relation' },
   { key: 'profile', label: '我的', url: '/pages/profile/profile' }
 ]
@@ -44,7 +43,8 @@ export default {
       return svgIcon(key, color)
     },
     go(key) {
-      const t = key === 'match'
+      // "一起玩" 中央 CTA 指向匹配破冰页（游戏对局页 game.vue 需要 gameId，不能作为导航入口）
+      const t = key === 'game'
         ? { key, url: '/pages/match/match' }
         : this.tabs.find(x => x.key === key)
       if (!t) return
